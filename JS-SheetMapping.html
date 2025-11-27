@@ -1,0 +1,222 @@
+<!--============================================================================-->
+
+<script>
+
+/* * ============================================================================
+ * SHEET MAPPING MANAGER - Frontend Module
+ * ============================================================================
+ *
+ * Integração com SheetToSectionMapping.gs para resolução de nomenclaturas
+ * Versão: 3.0 - Data-Driven Architecture
+ * Data: 2025-10-16
+ * ============================================================================ */
+
+(function(window) {
+  'use strict';
+
+ /* * Manages the mapping between frontend section IDs and backend Google Sheet names.
+ * Uses a local cache to improve performance and an explicit API call for robustness. */
+ const SheetMappingManager = {
+
+ // Cache local do mapeamento
+ _mappingCache: null,
+ _cacheExpiry: null,
+ _cacheDuration: 5 * 60 * 1000, // 5 minutos
+
+ /* * Inicializa o gerenciador e carrega o mapeamento */
+ async init() {
+ try {
+        Logger.info('[SheetMapping] Initializing...');
+ await this.loadMapping();
+        Logger.info('[SheetMapping] ✅ Mapping loaded successfully.');
+ return { success: true };
+ } catch (error) {
+        Logger.error('[SheetMapping] ❌ Critical error loading mapping:', error);
+ // Use o ToastManager global se disponível
+ if (window.ToastManager) {
+          ToastManager.show('Falha crítica ao carregar o mapeamento do sistema.', 'error', 10000);
+ }
+ return { success: false, error: error.message };
+ }
+ },
+
+ /* * Loads mapping from the backend, using cache if available and valid. */
+ async loadMapping() {
+ if (this._mappingCache && this._cacheExpiry && Date.now() < this._cacheExpiry) {
+        Logger.debug('[SheetMapping] Using cached mapping.');
+ return this._mappingCache;
+ }
+
+      Logger.info('[SheetMapping] Fetching new mapping from backend...');
+ try {
+        const response = await API.run('getMappingData');
+
+ if (response && response.success && response.data && response.data.sections) {
+            this._mappingCache = response.data; // Armazena apenas o objeto 'data'
+ this._cacheExpiry = Date.now() + this._cacheDuration;
+ Logger.info(`[SheetMapping] ✅ Mapping carregado: ${this._mappingCache.totalSections || 0} seções, ${this._mappingCache.totalSheets || 0} planilhas`);
+ return this._mappingCache;
+ } else {
+            Logger.error('[SheetMapping] ❌ Resposta inválida ou falha ao buscar mapeamento do backend:', response.error || 'Estrutura de resposta inesperada.');
+            throw new Error('Falha ao carregar mapeamento do backend.');
+ }
+ } catch (error) {
+        Logger.error('[SheetMapping] ❌ Erro crítico ao carregar mapeamento:', error);
+ // Em caso de falha, não usamos mais um fallback complexo, apenas logamos o erro.
+ // A aplicação deve lidar com a ausência do mapeamento.
+ this._mappingCache = { sections: [], tables: {}, isFallback: true };
+ throw error; // Propaga o erro para que o init() possa capturá-lo.
+ }
+ },
+
+ /* * Gets the main backend sheet name for a given section.
+     * @param {string} sectionId - ID da seção (ex: 'frequencia', 'compliance-validation')
+ * @returns {string|null} Nome da planilha no backend */
+ getSectionMainSheet(sectionId) {
+ if (!this._mappingCache || !this._mappingCache.sections || this._mappingCache.sections.length === 0) {
+        Logger.warn('[SheetMapping] Cache não inicializado. Execute init() primeiro.');
+ return null; // Não usar fallback, falhar explicitamente.
+ }
+
+ const section = this._mappingCache.sections.find(s => s.id === sectionId);
+
+ if (!section) {
+        Logger.warn(`[SheetMapping] ⚠️ Seção '${sectionId}' não encontrada no mapeamento.`);
+ return null;
+ }
+
+ return section.sheetName;
+ },
+
+ /* * Gets all associated sheet names for a section.
+ * @param {string} sectionId - ID da seção
+ * @returns {Array<string>} Lista de nomes de planilhas */
+ getSectionSheets(sectionId) {
+ if (!this._mappingCache || !this._mappingCache.sections || this._mappingCache.sections.length === 0) {
+ return [];
+ }
+
+ const section = this._mappingCache.sections.find(s => s.id === sectionId);
+ return section ? [section.sheetName] : []; // Simplificado para uma planilha por seção por enquanto
+ },
+
+ /* * Gets complete metadata for a section.
+ * @param {string} sectionId - ID da seção
+ * @returns {Object|null} Metadados da seção */
+ getSectionMetadata(sectionId) {
+ if (!this._mappingCache || !this._mappingCache.sections || this._mappingCache.sections.length === 0) {
+ return null;
+ }
+
+ return this._mappingCache.sections.find(s => s.id === sectionId) || null;
+ },
+
+ /* * Gets table configuration for a specific sheet
+ * @param {string} sheetName - Nome da planilha
+ * @returns {Object|null} Configuração da tabela (colunas e campos) */
+ getTableConfig(sheetName) {
+ if (!this._mappingCache || !this._mappingCache.tables) {
+        Logger.warn('[SheetMapping] Cache não contém configurações de tabelas');
+ return null;
+ }
+
+ return this._mappingCache.tables[sheetName] || null;
+ },
+
+ /* * Gets table configuration for a section by first resolving the main sheet
+ * @param {string} sectionId - ID da seção
+ * @returns {Object|null} Configuração da tabela */
+ getTableConfigForSection(sectionId) {
+ const sheetName = this.getSectionMainSheet(sectionId);
+ if (!sheetName) {
+        Logger.warn(`[SheetMapping] Não foi possível resolver planilha para seção '${sectionId}'`);
+ return null;
+ }
+
+ return this.getTableConfig(sheetName);
+ },
+
+ /* * Checks if a section is associated with multiple sheets.
+ * @param {string} sectionId - ID da seção
+ * @returns {boolean} */
+ hasMultipleSheets(sectionId) {
+ const sheets = this.getSectionSheets(sectionId);
+ return sheets.length > 1;
+ },
+
+ /* * Gets the tab configuration for a section, if any.
+ * @param {string} sectionId - ID da seção
+ * @returns {Array<Object>|null} Array de tabs ou null */
+ getSectionTabs(sectionId) {
+ const metadata = this.getSectionMetadata(sectionId);
+ return metadata && metadata.tabs ? metadata.tabs : null;
+ },
+
+ /* * Lists all available sections from the mapping.
+ * @returns {Array<Object>} Array com todas as seções */
+ getAllSections() {
+ if (!this._mappingCache || !this._mappingCache.sections) {
+        Logger.warn('[SheetMapping] Cache não inicializado');
+ return [];
+ }
+
+ return this._mappingCache.sections;
+ },
+
+ /* * Validates if the mapping is correct against the backend.
+ * @returns {Promise<Object>} Resultado da validação */
+ async validateMapping() {
+      const validationResult = await API.run('validateSheetMapping');
+ if (validationResult && validationResult.success) {
+        Logger.groupCollapsed('[SheetMapping] ✅ Resultado da Validação do Mapeamento');
+
+ if (validationResult.unmappedSheets && validationResult.unmappedSheets.length > 0) {
+            Logger.warn('⚠️ Planilhas não mapeadas (existem no backend, mas não no frontend):', validationResult.unmappedSheets);
+ } else {
+            Logger.info('👍 Todas as planilhas do backend estão mapeadas.');
+ }
+
+ if (validationResult.unmappedSections && validationResult.unmappedSections.length > 0) {
+            Logger.warn('⚠️ Seções do frontend não encontradas no mapeamento do backend:', validationResult.unmappedSections);
+ } else {
+            Logger.info('👍 Todas as seções do frontend estão mapeadas.');
+ }
+
+ Logger.groupEnd();
+ } else {
+        Logger.error('[SheetMapping] ❌ Falha ao executar a validação do mapeamento:', validationResult?.error || 'Erro desconhecido.');
+ }
+ return validationResult;
+ },
+
+ /* * Clears the mapping cache. */
+ clearCache() {
+ this._mappingCache = null;
+ this._cacheExpiry = null;
+      Logger.debug('[SheetMapping] Cache limpo');
+ },
+
+ /* * Forces a reload of the mapping from the backend. */
+ async reload() {
+ this.clearCache();
+ return await this.loadMapping();
+ }
+ };
+
+ // Encapsulate into the main app object if it exists
+ if (window.SIGTE_APP) {
+ window.SIGTE_APP.SheetMappingManager = SheetMappingManager;
+ } else {
+ // Fallback to global scope if main app object is not ready
+ window.SheetMappingManager = SheetMappingManager;
+ }
+
+  Logger.info('[SheetMapping] Module loaded. Use SheetMappingManager.init() to initialize.');
+
+})(window);
+
+</script>
+
+
+
+<!--============================================================================-->

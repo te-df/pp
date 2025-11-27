@@ -1,0 +1,373 @@
+<!--============================================================================-->
+
+<script>
+       /* ============================================================================
+        SIG-TE - Sistema Integrado de Gestão de Transporte Escolar
+        CORE SYSTEM - API, Loading, Toasts, Utilities
+       
+        This script contains the main application logic, organized into a single
+        set of managers and a global API client for backend communication.
+        ============================================================================ */
+       (function () {
+              'use strict';
+
+              // ============================================================================
+              // UTILITY FUNCTIONS - Funções utilitárias para o sistema
+              // ============================================================================
+
+              const Utils = {
+                     debounce(func, wait) {
+                            let timeout;
+                            return function executedFunction(...args) {
+                                   const later = () => {
+                                          clearTimeout(timeout);
+                                          func(...args);
+                                   };
+                                   clearTimeout(timeout);
+                                   timeout = setTimeout(later, wait);
+                            };
+                     },
+
+                     throttle(func, limit) {
+                            let inThrottle;
+                            return function (...args) {
+                                   if (!inThrottle) {
+                                          func.apply(this, args);
+                                          inThrottle = true;
+                                          setTimeout(() => inThrottle = false, limit);
+                                   }
+                            };
+                     },
+
+                     safeQuerySelector(selector, context = document) {
+                            try {
+                                   return context.querySelector(selector);
+                            } catch (e) {
+                                   console.error(`[Utils] Erro ao buscar elemento: ${selector}`, e);
+                                   return null;
+                            }
+                     },
+
+                     safeQuerySelectorAll(selector, context = document) {
+                            try {
+                                   return context.querySelectorAll(selector);
+                            } catch (e) {
+                                   console.error(`[Utils] Erro ao buscar elementos: ${selector}`, e);
+                                   return [];
+                            }
+                     },
+
+                     formatDate(date, format = 'dd/MM/yyyy') {
+                            if (!date) return '';
+                            const d = new Date(date);
+                            const day = String(d.getDate()).padStart(2, '0');
+                            const month = String(d.getMonth() + 1).padStart(2, '0');
+                            const year = d.getFullYear();
+                            return format.replace('dd', day).replace('MM', month).replace('yyyy', year);
+                     },
+
+                     formatCurrency(value) {
+                            return new Intl.NumberFormat('pt-BR', {
+                                   style: 'currency',
+                                   currency: 'BRL'
+                            }).format(value);
+                     },
+
+                     sanitizeHTML(str) {
+                            const div = document.createElement('div');
+                            div.textContent = str;
+                            return div.innerHTML;
+                     }
+              };
+
+              window.Utils = Utils; // Expor para outros scripts
+
+              // ============================================================================
+              // LOADING MANAGER - Gerenciador de Telas de Carregamento
+              // ============================================================================
+
+              const LoadingManager = {
+                     overlay: null,
+                     textElement: null,
+                     progressBar: null,
+                     progressContainer: null,
+
+                     init() {
+                            this.overlay = document.getElementById('loading-overlay');
+                            if (!this.overlay) return;
+                            this.textElement = document.getElementById('loading-text');
+                            this.progressBar = document.getElementById('loading-progress-bar');
+                            this.progressContainer = this.progressBar ? this.progressBar.parentElement : null;
+                     },
+
+                     show(text = 'Processando...') {
+                            if (!this.overlay) this.init();
+                            if (!this.overlay) return;
+
+                            if (this.textElement) this.textElement.textContent = text;
+                            if (this.progressBar) this.progressBar.style.width = '0%';
+                            this.updateProgress(0);
+                            this.overlay.classList.add('active');
+                            this.overlay.setAttribute('aria-busy', 'true');
+                            this.overlay.setAttribute('aria-hidden', 'false');
+                            document.body.classList.add('loading');
+                     },
+
+                     hide() {
+                            if (!this.overlay) return;
+                            this.overlay.classList.remove('active');
+                            this.overlay.setAttribute('aria-busy', 'false');
+                            this.overlay.setAttribute('aria-hidden', 'true');
+                            document.body.classList.remove('loading');
+                     },
+
+                     updateText(text) {
+                            if (!this.textElement) return;
+                            this.textElement.textContent = text;
+                     },
+
+                     updateProgress(percentage) {
+                            if (!this.progressBar) return;
+                            const clampedPercentage = Math.min(100, Math.max(0, percentage));
+                            this.progressBar.style.width = `${clampedPercentage}%`;
+
+                            if (this.progressContainer) {
+                                   this.progressContainer.setAttribute('aria-valuenow', clampedPercentage);
+                            }
+                     },
+
+                     showButtonLoading(button) {
+                            if (!button) return;
+                            button.disabled = true;
+                            button.dataset.originalText = button.innerHTML;
+                            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+                     },
+
+                     hideButtonLoading(button) {
+                            if (!button) return;
+                            button.disabled = false;
+                            if (button.dataset.originalText) {
+                                   button.innerHTML = button.dataset.originalText;
+                                   delete button.dataset.originalText;
+                            }
+                     }
+              };
+              window.LoadingManager = LoadingManager; // Expor globalmente
+
+              // ============================================================================
+              // TOAST MANAGER - Gerenciador de Notificações (Toasts)
+              // ============================================================================
+
+              const ToastManager = {
+                     container: null,
+                     toastCounter: 0,
+
+                     init() {
+                            this.container = document.getElementById('toast-container');
+                            if (!this.container) {
+                                   console.warn('[ToastManager] Container não encontrado');
+                            }
+                     },
+
+                     show(message, type = 'info', duration = 3000) {
+                            if (!this.container) this.init();
+                            if (!this.container) {
+                                   console.log(`[Toast] ${type.toUpperCase()}: ${message}`);
+                                   return;
+                            }
+
+                            const sanitizedMessage = Utils.sanitizeHTML(message);
+                            const toastId = `toast-${++this.toastCounter}`;
+
+                            const toast = document.createElement('div');
+                            toast.className = `toast ${type}`;
+                            toast.id = toastId;
+                            toast.setAttribute('role', 'alert');
+                            toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+                            toast.setAttribute('aria-atomic', 'true');
+
+                            const icons = {
+                                   info: 'fa-info-circle',
+                                   success: 'fa-check-circle',
+                                   warning: 'fa-exclamation-triangle',
+                                   error: 'fa-times-circle'
+                            };
+
+                            const iconClass = icons[type] || icons.info;
+                            const title = type.charAt(0).toUpperCase() + type.slice(1);
+
+                            toast.innerHTML = `
+                <div class="toast-header">
+                    <i class="fas ${iconClass} toast-icon" aria-hidden="true"></i>
+                    <strong class="toast-title" id="${toastId}-title">${title}</strong>
+                    <button class="toast-close" type="button" aria-label="Fechar notificação" data-toast-close>×</button>
+ </div>
+                <div class="toast-message" id="${toastId}-message">${sanitizedMessage}</div>
+                <div class="toast-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div>
+ `;
+
+                            const closeBtn = toast.querySelector('[data-toast-close]');
+                            closeBtn?.addEventListener('click', () => this.closeToast(toast));
+
+                            this.container.appendChild(toast);
+                            requestAnimationFrame(() => {
+                                   toast.classList.add('show');
+                            });
+
+                            const progress = toast.querySelector('.toast-progress');
+                            if (progress) {
+                                   progress.style.transition = `width ${duration}ms linear`;
+                                   requestAnimationFrame(() => {
+                                          progress.style.width = '0%';
+                                          progress.setAttribute('aria-valuenow', '0');
+                                   });
+                            }
+
+                            setTimeout(() => this.closeToast(toast), duration);
+                     },
+
+                     closeToast(toast) {
+                            if (!toast || !toast.parentElement || toast.classList.contains('closing')) return;
+                            toast.classList.add('closing');
+                            toast.classList.remove('show');
+                            toast.style.opacity = '0';
+                            toast.style.transform = 'translateX(100%)';
+                            toast.addEventListener('transitionend', () => {
+                                   toast.remove();
+                            }, { once: true });
+                            setTimeout(() => toast.remove(), 500);
+                     }
+              };
+              window.ToastManager = ToastManager; // Expor globalmente
+
+              // ============================================================================
+              // API CLIENT - Cliente para comunicação com o Backend (Google Apps Script)
+              // ============================================================================
+
+              const API = {
+                     timeout: 30000,
+                     pendingRequests: new Map(),
+                     isGasEnvironment: typeof google !== 'undefined' && google.script?.run,
+
+                     run(action, payload = {}) {
+                            LoadingManager.show('Processando sua solicitação...');
+                            console.log(`[API Request] Ação: ${action}`, payload);
+
+                            if (this.isGasEnvironment) {
+                                   return this.executeGASAction(action, payload);
+                            } else {
+                                   LoadingManager.hide();
+                                   const errorMsg = 'Sistema deve ser executado no Google Apps Script. Ambiente de desenvolvimento não suportado.';
+                                   console.error('[API] ' + errorMsg);
+                                   ToastManager.show(errorMsg, 'error', 5000);
+                                   return Promise.reject(new Error(errorMsg));
+                            }
+                     },
+
+                     executeGASAction(action, payload) {
+                            return new Promise((resolve, reject) => {
+                                   const requestId = `${action}-${Date.now()}`;
+                                   this.pendingRequests.set(requestId, { action, payload, timestamp: Date.now() });
+
+                                   const timeoutId = setTimeout(() => {
+                                          this.pendingRequests.delete(requestId);
+                                          LoadingManager.hide();
+                                          reject(new Error('Timeout: A requisição demorou mais de 30 segundos'));
+                                   }, this.timeout);
+
+                                   google.script.run
+                                          .withSuccessHandler((response) => {
+                                                 clearTimeout(timeoutId);
+                                                 this.pendingRequests.delete(requestId);
+                                                 LoadingManager.hide();
+
+                                                 if (response && response.success) {
+                                                        resolve(response.data);
+                                                 } else {
+                                                        const errorMsg = response ? response.message : 'Erro desconhecido na resposta do servidor';
+                                                        const technical = response ? response.technical : null;
+
+                                                        console.error(`[API Error] ${action}:`, errorMsg, technical);
+
+                                                        // Show friendly message to user
+                                                        ToastManager.show(errorMsg, 'error');
+
+                                                        // Reject with full response for caller to handle if needed
+                                                        reject(new Error(errorMsg));
+                                                 }
+                                          })
+                                          .withFailureHandler((error) => {
+                                                 clearTimeout(timeoutId);
+                                                 this.pendingRequests.delete(requestId);
+                                                 LoadingManager.hide();
+                                                 console.error(`[API System Error] ${action}:`, error);
+                                                 const errorMsg = error.message || error.toString();
+                                                 ToastManager.show('Erro de comunicação com o servidor', 'error');
+                                                 reject(error);
+                                          })
+                                   [action](payload);
+                            });
+                     }
+              };
+              window.API = API; // Expor globalmente
+
+              // ============================================================================
+              // LOGGER - Sistema de Logging
+              // ============================================================================
+
+              const Logger = {
+                     enabled: true,
+                     logLevel: 'INFO', // DEBUG, INFO, WARN, ERROR
+
+                     levels: {
+                            DEBUG: 0,
+                            INFO: 1,
+                            WARN: 2,
+                            ERROR: 3
+                     },
+
+                     log(level, ...args) {
+                            if (!this.enabled) return;
+                            if (this.levels[level] < this.levels[this.logLevel]) return;
+
+                            const timestamp = new Date().toISOString();
+                            const prefix = `[${timestamp}] [${level}]`;
+
+                            switch (level) {
+                                   case 'ERROR':
+                                          console.error(prefix, ...args);
+                                          break;
+                                   case 'WARN':
+                                          console.warn(prefix, ...args);
+                                          break;
+                                   case 'DEBUG':
+                                          console.debug(prefix, ...args);
+                                          break;
+                                   default:
+                                          console.log(prefix, ...args);
+                            }
+                     },
+
+                     debug(...args) { this.log('DEBUG', ...args); },
+                     info(...args) { this.log('INFO', ...args); },
+                     warn(...args) { this.log('WARN', ...args); },
+                     error(...args) { this.log('ERROR', ...args); }
+              };
+              window.Logger = Logger; // Expor globalmente
+
+              // ============================================================================
+              // INICIALIZAÇÃO
+              // ============================================================================
+
+              document.addEventListener('DOMContentLoaded', () => {
+                     LoadingManager.init();
+                     ToastManager.init();
+                     Logger.info('[Core] Sistema inicializado com sucesso');
+              });
+
+       })();
+</script>
+
+
+
+<!--============================================================================-->

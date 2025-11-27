@@ -1,0 +1,185 @@
+<!--
+============================================================================
+  EVENTS MANAGER - v1.0
+============================================================================
+  * Lógica de frontend para a seção de Gestão de Eventos.
+  * Controla a exibição de formulários e a submissão de dados.
+============================================================================
+-->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const Eventos = {
+        activeForm: null,
+
+        init() {
+            console.log('[Eventos] 🚀 Inicializando seção...');
+            this.setupEventListeners();
+            // A carga inicial de eventos pode ser chamada aqui ou quando a seção se tornar visível
+            // this.loadEvents(); 
+        },
+
+        setupEventListeners() {
+            // Botões para mostrar formulários
+            document.getElementById('btn-novo-feriado')?.addEventListener('click', () => this.showForm('holiday-form-container'));
+            document.getElementById('btn-nova-reposicao')?.addEventListener('click', () => this.showForm('makeup-form-container'));
+            document.getElementById('btn-nova-atividade')?.addEventListener('click', () => this.showForm('extracurricular-form-container'));
+
+            // Botões de cancelar
+            document.getElementById('cancel-holiday')?.addEventListener('click', () => this.hideForm('holiday-form-container'));
+            document.getElementById('cancel-makeup')?.addEventListener('click', () => this.hideForm('makeup-form-container'));
+            document.getElementById('cancel-extracurricular')?.addEventListener('click', () => this.hideForm('extracurricular-form-container'));
+
+            // Submissão dos formulários
+            document.getElementById('holiday-form')?.addEventListener('submit', (e) => this.handleFormSubmit(e, 'DIA_MOVEL'));
+            document.getElementById('makeup-form')?.addEventListener('submit', (e) => this.handleFormSubmit(e, 'REPOSICAO'));
+            document.getElementById('extracurricular-form')?.addEventListener('submit', (e) => this.handleFormSubmit(e, 'EXTRACURRICULAR'));
+        },
+
+        showForm(formId) {
+            if (this.activeForm) {
+                const currentActive = document.getElementById(this.activeForm);
+                if (currentActive) currentActive.style.display = 'none';
+            }
+
+            const formContainer = document.getElementById(formId);
+            if (formContainer) {
+                formContainer.style.display = 'block';
+                this.activeForm = formId;
+                formContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        },
+
+        hideForm(formId) {
+            const formContainer = document.getElementById(formId);
+            if (formContainer) {
+                formContainer.style.display = 'none';
+                if (this.activeForm === formId) {
+                    this.activeForm = null;
+                }
+            }
+        },
+
+        async handleFormSubmit(event, eventType) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const eventData = Object.fromEntries(formData.entries());
+
+            const payload = this.mapToPayload(eventData, eventType);
+            console.log(`[Eventos] Enviando ${eventType}:`, payload);
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (window.LoadingManager) window.LoadingManager.showButtonLoading(submitButton);
+
+            try {
+                // Substituir por `window.API.run` quando integrado
+                const result = await this.callBackend('createEvent', payload);
+
+                if (result && result.success) {
+                    if (window.ToastManager) window.ToastManager.show('Evento registrado com sucesso!', 'success');
+                    form.reset();
+                    this.hideForm(form.parentElement.id);
+                    this.loadEvents(); // Recarrega a lista
+                } else {
+                    throw new Error(result.error || 'Erro desconhecido ao registrar evento');
+                }
+            } catch (error) {
+                console.error('[Eventos] Erro ao salvar:', error);
+                if (window.ToastManager) window.ToastManager.show(`Erro ao salvar: ${error.message}`, 'error');
+            } finally {
+                if (window.LoadingManager) window.LoadingManager.hideButtonLoading(submitButton);
+            }
+        },
+
+        mapToPayload(formData, eventType) {
+            const basePayload = {
+                Tipo_Evento: eventType,
+                Escola: formData.schoolName,
+                Status: 'Agendado',
+                Criado_Por: window.AuthManager?.getCurrentUser()?.username || 'sistema',
+            };
+
+            switch (eventType) {
+                case 'DIA_MOVEL':
+                    return {
+                        ...basePayload,
+                        Titulo: `Dia Móvel/Feriado - ${formData.description}`,
+                        Descricao: formData.description,
+                        Data_Inicio: formData.holidayDate,
+                        Data_Fim: formData.holidayDate,
+                    };
+                case 'REPOSICAO':
+                    return {
+                        ...basePayload,
+                        Titulo: `Reposição - ${formData.schoolName}`,
+                        Descricao: formData.reason,
+                        Data_Inicio: formData.newDate,
+                        Data_Fim: formData.newDate,
+                        Dados_Adicionais: JSON.stringify({
+                            originalDate: formData.originalDate,
+                            time: formData.time,
+                        }),
+                    };
+                case 'EXTRACURRICULAR':
+                    return {
+                        ...basePayload,
+                        Titulo: formData.activityTitle,
+                        Descricao: formData.description,
+                        Data_Inicio: formData.activityDate,
+                        Data_Fim: formData.activityDate,
+                        Dados_Adicionais: JSON.stringify({
+                            activityType: formData.activityType,
+                            activityTime: formData.activityTime,
+                        }),
+                    };
+                default:
+                    return basePayload;
+            }
+        },
+
+        async loadEvents() {
+            // Lógica para carregar e renderizar eventos na lista
+            console.log('[Eventos] Carregando lista de eventos...');
+            // Exemplo: const events = await window.API.run('getEvents');
+            // renderEventsList(events);
+        },
+
+        // Função de simulação para o backend
+        async callBackend(functionName, params) {
+            console.log(`[Eventos] Simulação de chamada backend: ${functionName}`, params);
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    if (functionName === 'createEvent') {
+                        resolve({ success: true, data: { id: 'EVT' + Date.now(), ...params } });
+                    } else {
+                        resolve({ success: true, data: [] });
+                    }
+                }, 1000);
+            });
+        }
+    };
+
+    // Inicializa o módulo se a seção de eventos estiver visível
+    const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            if (mutation.attributeName === 'class') {
+                const target = mutation.target;
+                if (target.id === 'eventos-section' && target.classList.contains('active')) {
+                    Eventos.init();
+                    observer.disconnect(); // Roda apenas uma vez
+                }
+            }
+        }
+    });
+
+    const eventosSection = document.getElementById('eventos-section');
+    if (eventosSection) {
+        observer.observe(eventosSection, { attributes: true });
+        // Se já estiver ativo no carregamento da página
+        if (eventosSection.classList.contains('active')) {
+            Eventos.init();
+            observer.disconnect();
+        }
+    }
+});
+</script>

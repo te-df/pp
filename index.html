@@ -1,0 +1,2971 @@
+<!--============================================================================-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Transporte Escolar | DF - Sistema de Gestão</title>
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TE-DF" />
+
+  <!-- PWA Configuration -->
+  <meta name="description"
+    content="Sistema de gestão de transporte escolar do Distrito Federal - GDF. Gestão, relatórios e automação inteligente." />
+  <meta name="theme-color" content="#1976d2" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#1e88e5" media="(prefers-color-scheme: dark)" />
+  <link rel="manifest" href="?file=manifest.json" />
+
+  <!-- Performance Hints -->
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon"
+    href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3e%3crect width='192' height='192' fill='%234F46E5'/%3e%3ctext x='96' y='130' font-size='100' text-anchor='middle' fill='white'%3e🚌%3c/text%3e%3c/svg%3e" />
+
+  <!-- Fonts and Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"
+    media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+    integrity="sha512-c42qTSw/wPZ3/5LBzD+Bw5f7bSF2oxou6wEb+I/lqeaKV5FDIfMvvRp772y4jcJLKuGUOpbJMdg/BTl50fJYAw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Fallback for Inter font -->
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet">
+  </noscript>
+
+  <!-- CSS Consolidado - Design System Completo -->
+  <?!= include('Stylesheet') ?>
+
+  <!-- CRÍTICO: Inicialização do tema antes do body para evitar FOUC (Flash of Unstyled Content) -->
+  <script>
+    (function () {
+      try {
+        const savedTheme = localStorage.getItem('sigte:theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } catch (e) {
+        console.warn('[Theme] Falha ao pré-inicializar o tema:', e);
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+
+<body data-theme="dark">
+  <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
+
+  <!-- Inclusão do Menu Principal -->
+  <?!= include('main-menu') ?>
+
+  <!-- Inclusão do Menu Gigante Mobile -->
+  <li><a aria-controls="rotas-section" class="nav-btn" data-section="rotas"
+      data-tooltip="Otimize trajetos e itinerários do transporte escolar" href="#"><i
+        class="fas fa-route"></i><span>Otimização de Rotas</span></a></li>
+  <li><a aria-controls="relatorios-section" class="nav-btn" data-section="relatorios"
+      data-tooltip="Gere relatórios detalhados sobre operações e desempenho" href="#"><i
+        class="fas fa-chart-bar"></i><span>Relatórios Mensais</span></a></li>
+  <li><a aria-controls="mapa-section" class="nav-btn" data-section="mapa"
+      data-tooltip="Monitore veículos e rotas em tempo real" href="#"><i
+        class="fas fa-map-marked-alt"></i><span>Mapa</span></a></li>
+  <li><a aria-controls="tracking-section" class="nav-btn" data-section="tracking"
+      data-tooltip="Acompanhe a localização dos veículos em tempo real" href="#"><i
+        class="fas fa-broadcast-tower"></i><span>Rastreamento</span></a></li>
+  <li><a aria-controls="veiculos-section" class="nav-btn" data-section="veiculos"
+      data-tooltip="Administre a frota de ônibus e vans escolares" href="#"><i
+        class="fas fa-bus"></i><span>Veículos</span></a></li>
+  <li><a aria-controls="predictive-maintenance-section" class="nav-btn" data-section="predictive-maintenance"
+      data-tooltip="Manutenção Preditiva - Monitore e programe manutenções preventivas da frota" href="#"><i
+        class="fas fa-tools"></i><span>Manutenção</span></a></li>
+  <li><a aria-controls="gamification-section" class="nav-btn" data-section="gamification"
+      data-tooltip="Incentive bom comportamento através de pontuações e recompensas" href="#"><i
+        class="fas fa-trophy"></i><span>Gamificação</span></a></li>
+  <li><a aria-controls="dashboard-section" class="nav-btn" data-section="dashboard"
+      data-tooltip="Visão geral com métricas e indicadores principais" href="#"><i
+        class="fas fa-tachometer-alt"></i><span>Dashboard</span></a></li>
+  <li><a aria-controls="kanban-section" class="nav-btn" data-section="kanban"
+      data-tooltip="Gerencie tarefas e crie slides para reuniões" href="#"><i class="fas fa-columns"></i><span>Kanban e
+        Slides</span></a></li>
+  <li><a aria-controls="compliance-validation-section" class="nav-btn" data-section="compliance-validation"
+      data-tooltip="Validação de conformidade legal e regulamentações do transporte escolar" href="#"><i
+        class="fas fa-shield-alt"></i><span>Conformidade</span></a></li>
+  <li><a aria-controls="utilizacao-frota-section" class="nav-btn" data-section="utilizacao-frota"
+      data-tooltip="Análise de Utilização da Frota - Monitore eficiência e desempenho dos veículos" href="#"><i
+        class="fas fa-chart-pie"></i><span>Utilização da Frota</span></a></li>
+  <li><a aria-controls="faturamentos-section" class="nav-btn" data-section="faturamentos"
+      data-tooltip="Controle financeiro e cobranças do transporte escolar" href="#"><i
+        class="fas fa-file-invoice-dollar"></i><span>Faturamentos</span></a></li>
+  <li><a aria-controls="atestos-section" class="nav-btn" data-section="atestos"
+      data-tooltip="Controle de atestados médicos e justificativas de ausência" href="#"><i
+        class="fas fa-certificate"></i><span>Atestos</span></a></li>
+  <li><a aria-controls="ai-reports-section" class="nav-btn" data-section="ai-reports"
+      data-tooltip="Análises preditivas e insights automatizados" href="#"><i class="fas fa-robot"></i><span>Relatórios
+        IA</span></a></li>
+  <li><a aria-controls="engagement-section" class="nav-btn" data-section="engagement"
+      data-tooltip="Monitore satisfação e envolvimento dos usuários" href="#"><i
+        class="fas fa-heart"></i><span>Engajamento</span></a></li>
+  <li><a aria-controls="incidentes-section" class="nav-btn" data-section="incidentes"
+      data-tooltip="Registre e acompanhe ocorrências e problemas" href="#"><i
+        class="fas fa-exclamation-triangle"></i><span>Incidentes</span></a></li>
+  <li><a aria-controls="whatsapp-section" class="nav-btn" data-section="whatsapp"
+      data-tooltip="Comunicação automatizada com pais e responsáveis" href="#"><i
+        class="fab fa-whatsapp"></i><span>WhatsApp</span></a></li>
+  <li><a aria-controls="mcp-server-section" class="nav-btn" data-section="mcp-server"
+      data-tooltip="Configurações avançadas de conectividade e integrações" href="#"><i
+        class="fas fa-network-wired"></i><span>MCP Server</span></a></li>
+  <li><a aria-controls="automacoes-section" class="nav-btn" data-section="automacoes"
+      data-tooltip="Configure processos automatizados e workflows" href="#"><i
+        class="fas fa-magic"></i><span>Automações</span></a></li>
+  <li><a aria-controls="configuracoes-section" class="nav-btn" data-section="configuracoes"
+      data-tooltip="Personalize parâmetros e preferências da aplicação" href="#"><i
+        class="fas fa-cog"></i><span>Configurações</span></a></li>
+  <li><a aria-controls="eventos-section" class="nav-btn" data-section="eventos"
+      data-tooltip="Gerenciamento de eventos e datas importantes" href="#"><i
+        class="fas fa-calendar-alt"></i><span>Eventos</span></a></li>
+  <li><a aria-controls="alunos-section" class="nav-btn" data-section="alunos"
+      data-tooltip="Gerencie informações dos estudantes" href="#"><i class="fas fa-users"></i><span>Alunos</span></a>
+  </li>
+  <li><a aria-controls="pessoal-section" class="nav-btn" data-section="pessoal"
+      data-tooltip="Administre motoristas e monitores" href="#"><i class="fas fa-user-tie"></i><span>Pessoal</span></a>
+  </li>
+  </ul>
+  </div>
+  <select class="form-control" id="motorista_id-2" name="Motorista_ID" required>
+    <option value="">Carregando motoristas...</option>
+  </select>
+  </div>
+  <div class="form-group">
+    <label for="monitor_id" class="form-label">Monitor *</label>
+    <select class="form-control" id="monitor_id-2" name="Monitor_ID" required>
+      <option value="">Carregando monitores...</option>
+    </select>
+  </div>
+  </div>
+  </fieldset>
+
+  <fieldset>
+    <legend class="section-title-standardized"><i class="fas fa-clock"></i> Horários e Métricas
+    </legend>
+    <div class="w-full form-grid">
+      <div class="form-group">
+        <label for="horario_inicio" class="form-label">Horário de Início *</label>
+        <input type="time" class="form-control" id="horario_inicio-3" name="Horario_Inicio" required>
+      </div>
+      <div class="form-group">
+        <label for="horario_fim" class="form-label">Horário de Término *</label>
+        <input type="time" class="form-control" id="horario_fim-3" name="Horario_Fim" required>
+      </div>
+      <div class="form-group">
+        <label for="distancia_km" class="form-label">Distância (km) *</label>
+        <input type="number" step="0.1" class="form-control" id="distancia_km-2" name="Distancia_KM" required>
+      </div>
+      <div class="form-group">
+        <label for="tempo_estimado" class="form-label">Tempo Estimado (minutos) *</label>
+        <input type="number" class="form-control" id="tempo_estimado-2" name="Tempo_Estimado" required>
+      </div>
+      <div class="form-group">
+        <label for="capacidade_maxima" class="form-label">Capacidade Máxima de Alunos *</label>
+        <input type="number" class="form-control" id="capacidade_maxima-2" name="Capacidade_Maxima" required>
+        <small class="form-help-text">Não pode exceder a capacidade do veículo designado</small>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend class="section-title-standardized"><i class="fas fa-map-marker-alt"></i> Itinerário e
+      Status
+    </legend>
+    <div class="w-full form-grid">
+      <div class="form-group" style="grid-column: 1 / -1">
+        <label for="pontos_parada" class="form-label">Pontos de Parada</label>
+        <textarea class="form-control" id="pontos_parada-2" name="Pontos_Parada" rows="3"
+          placeholder="Ex: P1:Terminal;P2:Shopping;P3:Escola"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="nivel_dificuldade" class="form-label">Nível de Dificuldade</label>
+        <select class="form-control" id="nivel_dificuldade-2" name="Nivel_Dificuldade">
+          <option value="Baixo">Baixo</option>
+          <option value="Médio">Médio</option>
+          <option value="Alto">Alto</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="status" class="form-label">Status</label>
+        <select class="form-control" id="status-6" name="Status">
+          <option value="Ativa">Ativa</option>
+          <option value="Inativa">Inativa</option>
+          <option value="Manutenção">Manutenção</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column: 1 / -1">
+        <label for="observacoes" class="form-label">Observações</label>
+        <textarea class="form-control" id="observacoes-5" name="Observacoes" rows="2"></textarea>
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="card-footer">
+    <button type="button" class="btn btn-secondary"
+      onclick="document.getElementById('rota-form').reset()">Cancelar</button>
+    <button type="submit" class="btn btn-primary">Salvar Rota</button>
+  </div>
+  </form>
+  </div>
+  </div>
+
+  <div id="rotas-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="compliance-validation-section-2" class="section hidden section-standardized">
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-shield-alt"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Conformidade e Auditoria</h2>
+        <p class="page-subtitle">Validação GCOTE, LGPD e Portarias SEEDF</p>
+      </div>
+    </div>
+    <!-- Cards Grid - Compliance -->
+    <div class="w-full cards-grid gap-4 mb-5">
+      <!-- Score Geral -->
+      <div class="card text-center"
+        style="padding: var(--space-5); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <div class="flex items-center mb-3" style="justify-content: space-between">
+          <h3 style="margin: 0; font-size: var(--font-size-small)">Score de Conformidade</h3>
+          <span class="badge" style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem">CONFORME</span>
+        </div>
+        <!-- Circular Progress -->
+        <div style="display: inline-block; position: relative; width: 140px; height: 140px; margin: var(--space-4) 0">
+          <svg width="140" height="140" style="transform: rotate(-90deg)">
+            <circle cx="70" cy="70" r="60" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="12">
+            </circle>
+            <circle cx="70" cy="70" r="60" fill="none" stroke="white" stroke-width="12" stroke-dasharray="377"
+              stroke-dashoffset="20" stroke-linecap="round"></circle>
+          </svg>
+          <div class="text-center" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%)">
+            <div class="text-xs font-bold" style="line-height: 1">94.7%</div>
+            <div class="text-xs" style="opacity: 0.9; margin-top: 0.25rem">Conforme</div>
+          </div>
+        </div>
+        <!-- Scores Individuais -->
+        <div class="w-full grid gap-3" style="grid-template-columns: 1fr 1fr; margin-top: var(--space-3)">
+          <div>
+            <div class="font-semibold text-xs" style="opacity: 0.9">GCOTE</div>
+            <div class="font-bold" style="font-size: var(--font-size-small)">100%</div>
+          </div>
+          <div>
+            <div class="font-semibold text-xs" style="opacity: 0.9">LGPD</div>
+            <div class="font-bold" style="font-size: var(--font-size-small)">92%</div>
+          </div>
+          <div>
+            <div class="font-semibold text-xs" style="opacity: 0.9">Portarias</div>
+            <div class="font-bold" style="font-size: var(--font-size-small)">96%</div>
+          </div>
+          <div>
+            <div class="font-semibold text-xs" style="opacity: 0.9">Processos</div>
+            <div class="font-bold" style="font-size: var(--font-size-small)">91%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Checklist -->
+      <div class="card" style="padding: var(--space-5)">
+        <h3 class="flex items-center gap-2" style="margin: 0 0 var(--space-3) 0"><i class="fas fa-clipboard-check"></i>
+          Checklist de Conformidade</h3>
+        <div class="mb-4">
+          <div class="flex mb-2 text-xs" style="justify-content: space-between">
+            <span>32 de 35 requisitos atendidos</span>
+            <span class="font-semibold" style="color: #10b981">91%</span>
+          </div>
+          <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden">
+            <div
+              style="width: 91%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); transition: width 0.3s ease">
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-2" style="flex-direction: column">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-check-circle" style="color: #10b981; font-size: var(--font-size-small)"></i>
+            <span class="text-xs">CPF obrigatório implementado</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <i class="fas fa-check-circle" style="color: #10b981; font-size: var(--font-size-small)"></i>
+            <span class="text-xs">Sistema de penalidades ativo</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <i class="fas fa-check-circle" style="color: #10b981; font-size: var(--font-size-small)"></i>
+            <span class="text-xs">Verificação Passe Livre</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <i class="fas fa-exclamation-triangle" style="color: #f59e0b; font-size: var(--font-size-small)"></i>
+            <span class="text-xs" style="color: #f59e0b">Integração SEI pendente</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="compliance-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="mapa-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-map-marked-alt"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Mapa de Rastreamento</h2>
+        <p class="page-subtitle">Acompanhe veículos e rotas em tempo real</p>
+      </div>
+    </div>
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <i class="fas fa-bus text-xs mb-2"></i>
+        <h3 class="text-xs font-bold" style="margin: 0" id="stat-veiculos-rota-1">---</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Em Rota Agora</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-map-marker-alt text-xs mb-2"></i>
+        <h3 class="text-xs font-bold" style="margin: 0" id="stat-pontos-parada-1">---</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Pontos de Parada</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+        <i class="fas fa-satellite text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">GPS</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Rastreamento Ativo</p>
+      </div>
+    </div>
+    <div id="mapa-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="tracking-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-broadcast-tower"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Rastreamento de Frota</h2>
+        <p class="page-subtitle">Acompanhe a localização dos veículos em tempo real e gerencie viagens</p>
+      </div>
+    </div>
+    <!-- Quick Stats - Rastreamento -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <i class="fas fa-bus text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">23</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Veículos em Rota</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #1f2937">
+        <i class="fas fa-pause-circle text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">3</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Veículos Parados</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-tachometer-alt text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">42 km/h</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Velocidade Média</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+        <i class="fas fa-satellite text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">100%</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">GPS Online</p>
+      </div>
+    </div>
+    <!-- Mapa de Rastreamento -->
+    <div class="card mb-4 flex items-center"
+      style="min-height: 50vh; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+      <div class="text-center" style="color: #1f2937">
+        <i class="fas fa-map-marked-alt text-xs mb-3" style="color: #1f2937"></i>
+        <h3 class="text-xs" style="margin: 0; color: #1f2937">Mapa de Rastreamento em Tempo Real</h3>
+      </div>
+    </div>
+    <div id="tracking-crud-container-1" class="section-standardized">
+    </div>
+  </section>
+
+  <section id="atestos-section-2" class="section hidden section-standardized">
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-certificate"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Gestão de Atestos</h2>
+        <p class="page-subtitle">Certificação e validação de documentos administrativos</p>
+      </div>
+    </div>
+    <!-- Alerta: Processos no SEI -->
+    <div class="alert alert-info mb-4" role="alert">
+      <i class="fas fa-file-signature"></i>
+      <div>
+        <strong>Atestos via SEI-GDF:</strong>
+        <p class="mt-2 text-small">Todos os atestos devem ser realizados exclusivamente através do Sistema
+          Eletrônico de Informações (SEI-GDF). Documentos físicos não serão aceitos para validação
+          administrativa.
+        </p>
+      </div>
+    </div>
+    <!-- Quick Stats - Atestos -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-file-signature text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937" id="stat-atestos-pendentes-1">---
+        </h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Pendentes</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <i class="fas fa-check-double text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937" id="stat-atestos-aprovados-1">---
+        </h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Aprovados</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+        <i class="fas fa-calendar-check text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937" id="stat-atestos-mes-1">---</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Este Mês</p>
+      </div>
+    </div>
+    <div id="atestos-crud-container-2" class="section-standardized"></div>
+  </section>
+
+  <section id="veiculos-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-orange">
+      <div class="section-title-icon"><i class="fas fa-bus"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Gestão de Veículos</h2>
+        <p class="page-subtitle">Administre a frota de ônibus e vans escolares</p>
+      </div>
+    </div>
+    <!-- Alerta: Documentação Obrigatória de Veículos -->
+    <div class="alert alert-warning mb-4" role="alert">
+      <i class="fas fa-file-contract"></i>
+      <div>
+        <strong>Documentação Obrigatória:</strong>
+        <p class="mt-2 text-small">Mantenha atualizados: Apólice de Seguro Veicular, Comprovante de
+          Pagamento do
+          Seguro, Vencimento IPVA e Inspeção Veicular. A falta de documentação regular pode impedir o
+          pagamento dos
+          serviços prestados conforme Termo de Referência (44012274) Itens 11.1.6 e 11.1.41.</p>
+      </div>
+    </div>
+    <!-- Quick Stats - Veículos -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-bus text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937" id="stat-veiculos-total-1">---
+        </h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Total de Veículos</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+        <i class="fas fa-check-circle text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937" id="stat-veiculos-ativos-1">---
+        </h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Ativos</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #1f2937">
+        <i class="fas fa-tools text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937" id="stat-veiculos-manutencao-1">
+          ---</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Em Manutenção</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #1f2937">
+        <i class="fas fa-wheelchair text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937" id="stat-veiculos-adaptados-1">---
+        </h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Adaptados</p>
+      </div>
+    </div>
+
+    <!-- Form-Veiculos integrado -->
+    <div class="container">
+      <h2 class="page-title"><i class="fas fa-bus"></i> Cadastro de Veículo</h2>
+      <p class="page-subtitle">Adicione um novo veículo à frota de transporte escolar.</p>
+
+      <!-- Alerta: Documentação Necessária -->
+      <div class="alert alert-warning mb-4" role="alert">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div>
+          <strong>Atenção à Documentação Obrigatória:</strong>
+          <p class="mt-2" style="font-size: 0.9rem">Certifique-se de manter atualizados: Apólice de
+            Seguro, IPVA,
+            Inspeção Veicular. Documente as próximas manutenções preventivas. A falta destes documentos
+            pode impedir
+            pagamentos conforme Termo de Referência (44012274).</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <form id="veiculoForm-2" class="card-body">
+          <!-- Identificação -->
+          <fieldset>
+            <legend class="section-title-standardized"><i class="fas fa-id-card"></i> Identificação do
+              Veículo
+            </legend>
+            <div class="w-full form-grid">
+              <div class="form-group">
+                <label for="placa" class="form-label">Placa *</label>
+                <input type="text" class="form-control" id="placa-2" name="Placa" placeholder="ABC-1234" required>
+              </div>
+              <div class="form-group">
+                <label for="modelo" class="form-label">Modelo *</label>
+                <input type="text" class="form-control" id="modelo-2" name="Modelo" placeholder="Ex: Sprinter 515"
+                  required>
+              </div>
+              <div class="form-group">
+                <label for="marca" class="form-label">Marca *</label>
+                <input type="text" class="form-control" id="marca-2" name="Marca" placeholder="Ex: Mercedes-Benz"
+                  required>
+              </div>
+              <div class="form-group">
+                <label for="ano_fabricacao" class="form-label">Ano de Fabricação *</label>
+                <input type="number" class="form-control" id="ano_fabricacao-2" name="Ano_Fabricacao" min="1990"
+                  max="2030" required>
+              </div>
+              <div class="form-group">
+                <label for="chassi" class="form-label">Chassi *</label>
+                <input type="text" class="form-control" id="chassi-2" name="Chassi" required>
+              </div>
+              <div class="form-group">
+                <label for="renavam" class="form-label">RENAVAM *</label>
+                <input type="text" class="form-control" id="renavam-2" name="Renavam" required>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Especificações -->
+          <fieldset>
+            <legend class="section-title-standardized"><i class="fas fa-cogs"></i> Especificações</legend>
+            <div class="w-full form-grid">
+              <div class="form-group">
+                <label for="capacidade" class="form-label">Capacidade de Passageiros (Sentados) *</label>
+                <input type="number" class="form-control" id="capacidade-2" name="Capacidade" min="1" required
+                  onchange="calcularCapacidadeTotal()">
+                <small class="form-help-text">Número de assentos disponíveis (excluindo baias)</small>
+              </div>
+              <div class="form-group">
+                <label for="qtd_baias_cadeirante" class="form-label">Quantidade de Baias para Cadeirantes
+                  <i class="fas fa-wheelchair" style="color: var(--md-sys-color-primary)"></i></label>
+                <input type="number" class="form-control" id="qtd_baias_cadeirante-2" name="Qtd_Baias_Cadeirante"
+                  min="0" value="0" onchange="calcularCapacidadeTotal()">
+                <small class="form-help-text" style="color: var(--md-sys-color-error)"><strong>Obrigatório
+                    para
+                    veículos adaptados.</strong> Cada baia acomoda 1 cadeirante.</small>
+              </div>
+              <div class="form-group">
+                <label for="capacidade_total" class="form-label">Capacidade Total (Calculada)</label>
+                <input type="number" class="form-control" id="capacidade_total-2" name="Capacidade_Total" readonly
+                  style="background-color: #f0f0f0">
+                <small class="form-help-text">Passageiros sentados + cadeirantes em baias</small>
+              </div>
+              <div class="form-group">
+                <label for="tipo_combustivel" class="form-label">Tipo de Combustível *</label>
+                <select class="form-control" id="tipo_combustivel-2" name="Tipo_Combustivel" required>
+                  <option value="">Selecione...</option>
+                  <option value="Diesel">Diesel</option>
+                  <option value="Gasolina">Gasolina</option>
+                  <option value="Etanol">Etanol</option>
+                  <option value="Flex">Flex</option>
+                  <option value="GNV">GNV</option>
+                  <option value="Elétrico">Elétrico</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="km_atual" class="form-label">KM Atual</label>
+                <input type="number" class="form-control" id="km_atual-2" name="KM_Atual" value="0">
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Acessibilidade -->
+          <fieldset>
+            <legend class="section-title-standardized"><i class="fas fa-universal-access"></i>
+              Acessibilidade e
+              Adaptações</legend>
+            <div class="alert alert-info mb-3" role="alert">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <strong>Lei nº 13.146/2015 - Lei Brasileira de Inclusão (LBI):</strong>
+                <p class="mt-2" style="font-size: 0.9rem">Veículos de transporte escolar devem garantir
+                  acessibilidade a estudantes com deficiência ou mobilidade reduzida. Baias para
+                  cadeirantes são
+                  essenciais para garantir o direito à educação inclusiva.</p>
+              </div>
+            </div>
+            <div class="w-full form-grid">
+              <div class="form-group">
+                <label for="possui_elevador" class="form-label">Possui Elevador/Rampa?</label>
+                <select class="form-control" id="possui_elevador-2" name="Possui_Elevador">
+                  <option value="Não">Não</option>
+                  <option value="Elevador">Elevador Elevatoric</option>
+                  <option value="Rampa">Rampa Manual</option>
+                  <option value="Rampa Automática">Rampa Automática</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="sistema_fixacao" class="form-label">Sistema de Fixação da Cadeira?</label>
+                <select class="form-control" id="sistema_fixacao-2" name="Sistema_Fixacao">
+                  <option value="Não">Não Possui</option>
+                  <option value="Sim">Sim - Cinto de Segurança Específico</option>
+                </select>
+              </div>
+              <div class="form-group" style="grid-column: 1 / -1">
+                <label for="outras_adaptacoes" class="form-label">Outras Adaptações de
+                  Acessibilidade</label>
+                <textarea class="form-control" id="outras_adaptacoes-2" name="Outras_Adaptacoes" rows="2"
+                  placeholder="Descreva outras adaptações: barras de apoio, piso antiderrapante, sinalização em braille, etc."></textarea>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Documentação -->
+          <fieldset>
+            <legend class="section-title-standardized"><i class="fas fa-file-alt"></i> Documentação
+            </legend>
+            <div class="w-full form-grid">
+              <div class="form-group">
+                <label for="vencimento_ipva" class="form-label">Vencimento IPVA <i class="fas fa-info-circle"
+                    title="Documento obrigatório para pagamento"></i></label>
+                <input type="date" class="form-control" id="vencimento_ipva-2" name="Vencimento_IPVA">
+                <small class="form-help-text">Manter regularizado para evitar bloqueio de
+                  pagamentos</small>
+              </div>
+              <div class="form-group">
+                <label for="vencimento_seguro" class="form-label">Vencimento Seguro <i class="fas fa-info-circle"
+                    title="Apólice e comprovante são obrigatórios"></i></label>
+                <input type="date" class="form-control" id="vencimento_seguro-2" name="Vencimento_Seguro">
+                <small class="form-help-text">Apólice e comprovante de pagamento são documentos
+                  obrigatórios</small>
+              </div>
+              <div class="form-group">
+                <label for="vencimento_inspecao" class="form-label">Vencimento Inspeção Veicular <i
+                    class="fas fa-info-circle" title="Obrigatório conforme legislação de trânsito"></i></label>
+                <input type="date" class="form-control" id="vencimento_inspecao-2" name="Vencimento_Inspecao">
+                <small class="form-help-text">Inspeção em dia garante segurança dos estudantes</small>
+              </div>
+              <div class="form-group">
+                <label for="proxima_revisao" class="form-label">Próxima Revisão (KM)</label>
+                <input type="number" class="form-control" id="proxima_revisao-2" name="Proxima_Revisao">
+              </div>
+            </div>
+          </fieldset>
+          <!-- Status e Observações -->
+          <fieldset>
+            <legend class="section-title-standardized"><i class="fas fa-info-circle"></i> Status e
+              Observações
+            </legend>
+            <div class="w-full form-grid">
+              <div class="form-group">
+                <label for="veiculo_adaptado" class="form-label">Veículo Adaptado? <i
+                    class="fas fa-wheelchair"></i></label>
+                <select class="form-control" id="veiculo_adaptado-2" name="Veiculo_Adaptado" onchange="alertarBaias()">
+                  <option value="Não">Não</option>
+                  <option value="Sim"> Sim - Possui adaptações para acessibilidade</option>
+                </select>
+                <small class="form-help-text">Veículos adaptados possuem baias, elevador ou rampa para
+                  cadeirantes</small>
+              </div>
+              <div class="form-group">
+                <label for="status" class="form-label">Status do Veículo *</label>
+                <select class="form-control" id="status-6" name="Status" required>
+                  <option value="Operacional">Operacional</option>
+                  <option value="Manutenção">Em Manutenção</option>
+                  <option value="Inativo">Inativo</option>
+                  <option value="Reserva">Reserva</option>
+                </select>
+              </div>
+              <div class="form-group" style="grid-column: 1 / -1">
+                <label for="observacoes" class="form-label">Observações</label>
+                <textarea class="form-control" id="observacoes-5" name="Observacoes" rows="3"></textarea>
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="card-footer">
+            <button type="button" class="btn btn-secondary"
+              onclick="document.getElementById('veiculoForm').reset()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Veículo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function calcularCapacidadeTotal() {
+        const capacidade = parseInt(document.getElementById('capacidade').value) || 0;
+        const baias = parseInt(document.getElementById('qtd_baias_cadeirante').value) || 0;
+        document.getElementById('capacidade_total').value = capacidade + baias;
+      }
+
+      function alertarBaias() {
+        const adaptado = document.getElementById('veiculo_adaptado').value;
+        const baias = parseInt(document.getElementById('qtd_baias_cadeirante').value) || 0;
+
+        if (adaptado === 'Sim' && baias === 0) {
+          alert(' Atenção: Veículos adaptados devem ter ao menos 1 baia para cadeirantes. Por favor, preencha a quantidade de baias.');
+          document.getElementById('qtd_baias_cadeirante').focus();
+        }
+      }
+
+      // Calcular ao carregar a página
+      document.addEventListener('DOMContentLoaded', function () {
+        calcularCapacidadeTotal();
+      });
+    </script>
+
+    <div id="veiculos-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="predictive-maintenance-section-1" class="section hidden section-standardized">
+    <div class="page-header section-header-standardized color-orange">
+      <div class="section-title-icon"><i class="fas fa-tools"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Manutenção Preditiva</h2>
+        <p class="page-subtitle">Monitore e programe manutenções preventivas da frota com IA</p>
+      </div>
+    </div>
+    <!-- Quick Stats Manutenção -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <i class="fas fa-check-circle text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">38</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Veículos OK</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Sem necessidade de manutenção</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #1f2937">
+        <i class="fas fa-wrench text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">5</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Em Manutenção</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Previsão: 2-5 dias</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, var(--md-sys-color-error) 0%, #991b1b 100%); color: #1f2937">
+        <i class="fas fa-exclamation-triangle text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">2</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Urgentes</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Requer atenção imediata</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-brain text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">12</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Predições IA</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Próximos 30 dias</small>
+      </div>
+    </div>
+    <!-- Alerta: Segurança dos Estudantes -->
+    <div class="alert alert-info mb-4" role="alert">
+      <i class="fas fa-shield-alt"></i>
+      <div>
+        <strong>Prioridade: Segurança dos Estudantes:</strong>
+        <p class="mt-2 text-small">A manutenção preventiva e preditiva garante a segurança dos estudantes
+          e reduz
+          custos operacionais. Documente todas as intervenções para apresentação mensal conforme exigido
+          no Termo de
+          Referência.</p>
+      </div>
+    </div>
+    <!-- Alertas Preditivos -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="flex items-center gap-2" style="margin: 0"><i class="fas fa-robot"></i> Alertas
+          Preditivos da IA
+        </h3>
+      </div>
+      <div class="card-body">
+        <div class="flex gap-3" style="flex-direction: column">
+          <div class="alert alert-warning flex gap-3" style="align-items: start; margin: 0">
+            <i class="fas fa-oil-can text-xs" style="flex-shrink: 0"></i>
+            <div style="flex: 1">
+              <h4 class="font-bold" style="margin: 0 0 var(--space-1) 0">Ônibus 007 - Troca de Óleo
+                Prevista</h4>
+              <p class="text-xs" style="margin: 0 0 var(--space-2) 0">IA prevê necessidade de troca de
+                óleo em 5-7
+                dias com base em km rodados e padrão de uso.</p>
+              <span class="badge"
+                style="background: rgba(245, 158, 11, 0.2); color: #d97706; padding: 0.3rem 0.6rem">Confiança:
+                94%</span>
+            </div>
+            <button class="btn btn-sm btn-warning">Agendar</button>
+          </div>
+          <div class="alert alert-error flex gap-3" style="align-items: start; margin: 0">
+            <i class="fas fa-tire text-xs" style="flex-shrink: 0"></i>
+            <div style="flex: 1">
+              <h4 class="font-bold" style="margin: 0 0 var(--space-1) 0">Van 003 - Desgaste Crítico de
+                Pneus</h4>
+              <p class="text-xs" style="margin: 0 0 var(--space-2) 0">Pneus dianteiros com desgaste de
+                87%.
+                Recomendada substituição urgente.</p>
+              <span class="badge"
+                style="background: rgba(220, 38, 38, 0.2); color: #991b1b; padding: 0.3rem 0.6rem">Urgente</span>
+            </div>
+            <button class="btn btn-sm" style="background: var(--md-sys-color-error); color: white">Priorizar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form-Manutencao integrado -->
+    <div class="form-manutencao-container" data-form-type="manutencao">
+      <!-- Alerta: Importância da Manutenção Preventiva -->
+      <div class="alert alert-warning mb-4" role="alert">
+        <i class="fas fa-tools"></i>
+        <div>
+          <strong>Manutenção Preventiva - Segurança dos Estudantes:</strong>
+          <p class="mt-2" style="font-size: 0.9rem">Mantenha o cronograma de revisões em dia. Veículos com
+            manutenção preventiva adequada reduzem acidentes e custos operacionais. Documente todas as
+            intervenções
+            para comprovação junto à TCB e GCOTE.</p>
+        </div>
+      </div>
+
+      <form id="form-manutencao-2" class="form-grid">
+        <!-- Identificação do Serviço -->
+        <fieldset class="form-section full-width">
+          <legend class="section-title">
+            <i class="fas fa-wrench"></i> Identificação do Serviço
+          </legend>
+
+          <div class="w-full form-grid">
+            <div class="form-group">
+              <label for="manutencao-veiculo" class="form-label">
+                Veículo <span class="required">*</span>
+              </label>
+              <select id="manutencao-veiculo-2" name="ID_Veiculo" class="form-control" required>
+                <option value="">Selecione o veículo...</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="manutencao-tipo" class="form-label">
+                Tipo de Manutenção <span class="required">*</span>
+              </label>
+              <select id="manutencao-tipo-2" name="Tipo_Manutencao" class="form-control" required>
+                <option value="">Selecione...</option>
+                <option value="Preventiva">🔧 Preventiva</option>
+                <option value="Corretiva">🔨 Corretiva</option>
+                <option value="Emergencial">🚨 Emergencial</option>
+                <option value="Preditiva">📊 Preditiva</option>
+                <option value="Revisão">✅ Revisão</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="manutencao-prioridade" class="form-label">
+                Prioridade <span class="required">*</span>
+              </label>
+              <select id="manutencao-prioridade-2" name="Prioridade" class="form-control" required>
+                <option value="">Selecione...</option>
+                <option value="Baixa">🟢 Baixa</option>
+                <option value="Média">🟡 Média</option>
+                <option value="Alta">🟠 Alta</option>
+                <option value="Crítica">🔴 Crítica</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="manutencao-status" class="form-label">
+                Status <span class="required">*</span>
+              </label>
+              <select id="manutencao-status-2" name="Status" class="form-control" required>
+                <option value="Agendada">📅 Agendada</option>
+                <option value="Em Andamento">⏳ Em Andamento</option>
+                <option value="Concluída">✅ Concluída</option>
+                <option value="Cancelada">❌ Cancelada</option>
+                <option value="Adiada">⏸️ Adiada</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="manutencao-data-servico" class="form-label">
+                Data do Serviço <span class="required">*</span>
+              </label>
+              <input type="date" id="manutencao-data-servico-2" name="Data_Servico" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label for="manutencao-data-realizada" class="form-label">
+                Data Realizada
+              </label>
+              <input type="date" id="manutencao-data-realizada-2" name="Data_Realizada" class="form-control">
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Dados da Quilometragem -->
+        <fieldset class="form-section full-width">
+          <legend class="section-title">
+            <i class="fas fa-tachometer-alt"></i> Quilometragem
+          </legend>
+
+          <div class="w-full form-grid">
+            <div class="form-group">
+              <label for="manutencao-km-servico" class="form-label">
+                KM no Serviço <span class="required">*</span>
+              </label>
+              <input type="number" id="manutencao-km-servico-2" name="KM_Servico" class="form-control" min="0" required
+                placeholder="Ex: 45230">
+              <small class="form-help-text" id="manutencao-km-atual-info-2"></small>
+            </div>
+
+            <div class="form-group">
+              <label for="manutencao-proximo-km" class="form-label">
+                Próximo Serviço (KM)
+                <i class="fas fa-calculator text-info" title="Calculado automaticamente"></i>
+              </label>
+              <input type="number" id="manutencao-proximo-km-2" name="Proximo_Servico_KM" class="form-control" readonly
+                style="background-color: var(--surface-hover)">
+            </div>
+
+            <div class="form-group">
+              <label for="manutencao-proximo-data" class="form-label">
+                Próxima Data Prevista
+              </label>
+              <input type="date" id="manutencao-proximo-data-2" name="Proximo_Servico_Data" class="form-control">
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Descrição do Serviço -->
+        <fieldset class="form-section full-width">
+          <legend class="section-title">
+            <i class="fas fa-clipboard-list"></i> Descrição do Serviço
+          </legend>
+
+          <div class="form-group full-width">
+            <label for="manutencao-descricao" class="form-label">
+              Descrição Detalhada <span class="required">*</span>
+            </label>
+            <textarea id="manutencao-descricao-2" name="Descricao" class="form-control" rows="4" required
+              placeholder="Descreva os serviços realizados ou a serem realizados..."></textarea>
+          </div>
+
+          <div class="form-group full-width">
+            <label for="manutencao-observacoes" class="form-label">
+              Observações Adicionais
+            </label>
+            <textarea id="manutencao-observacoes-2" name="Observacoes" class="form-control" rows="3"
+              placeholder="Informações complementares, problemas encontrados, recomendações..."></textarea>
+          </div>
+        </fieldset>
+
+        <!-- Informações Financeiras -->
+        <fieldset class="form-section full-width">
+          <legend class="section-title">
+            <i class="fas fa-dollar-sign"></i> Informações Financeiras
+          </legend>
+
+          <div class="w-full form-grid">
+            <div class="form-group">
+              <label for="manutencao-valor" class="form-label">
+                Valor (R$) <span class="required">*</span>
+              </label>
+              <input type="number" id="manutencao-valor-2" name="Valor" class="form-control" min="0" step="0.01"
+                required placeholder="0,00">
+            </div>
+
+            <div class="form-group">
+              <label for="manutencao-fornecedor" class="form-label">
+                Fornecedor <span class="required">*</span>
+              </label>
+              <input type="text" id="manutencao-fornecedor-2" name="Fornecedor" class="form-control" required
+                placeholder="Nome da oficina ou fornecedor">
+            </div>
+
+            <div class="form-group">
+              <label for="manutencao-responsavel" class="form-label">
+                Responsável pelo Serviço
+              </label>
+              <input type="text" id="manutencao-responsavel-2" name="Responsavel" class="form-control"
+                placeholder="Nome do mecânico ou responsável">
+            </div>
+          </div>
+        </fieldset>
+      </form>
+    </div>
+
+    <div id="predictive-maintenance-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="gamification-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-purple">
+      <div class="section-title-icon"><i class="fas fa-trophy"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Gamificação</h2>
+        <p class="page-subtitle">Conquistas e rankings de desempenho</p>
+      </div>
+    </div>
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-medal text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">47</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Conquistas Desbloqueadas</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-star text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">12,847</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Pontos Totais</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-ranking-star text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">#3</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Posição no Ranking</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+        <i class="fas fa-fire text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">28</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Dias de Sequência</p>
+      </div>
+    </div>
+    <!-- Ranking de Equipe -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="flex items-center gap-2" style="margin: 0"><i class="fas fa-trophy"></i> Ranking da
+          Equipe</h3>
+      </div>
+      <div class="card-body">
+        <div class="flex gap-3" style="flex-direction: column">
+          <div class="flex items-center gap-3"
+            style="padding: var(--space-3); background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); border-radius: var(--radius-base)">
+            <div class="text-xs" style="color: #1f2937">🥇</div>
+            <div style="flex: 1">
+              <h4 class="font-bold" style="margin: 0; color: #1f2937">Carlos Silva</h4>
+              <p class="text-xs opacity-80" style="margin: 0; color: #1f2937">Motorista</p>
+            </div>
+            <div style="text-align: right">
+              <div class="font-bold" style="font-size: var(--font-size-small); color: #1f2937">15,892
+              </div>
+              <div class="text-xs" style="color: #1f2937; opacity: 0.85">pontos</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3"
+            style="padding: var(--space-3); background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%); border-radius: var(--radius-base)">
+            <div class="text-xs" style="color: #1f2937">🥈</div>
+            <div style="flex: 1">
+              <h4 class="font-bold" style="margin: 0; color: #1f2937">Ana Santos</h4>
+              <p class="text-xs opacity-80" style="margin: 0; color: #1f2937">Monitora</p>
+            </div>
+            <div style="text-align: right">
+              <div class="font-bold" style="font-size: var(--font-size-small); color: #1f2937">14,127
+              </div>
+              <div class="text-xs" style="color: #1f2937; opacity: 0.85">pontos</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3"
+            style="padding: var(--space-3); background: linear-gradient(135deg, #cd7f32 0%, #e8a87c 100%); border-radius: var(--radius-base)">
+            <div class="text-xs" style="color: #1f2937">🥉</div>
+            <div style="flex: 1">
+              <h4 class="font-bold" style="margin: 0; color: #1f2937">João Oliveira</h4>
+              <p class="text-xs opacity-80" style="margin: 0; color: #1f2937">Motorista</p>
+            </div>
+            <div style="text-align: right">
+              <div class="font-bold" style="font-size: var(--font-size-small); color: #1f2937">12,847
+              </div>
+              <div class="text-xs" style="color: #1f2937; opacity: 0.85">pontos</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Conquistas Recentes -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="flex items-center gap-2" style="margin: 0"><i class="fas fa-award"></i> Conquistas
+          Recentes</h3>
+      </div>
+      <div class="card-body">
+        <div class="w-full cards-grid gap-3">
+          <div class="text-center"
+            style="padding: var(--space-3); background: var(--md-sys-color-surface-container); border-radius: var(--radius-base)">
+            <div class="text-xs mb-2">🏆</div>
+            <h4 class="text-xs font-bold" style="margin: 0">Pontualidade Perfeita</h4>
+            <p class="mt-2 text-xs" style="color: var(--md-sys-color-on-surface-variant)">30 dias sem
+              atraso</p>
+          </div>
+          <div class="text-center"
+            style="padding: var(--space-3); background: var(--md-sys-color-surface-container); border-radius: var(--radius-base)">
+            <div class="text-xs mb-2">💯</div>
+            <h4 class="text-xs font-bold" style="margin: 0">100% Presença</h4>
+            <p class="mt-2 text-xs" style="color: var(--md-sys-color-on-surface-variant)">Frequência
+              completa</p>
+          </div>
+          <div class="text-center"
+            style="padding: var(--space-3); background: var(--md-sys-color-surface-container); border-radius: var(--radius-base)">
+            <div class="text-xs mb-2">⭐</div>
+            <h4 class="text-xs font-bold" style="margin: 0">Satisfação Máxima</h4>
+            <p class="mt-2 text-xs" style="color: var(--md-sys-color-on-surface-variant)">Avaliação 5
+              estrelas</p>
+          </div>
+          <div class="text-center"
+            style="padding: var(--space-3); background: var(--md-sys-color-surface-container); border-radius: var(--radius-base)">
+            <div class="text-xs mb-2">🚀</div>
+            <h4 class="text-xs font-bold" style="margin: 0">Eficiência Extrema</h4>
+            <p class="mt-2 text-xs" style="color: var(--md-sys-color-on-surface-variant)">-15% consumo
+              combustível
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="gamification-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="dashboard-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-tachometer-alt"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Dashboard</h2>
+        <p class="page-subtitle">Visão geral com métricas e indicadores principais</p>
+      </div>
+    </div>
+    <!-- ===================================================
+ COMPLIANCE BANNER - IA Neural
+ =================================================== -->
+    <div class="compliance-banner mb-5"
+      style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6; padding: var(--space-5); border-radius: var(--radius-lg); position: relative; overflow: hidden">
+      <div
+        style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.1; background-image: radial-gradient(circle, white 1px, transparent 1px); background-size: 20px 20px">
+      </div>
+      <div class="flex items-center gap-4" style="position: relative">
+        <div class="text-xs" style="opacity: 0.9; color: #f3f4f6">
+          <i class="fas fa-brain"></i>
+        </div>
+        <div>
+          <h3 class="font-bold" style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #ffffff">
+            Sistema Neural
+            de Conformidade Ativo</h3>
+          <p class="text-xs" style="margin: 0; opacity: 0.95; color: #f3f4f6">IA monitorando continuamente
+            GCOTE,
+            LGPD e Portarias SEEDF em tempo real</p>
+        </div>
+        <div class="flex items-center gap-2" style="margin-left: auto">
+          <span class="badge text-xs" style="background: rgba(255,255,255,0.25); padding: 0.5rem 1rem; color: #f3f4f6">
+            <i class="fas fa-check-circle"></i> Conforme
+          </span>
+        </div>
+      </div>
+    </div>
+    <!-- ===================================================
+ KPI CARDS PRINCIPAIS COM TRENDS
+ =================================================== -->
+    <div class="w-full cards-grid gap-4" style="margin-bottom: var(--space-6)">
+      <!-- Card: Alunos Ativos -->
+      <div class="kpi-card animate-slide-up metric-card">
+        <div class="kpi-icon-wrapper primary">
+          <i class="fas fa-users"></i>
+        </div>
+        <h2 class="kpi-value" id="kpi-total-alunos-1">---</h2>
+        <p class="kpi-label">Alunos Ativos</p>
+        <div class="stat-change positive text-xs" style="margin-top: var(--space-2); color: #10b981">
+          <i class="fas fa-arrow-up"></i>
+          <span id="kpi-alunos-trend-1">Carregando...</span>
+        </div>
+      </div>
+
+      <!-- Card: Veículos -->
+      <div class="kpi-card animate-slide-up metric-card">
+        <div class="kpi-icon-wrapper secondary">
+          <i class="fas fa-bus"></i>
+        </div>
+        <h2 class="kpi-value" id="kpi-total-veiculos-1">---</h2>
+        <p class="kpi-label">Veículos Ativos</p>
+        <div class="stat-change neutral text-xs" style="margin-top: var(--space-2); color: #6b7280">
+          <i class="fas fa-minus"></i>
+          <span id="kpi-veiculos-status-1">Carregando...</span>
+        </div>
+      </div>
+
+      <!-- Card: Rotas -->
+      <div class="kpi-card animate-slide-up metric-card">
+        <div class="kpi-icon-wrapper tertiary">
+          <i class="fas fa-route"></i>
+        </div>
+        <h2 class="kpi-value" id="kpi-total-rotas-1">---</h2>
+        <p class="kpi-label">Rotas Ativas</p>
+        <div class="stat-change positive text-xs" style="margin-top: var(--space-2); color: #10b981">
+          <i class="fas fa-arrow-up"></i>
+          <span id="kpi-rotas-trend-1">Carregando...</span>
+        </div>
+      </div>
+
+      <!-- Card: Motoristas -->
+      <div class="kpi-card animate-slide-up metric-card">
+        <div class="kpi-icon-wrapper primary">
+          <i class="fas fa-user-tie"></i>
+        </div>
+        <h2 class="kpi-value" id="kpi-total-motoristas-1">---</h2>
+        <p class="kpi-label">Motoristas</p>
+        <div class="stat-change neutral text-xs" style="margin-top: var(--space-2); color: #6b7280">
+          <i class="fas fa-check-circle"></i>
+          <span id="kpi-motoristas-status-1">Carregando...</span>
+        </div>
+      </div>
+    </div>
+    <!-- ===================================================
+ ACTION CARDS - AÇÕES RÁPIDAS
+ =================================================== -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <!-- Ação: Registrar Frequência -->
+      <div class="card action-card p-4 text-center"
+        style="cursor: pointer; transition: all 0.3s ease; border: 2px solid var(--md-sys-color-outline-variant)"
+        onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--shadow-lg)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''"
+        onclick="NavigationManager.navigate('frequencia')">
+        <div class="text-xs mb-2" style="color: var(--md-sys-color-primary)">
+          <i class="fas fa-clipboard-check"></i>
+        </div>
+        <h4 class="text-xs" style="margin: 0 0 var(--space-2) 0">Registrar Frequência</h4>
+        <p class="text-xs" style="margin: 0; color: var(--md-sys-color-on-surface-variant)">Chamada rápida
+        </p>
+      </div>
+
+      <!-- Ação: Cadastrar Aluno -->
+      <div class="card action-card p-4 text-center"
+        style="cursor: pointer; transition: all 0.3s ease; border: 2px solid var(--md-sys-color-outline-variant)"
+        onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--shadow-lg)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''" onclick="NavigationManager.navigate('alunos')">
+        <div class="text-xs mb-2" style="color: var(--md-sys-color-secondary)">
+          <i class="fas fa-user-plus"></i>
+        </div>
+        <h4 class="text-xs" style="margin: 0 0 var(--space-2) 0">Novo Aluno</h4>
+        <p class="text-xs" style="margin: 0; color: var(--md-sys-color-on-surface-variant)">Cadastro
+          rápido</p>
+      </div>
+
+      <!-- Ação: Ver Rotas -->
+      <div class="card action-card p-4 text-center"
+        style="cursor: pointer; transition: all 0.3s ease; border: 2px solid var(--md-sys-color-outline-variant)"
+        onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--shadow-lg)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''" onclick="NavigationManager.navigate('rotas')">
+        <div class="text-xs mb-2" style="color: var(--md-sys-color-tertiary)">
+          <i class="fas fa-route"></i>
+        </div>
+        <h4 class="text-xs" style="margin: 0 0 var(--space-2) 0">Gerenciar Rotas</h4>
+        <p class="text-xs" style="margin: 0; color: var(--md-sys-color-on-surface-variant)">Otimização</p>
+      </div>
+
+      <!-- Ação: Relatórios -->
+      <div class="card action-card p-4 text-center"
+        style="cursor: pointer; transition: all 0.3s ease; border: 2px solid var(--md-sys-color-outline-variant)"
+        onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--shadow-lg)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''"
+        onclick="NavigationManager.navigate('relatorios')">
+        <div class="text-xs mb-2" style="color: #f59e0b">
+          <i class="fas fa-chart-bar"></i>
+        </div>
+        <h4 class="text-xs" style="margin: 0 0 var(--space-2) 0">Relatórios</h4>
+        <p class="text-xs" style="margin: 0; color: var(--md-sys-color-on-surface-variant)">Análises</p>
+      </div>
+    </div>
+    <!-- ===================================================
+ ACESSIBILIDADE - ESTUDANTES COM NECESSIDADES ESPECIAIS
+ =================================================== -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3 class="flex items-center mb-3" style="gap: 0.5rem; color: var(--md-sys-color-primary)">
+          <i class="fas fa-wheelchair"></i> Acessibilidade - Estudantes com Necessidades Especiais
+        </h3>
+        <div class="alert alert-info mb-3" role="alert">
+          <i class="fas fa-universal-access"></i>
+          <div>
+            <strong>Lei nº 13.146/2015 - Lei Brasileira de Inclusão:</strong>
+            <p class="mt-2 text-small">A pessoa com deficiência tem direito ao transporte escolar
+              acessível. É dever
+              do Estado garantir sistema educacional inclusivo em todos os níveis, com transporte adequado
+              às
+              necessidades específicas dos estudantes.</p>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-4 gap-3 mb-4">
+          <!-- Estudantes Cadeirantes -->
+          <div class="card p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+            <div class="flex items-center" style="justify-content: space-between">
+              <div>
+                <p class="text-xs" style="margin: 0; opacity: 0.9">Estudantes Cadeirantes</p>
+                <h2 class="mt-2 text-xs font-bold" id="dash-cadeirantes-count-1">-</h2>
+                <small class="opacity-80">Requerem baia específica</small>
+              </div>
+              <i class="fas fa-wheelchair text-xs" style="opacity: 0.3"></i>
+            </div>
+          </div>
+          <!-- Veículos Adaptados -->
+          <div class="card p-4" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #1f2937">
+            <div class="flex items-center" style="justify-content: space-between">
+              <div>
+                <p class="text-xs" style="margin: 0; opacity: 0.9; color: #1f2937">Veículos Adaptados</p>
+                <h2 class="mt-2 text-xs font-bold" style="color: #1f2937" id="dash-veiculos-adaptados-count-1">-
+                </h2>
+                <small class="opacity-80" style="color: #1f2937">Com baias e acessibilidade</small>
+              </div>
+              <i class="fas fa-bus text-xs" style="opacity: 0.3; color: #1f2937"></i>
+            </div>
+          </div>
+          <!-- Total de Baias -->
+          <div class="card p-4" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+            <div class="flex items-center" style="justify-content: space-between">
+              <div>
+                <p class="text-xs" style="margin: 0; opacity: 0.9; color: #1f2937">Total de Baias</p>
+                <h2 class="mt-2 text-xs font-bold" style="color: #1f2937" id="dash-baias-total-1">-</h2>
+                <small class="opacity-80" style="color: #1f2937">Capacidade disponível</small>
+              </div>
+              <i class="fas fa-parking text-xs" style="opacity: 0.3; color: #1f2937"></i>
+            </div>
+          </div>
+          <!-- Taxa de Ocupação de Baias -->
+          <div class="card p-4" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #1f2937">
+            <div class="flex items-center" style="justify-content: space-between">
+              <div>
+                <p class="text-xs" style="margin: 0; opacity: 0.9; color: #1f2937">Ocupação de Baias</p>
+                <h2 class="mt-2 text-xs font-bold" style="color: #1f2937" id="dash-ocupacao-baias-1">-
+                </h2>
+                <small class="opacity-80" style="color: #1f2937">Percentual de uso</small>
+              </div>
+              <i class="fas fa-chart-pie text-xs" style="opacity: 0.3; color: #1f2937"></i>
+            </div>
+          </div>
+        </div>
+        <!-- Detalhamento por Tipo de Necessidade -->
+        <div class="card" style="padding: var(--space-3); background-color: var(--md-sys-color-surface-container-low)">
+          <h4 class="mb-3" style="color: #4b5563"><i class="fas fa-list"></i> Distribuição por Tipo de
+            Necessidade
+            Especial</h4>
+          <div class="grid md:grid-cols-3 gap-3">
+            <div class="flex items-center" style="gap: 0.5rem; color: #4b5563">
+              <span style="font-size: var(--font-size-small)">♿</span>
+              <div>
+                <strong id="count-cadeirantes-1">-</strong> Cadeirantes
+              </div>
+            </div>
+            <div class="flex items-center" style="gap: 0.5rem; color: #4b5563">
+              <span style="font-size: var(--font-size-small)">🦽</span>
+              <div>
+                <strong id="count-mobilidade-1">-</strong> Mobilidade Reduzida
+              </div>
+            </div>
+            <div class="flex items-center" style="gap: 0.5rem; color: #4b5563">
+              <span style="font-size: var(--font-size-small)">👁️</span>
+              <div>
+                <strong id="count-visual-1">-</strong> Deficiência Visual
+              </div>
+            </div>
+            <div class="flex items-center" style="gap: 0.5rem; color: #4b5563">
+              <span style="font-size: var(--font-size-small)">👂</span>
+              <div>
+                <strong id="count-auditiva-1">-</strong> Deficiência Auditiva
+              </div>
+            </div>
+            <div class="flex items-center" style="gap: 0.5rem; color: #4b5563">
+              <span style="font-size: var(--font-size-small)">🧠</span>
+              <div>
+                <strong id="count-intelectual-1">-</strong> Deficiência Intelectual
+              </div>
+            </div>
+            <div class="flex items-center" style="gap: 0.5rem; color: #4b5563">
+              <span style="font-size: var(--font-size-small)">🧩</span>
+              <div>
+                <strong id="count-tea-1">-</strong> TEA
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="dashboard-content-1"></div>
+  </section>
+
+  <section id="kanban-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-columns"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Kanban e Slides</h2>
+        <p class="page-subtitle">Gerencie tarefas e crie slides para reuniões</p>
+      </div>
+    </div>
+    <!-- Quick Stats - Kanban -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #1f2937">
+        <i class="fas fa-tasks text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">47</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Tarefas Ativas</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <i class="fas fa-check-circle text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">182</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Concluídas (Mês)</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-presentation text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">12</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Slides Criados</p>
+      </div>
+    </div>
+
+    <div id="kanban-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="compliance-validation-section-2" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-shield-alt"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Conformidade Legal</h2>
+        <p class="page-subtitle">Validação de conformidade com a legislação do transporte escolar</p>
+      </div>
+    </div>
+    <!-- Base Legal Consolidada -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3 class="flex items-center mb-3" style="gap: 0.5rem">
+          <i class="fas fa-gavel"></i> Base Legal do Transporte Escolar - DF
+        </h3>
+        <div class="alert alert-info mb-3" role="alert">
+          <strong><i class="fas fa-balance-scale"></i> Decreto nº 40.385/2020</strong>
+          <p class="mt-2">Transfere à Sociedade de Transportes Coletivos de Brasília Ltda. (TCB) a
+            incumbência da
+            gestão e operação, direta ou indiretamente, do Serviço de Transporte Complementar Escolar.</p>
+        </div>
+        <div class="alert alert-info mb-3" role="alert">
+          <strong><i class="fas fa-file-alt"></i> Portaria nº 192/2019</strong>
+          <p class="mt-2">Estabelece os critérios e procedimentos para oferta do transporte escolar aos
+            estudantes
+            da Rede Pública de Ensino do Distrito Federal.</p>
+        </div>
+        <div class="alert alert-info mb-3" role="alert">
+          <strong><i class="fas fa-users-cog"></i> Portaria Conjunta nº 21/2024</strong>
+          <p class="mt-2">Define as atribuições da UNIAE (Art. 7º) e das Unidades Escolares (Art. 6º) no
+            âmbito da
+            gestão educacional do transporte escolar.</p>
+        </div>
+        <div class="alert alert-warning mb-3" role="alert">
+          <strong><i class="fas fa-user-shield"></i> Lei Complementar nº 840/2011</strong>
+          <p class="mt-2">Art. 181 e 183 - Dispõe sobre a responsabilidade penal, civil e administrativa
+            dos
+            servidores públicos do DF. O servidor responde por ato omissivo ou comissivo que resulte em
+            prejuízo ao
+            erário.</p>
+        </div>
+        <div class="alert alert-success" role="alert">
+          <strong><i class="fas fa-clipboard-check"></i> Instrução Normativa 123/2022-TCB</strong>
+          <p class="mt-2">Define procedimentos operacionais para execução dos contratos de transporte
+            escolar.</p>
+        </div>
+      </div>
+    </div>
+    <div id="compliance-validation-crud-container-1"></div>
+  </section>
+
+  <section id="utilizacao-frota-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-orange">
+      <div class="section-title-icon"><i class="fas fa-chart-pie"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Utilização da Frota</h2>
+        <p class="page-subtitle">Análise de uso e disponibilidade dos veículos</p>
+      </div>
+    </div>
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-percentage text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">87%</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Taxa Utilização</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-chart-line text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">847km</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Média/Veículo</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-clock text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">6.2h</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Tempo Médio</p>
+      </div>
+    </div>
+    <div id="utilizacao-frota-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="faturamentos-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-green">
+      <div class="section-title-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Gestão de Faturamentos</h2>
+        <p class="page-subtitle">Controle financeiro e cobranças do transporte escolar</p>
+      </div>
+    </div>
+    <!-- Quick Stats Financeiros -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <i class="fas fa-dollar-sign text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">R$ 847.234</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Faturamento Mensal</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Outubro 2024</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-file-invoice text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">23</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Faturas Processadas</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Mês atual</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #1f2937">
+        <i class="fas fa-clock text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">3</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Pendentes</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Aguardando documentação</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+        <i class="fas fa-percentage text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">96.2%</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Taxa Conformidade</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Documentação completa</small>
+      </div>
+    </div>
+    <!-- Alerta: Planilhas de Itinerários e Pagamento -->
+    <div class="alert alert-info mb-4" role="alert">
+      <i class="fas fa-file-alt"></i>
+      <div>
+        <strong>Planilha de Itinerários - Base para Pagamento:</strong>
+        <p class="mt-2 text-small">A Planilha de Itinerários indica todos os dados necessários: percursos
+          realizados, escolas atendidas, número de alunos transportados por turno, quilometragem
+          percorrida, número
+          de dias trabalhados, valor a ser pago por dia e valor total mensal.</p>
+      </div>
+    </div>
+    <!-- Status de Pagamentos -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="flex items-center gap-2" style="margin: 0"><i class="fas fa-money-check-alt"></i>
+          Status de
+          Pagamentos (Mês Atual)</h3>
+      </div>
+      <div class="card-body" style="padding: 0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Valor</th>
+              <th>Documentação</th>
+              <th>Status</th>
+              <th>Previsão</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Transportes ABC Ltda</strong></td>
+              <td>R$ 124.580,00</td>
+              <td><span class="badge" style="background: #10b981; color: white; padding: 0.3rem 0.6rem"><i
+                    class="fas fa-check"></i> Completa</span></td>
+              <td><span class="badge" style="background: #10b981; color: white; padding: 0.3rem 0.6rem">Aprovado</span>
+              </td>
+              <td>05/11/2024</td>
+              <td><button class="btn btn-sm btn-secondary"><i class="fas fa-eye"></i></button></td>
+            </tr>
+            <tr>
+              <td><strong>Via Rápida Transportes</strong></td>
+              <td>R$ 87.200,00</td>
+              <td><span class="badge" style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem"><i
+                    class="fas fa-exclamation"></i> Incompleta</span></td>
+              <td><span class="badge" style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem">Pendente</span>
+              </td>
+              <td>Aguardando docs</td>
+              <td><button class="btn btn-sm btn-warning"><i class="fas fa-bell"></i></button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="alert alert-warning mb-4" role="alert">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div>
+        <strong>Decreto nº 40.385/2020 - Gestão pela TCB:</strong>
+        <p class="mt-2 text-small">Caso haja pagamento anterior à instrução processual ou em desacordo com
+          os autos,
+          a UNIAE não mais receberá a documentação das empresas, devendo ser entregue diretamente à TCB.
+        </p>
+      </div>
+    </div>
+    <div id="faturamentos-crud-container-1" class="section-standardized"></div>
+  </section>
+  <section id="atestos-section-2" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-certificate"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Atestos Administrativos</h2>
+        <p class="page-subtitle">Controle de atestados e validações oficiais</p>
+      </div>
+    </div>
+    <!-- Alerta: Responsabilidade no Atesto -->
+    <div class="alert alert-warning mb-4" role="alert">
+      <i class="fas fa-stamp"></i>
+      <div>
+        <strong>Portaria Conjunta nº 21/2024 - Responsabilidades no Atesto:</strong>
+        <p class="mt-2 text-small">Cabe às Unidades Escolares encaminhar mensalmente à empresa prestadora
+          a
+          Frequência do Transporte Escolar e atestar via SEI. O atesto deve ser feito somente se as
+          informações
+          estiverem corretas e condizentes com os controles da escola. Responsabilidade administrativa,
+          civil e
+          penal pelo atesto indevido (LC 840/2011).</p>
+      </div>
+    </div>
+    <div id="atestos-crud-container-2" class="section-standardized"></div>
+  </section>
+
+  <section id="relatorios-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-green">
+      <div class="section-title-icon"><i class="fas fa-chart-bar"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Relatórios Gerenciais e UNIAE</h2>
+        <p class="page-subtitle">Relatórios operacionais, consolidados mensais GCOTE e comunicações às
+          escolas</p>
+      </div>
+    </div>
+    <!-- Report Cards Grid -->
+    <div class="w-full cards-grid gap-4 mb-5">
+      <div class="card p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <h3 class="flex items-center gap-2"
+          style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937"><i
+            class="fas fa-users" style="color: #1f2937"></i> Alunos</h3>
+        <p class="text-xs" style="margin: 0 0 var(--space-3) 0; color: #1f2937; opacity: 0.9">Dados
+          completos,
+          frequência e contatos</p>
+        <div class="flex text-center mb-3" style="justify-content: space-around">
+          <div>
+            <div class="text-xs font-bold" style="color: #1f2937">1,247</div>
+            <div class="text-xs" style="color: #1f2937; opacity: 0.85">Alunos</div>
+          </div>
+          <div>
+            <div class="text-xs font-bold" style="color: #1f2937">94.2%</div>
+            <div class="text-xs" style="color: #1f2937; opacity: 0.85">Frequência</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="width: 100%"><i class="fas fa-download"></i>
+          Gerar</button>
+      </div>
+      <div class="card p-4" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <h3 class="flex items-center gap-2"
+          style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937"><i
+            class="fas fa-route" style="color: #1f2937"></i> Rotas</h3>
+        <p class="text-xs" style="margin: 0 0 var(--space-3) 0; color: #1f2937; opacity: 0.9">Análise de
+          eficiência
+          e otimização</p>
+        <div class="flex text-center mb-3" style="justify-content: space-around">
+          <div>
+            <div class="text-xs font-bold" style="color: #1f2937">23</div>
+            <div class="text-xs" style="color: #1f2937; opacity: 0.85">Rotas</div>
+          </div>
+          <div>
+            <div class="text-xs font-bold" style="color: #1f2937">96.8%</div>
+            <div class="text-xs" style="color: #1f2937; opacity: 0.85">Eficiência</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="width: 100%"><i class="fas fa-download"></i>
+          Gerar</button>
+      </div>
+      <div class="card p-4" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #1f2937">
+        <h3 class="flex items-center gap-2"
+          style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937"><i class="fas fa-bus"
+            style="color: #1f2937"></i> Frota</h3>
+        <p class="text-xs" style="margin: 0 0 var(--space-3) 0; color: #1f2937; opacity: 0.9">Manutenções,
+          custos e
+          disponibilidade</p>
+        <div class="flex text-center mb-3" style="justify-content: space-around">
+          <div>
+            <div class="text-xs font-bold" style="color: #1f2937">45</div>
+            <div class="text-xs" style="color: #1f2937; opacity: 0.85">Veículos</div>
+          </div>
+          <div>
+            <div class="text-xs font-bold" style="color: #1f2937">92%</div>
+            <div class="text-xs" style="color: #1f2937; opacity: 0.85">Disponível</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="width: 100%"><i class="fas fa-download"></i>
+          Gerar</button>
+      </div>
+    </div>
+    <!-- Documentos Obrigatórios para Pagamento -->
+    <div class="alert alert-info mb-4" role="alert">
+      <i class="fas fa-file-invoice"></i>
+      <div>
+        <strong>Termo de Referência (44012274) - Documentos para Pagamento:</strong>
+        <ul class="text-small" style="margin: 0.5rem 0 0 1.5rem; line-height: 1.6">
+          <li>Certidão Positiva com Efeitos de Negativa Conjunta - União</li>
+          <li>Certificado de Regularidade do FGTS</li>
+          <li>Certidão Negativa de Débitos Trabalhistas</li>
+          <li>Certidão Positiva com Efeitos de Negativa - GDF</li>
+          <li>Guia e Comprovante de Recolhimento de FGTS e GPS</li>
+          <li>Relatório de Empregados (GFIP), Folha de Pagamento</li>
+          <li>Apólice e Comprovante de Pagamento de Seguro Veicular</li>
+          <li>Folhas de ponto, Vale transporte e Vale refeição</li>
+        </ul>
+      </div>
+    </div>
+    <div id="relatorios-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="ai-reports-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-purple">
+      <div class="section-title-icon"><i class="fas fa-robot"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Relatórios de Inteligência Artificial</h2>
+        <p class="page-subtitle">Análises preditivas, insights automatizados e geração por linguagem
+          natural</p>
+      </div>
+    </div>
+    <!-- Banner Sistema Neural -->
+    <div class="alert mb-5"
+      style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937; border: none; padding: var(--space-5)">
+      <div class="flex items-center gap-3 mb-2">
+        <i class="fas fa-robot text-xs"></i>
+        <div>
+          <h3 class="font-bold" style="margin: 0; font-size: var(--font-size-small)">Sistema Neural de IA
+            Ativo</h3>
+          <p class="mt-2" style="opacity: 0.95">Processando dados em tempo real com modelos avançados</p>
+        </div>
+      </div>
+      <div class="flex gap-3" style="flex-wrap: wrap">
+        <span class="badge" style="background: rgba(255,255,255,0.25); padding: 0.5rem 1rem"><i
+            class="fas fa-check-circle"></i> GPT-4 Turbo</span>
+        <span class="badge" style="background: rgba(255,255,255,0.25); padding: 0.5rem 1rem"><i
+            class="fas fa-check-circle"></i> Ollama Local</span>
+        <span class="badge" style="background: rgba(255,255,255,0.25); padding: 0.5rem 1rem"><i
+            class="fas fa-chart-line"></i> 1.2M Registros</span>
+      </div>
+    </div>
+    <!-- Quick Stats Performance IA -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-file-alt text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">1,847</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Relatórios Gerados</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Últimos 30 dias</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <i class="fas fa-clock text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">2.3s</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Tempo Médio</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Por relatório</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #1f2937">
+        <i class="fas fa-lightbulb text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">342</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Insights Detectados</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Padrões identificados</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+        <i class="fas fa-percentage text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">98.7%</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Precisão</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Predições</small>
+      </div>
+    </div>
+    <!-- AI Capabilities Expandidos -->
+    <div class="w-full cards-grid gap-4 mb-5">
+      <div class="card p-4"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937; position: relative; overflow: hidden">
+        <div class="text-xs" style="position: absolute; top: -20px; right: -20px; opacity: 0.15"><i
+            class="fas fa-brain"></i></div>
+        <div style="position: relative">
+          <i class="fas fa-brain text-xs mb-2" style="display: block"></i>
+          <h4 class="font-bold" style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small)">
+            Análise
+            Preditiva Avançada</h4>
+          <p class="text-xs" style="margin: 0 0 var(--space-3) 0; opacity: 0.95; line-height: 1.5">
+            Predições de
+            ausências, otimização de rotas e previsão de demanda por períodos.</p>
+          <div class="flex gap-2" style="flex-wrap: wrap">
+            <span class="badge text-xs" style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem"><i
+                class="fas fa-chart-line"></i> Forecasting</span>
+            <span class="badge text-xs" style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem"><i
+                class="fas fa-cogs"></i> AutoML</span>
+          </div>
+        </div>
+      </div>
+      <div class="card p-4"
+        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #1f2937; position: relative; overflow: hidden">
+        <div class="text-xs" style="position: absolute; top: -20px; right: -20px; opacity: 0.15; color: #1f2937"><i
+            class="fas fa-language"></i></div>
+        <div style="position: relative">
+          <i class="fas fa-language text-xs mb-2" style="display: block; color: #1f2937"></i>
+          <h4 class="font-bold" style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937">
+            Processamento
+            Linguagem Natural</h4>
+          <p class="text-xs" style="margin: 0 0 var(--space-3) 0; opacity: 0.95; line-height: 1.5; color: #1f2937">
+            Gere relatórios complexos apenas descrevendo o que você precisa em português.</p>
+          <div class="flex gap-2" style="flex-wrap: wrap">
+            <span class="badge text-xs"
+              style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem; color: #1f2937"><i
+                class="fas fa-comments"></i> NLP</span>
+            <span class="badge text-xs"
+              style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem; color: #1f2937"><i
+                class="fas fa-robot"></i> GPT-4</span>
+          </div>
+        </div>
+      </div>
+      <div class="card p-4"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937; position: relative; overflow: hidden">
+        <div class="text-xs" style="position: absolute; top: -20px; right: -20px; opacity: 0.15; color: #1f2937"><i
+            class="fas fa-lightbulb"></i></div>
+        <div style="position: relative">
+          <i class="fas fa-lightbulb text-xs mb-2" style="display: block; color: #1f2937"></i>
+          <h4 class="font-bold" style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937">
+            Insights
+            Automáticos</h4>
+          <p class="text-xs" style="margin: 0 0 var(--space-3) 0; opacity: 0.95; line-height: 1.5; color: #1f2937">
+            IA identifica padrões ocultos e oportunidades de melhoria automaticamente.</p>
+          <div class="flex gap-2" style="flex-wrap: wrap">
+            <span class="badge text-xs"
+              style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem; color: #1f2937"><i
+                class="fas fa-search"></i> Pattern Mining</span>
+            <span class="badge text-xs"
+              style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem; color: #1f2937"><i
+                class="fas fa-exclamation-triangle"></i> Anomalias</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Gerador de Relatórios com IA -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="flex items-center gap-2" style="margin: 0"><i class="fas fa-magic"></i> Gerador de
+          Relatórios por
+          IA</h3>
+      </div>
+      <div class="card-body">
+        <p style="margin: 0 0 var(--space-3) 0; color: var(--md-sys-color-on-surface-variant)">Descreva em
+          linguagem
+          natural o relatório que você precisa:</p>
+        <textarea
+          placeholder="Exemplo: 'Gere um relatório de frequência dos últimos 30 dias para alunos da Rota 05, incluindo gráficos e análise de tendências'"
+          class="mb-3"
+          style="width: 100%; min-height: 80px; padding: var(--space-3); border: 1px solid var(--md-sys-color-outline); border-radius: var(--radius-base)"></textarea>
+        <div class="flex gap-2 mb-3">
+          <button class="btn btn-primary"><i class="fas fa-robot"></i> Gerar com IA</button>
+          <button class="btn btn-secondary"><i class="fas fa-microphone"></i> Comando de Voz</button>
+          <button class="btn btn-secondary"><i class="fas fa-history"></i> Histórico</button>
+        </div>
+        <div style="padding-top: var(--space-3); border-top: 1px solid var(--md-sys-color-outline-variant)">
+          <h4 class="text-xs" style="margin: 0 0 var(--space-2) 0; color: var(--md-sys-color-on-surface-variant)"><i
+              class="fas fa-bolt"></i> Sugestões Rápidas:</h4>
+          <div class="flex gap-2" style="flex-wrap: wrap">
+            <button class="btn btn-sm" style="background: var(--md-sys-color-surface-container-high)">Análise
+              Frequência Mensal</button>
+            <button class="btn btn-sm" style="background: var(--md-sys-color-surface-container-high)">Eficiência de
+              Rotas</button>
+            <button class="btn btn-sm" style="background: var(--md-sys-color-surface-container-high)">Custos
+              Operacionais</button>
+            <button class="btn btn-sm" style="background: var(--md-sys-color-surface-container-high)">Manutenções
+              Previstas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Insights Recentes Detectados -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="flex items-center gap-2" style="margin: 0"><i class="fas fa-lightbulb"></i> Insights
+          Recentes
+          Detectados pela IA</h3>
+      </div>
+      <div class="card-body">
+        <div class="flex gap-3" style="flex-direction: column">
+          <div class="alert alert-success flex gap-3" style="align-items: start; margin: 0">
+            <i class="fas fa-check-circle text-xs" style="flex-shrink: 0"></i>
+            <div style="flex: 1">
+              <h4 class="text-xs font-bold" style="margin: 0 0 var(--space-1) 0">Oportunidade de
+                Otimização - Rota
+                12</h4>
+              <p class="text-xs" style="margin: 0 0 var(--space-2) 0">A IA detectou que a Rota 12 pode ser
+                otimizada
+                em 18% reduzindo 3 paradas com baixa utilização.</p>
+              <span class="badge"
+                style="background: rgba(16, 185, 129, 0.2); color: #059669; padding: 0.3rem 0.6rem">Economia:
+                R$
+                2.847/mês</span>
+            </div>
+            <button class="btn btn-sm btn-primary">Ver Detalhes</button>
+          </div>
+          <div class="alert alert-warning flex gap-3" style="align-items: start; margin: 0">
+            <i class="fas fa-exclamation-triangle text-xs" style="flex-shrink: 0"></i>
+            <div style="flex: 1">
+              <h4 class="text-xs font-bold" style="margin: 0 0 var(--space-1) 0">Alerta Preditivo -
+                Aumento de
+                Ausências</h4>
+              <p class="text-xs" style="margin: 0 0 var(--space-2) 0">Padrão indica provável aumento de
+                12% nas
+                ausências na próxima semana (período de provas).</p>
+              <span class="badge"
+                style="background: rgba(245, 158, 11, 0.2); color: #d97706; padding: 0.3rem 0.6rem">Probabilidade:
+                87%</span>
+            </div>
+            <button class="btn btn-sm btn-warning">Tomar Ação</button>
+          </div>
+          <div class="alert alert-info flex gap-3" style="align-items: start; margin: 0">
+            <i class="fas fa-info-circle text-xs" style="flex-shrink: 0"></i>
+            <div style="flex: 1">
+              <h4 class="text-xs font-bold" style="margin: 0 0 var(--space-1) 0">Análise de Desempenho -
+                Motoristas
+              </h4>
+              <p class="text-xs" style="margin: 0 0 var(--space-2) 0">Motoristas Carlos Silva e Ana Santos
+                mantêm
+                98% de pontualidade nos últimos 90 dias.</p>
+              <span class="badge"
+                style="background: rgba(79, 172, 254, 0.2); color: #0284c7; padding: 0.3rem 0.6rem">Categoria:
+                Desempenho</span>
+            </div>
+            <button class="btn btn-sm btn-secondary">Registrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Relatórios Gerados Recentemente -->
+    <div class="card mb-4">
+      <div class="card-header flex items-center" style="justify-content: space-between">
+        <h3 class="flex items-center gap-2" style="margin: 0"><i class="fas fa-file-alt"></i> Relatórios
+          Gerados
+          pela IA (Últimos 7 dias)</h3>
+        <button class="btn btn-primary btn-sm"><i class="fas fa-history"></i> Ver Todos</button>
+      </div>
+      <div class="card-body" style="padding: 0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Relatório</th>
+              <th>Tipo</th>
+              <th>Solicitante</th>
+              <th>Data/Hora</th>
+              <th>Tempo</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Análise Consolidada - Outubro 2024</strong></td>
+              <td><span class="badge" style="background: #667eea; color: white; padding: 0.3rem 0.6rem">Mensal</span>
+              </td>
+              <td>Coordenação GCOTE</td>
+              <td>17/10/2025 08:23</td>
+              <td>1.8s</td>
+              <td><span class="badge" style="background: #10b981; color: white; padding: 0.3rem 0.6rem"><i
+                    class="fas fa-check"></i> Concluído</span></td>
+              <td><button aria-label="Download" class="btn btn-sm btn-secondary" title="Download"><i
+                    class="fas fa-download"></i></button></td>
+            </tr>
+            <tr>
+              <td><strong>Otimização de Rotas - Zona Sul</strong></td>
+              <td><span class="badge" style="background: #10b981; color: white; padding: 0.3rem 0.6rem">Preditivo</span>
+              </td>
+              <td>Gestão Operacional</td>
+              <td>16/10/2025 14:45</td>
+              <td>3.2s</td>
+              <td><span class="badge" style="background: #10b981; color: white; padding: 0.3rem 0.6rem"><i
+                    class="fas fa-check"></i> Concluído</span></td>
+              <td><button aria-label="Download" class="btn btn-sm btn-secondary" title="Download"><i
+                    class="fas fa-download"></i></button></td>
+            </tr>
+            <tr>
+              <td><strong>Previsão de Manutenções Q4</strong></td>
+              <td><span class="badge"
+                  style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem">Manutenção</span></td>
+              <td>Gestão de Frota</td>
+              <td>15/10/2025 11:12</td>
+              <td>2.1s</td>
+              <td><span class="badge" style="background: #10b981; color: white; padding: 0.3rem 0.6rem"><i
+                    class="fas fa-check"></i> Concluído</span></td>
+              <td><button aria-label="Download" class="btn btn-sm btn-secondary" title="Download"><i
+                    class="fas fa-download"></i></button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="ai-reports-content-1" class="section-standardized"></div>
+  </section>
+
+  <section id="engagement-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-heart"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Engajamento e Satisfação</h2>
+        <p class="page-subtitle">Monitore satisfação e envolvimento dos usuários do transporte escolar</p>
+      </div>
+    </div>
+    <!-- ===================================================
+ AI INSIGHTS - ENGAJAMENTO
+ =================================================== -->
+    <div class="w-full cards-grid gap-4 mb-5">
+      <!-- AI Card: Análise de Satisfação -->
+      <div class="card p-4"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6; position: relative; overflow: hidden">
+        <div class="text-xs" style="position: absolute; top: -20px; right: -20px; opacity: 0.15; color: #f3f4f6">
+          <i class="fas fa-smile-beam"></i>
+        </div>
+        <div style="position: relative">
+          <div class="text-xs mb-2" style="color: #f3f4f6">
+            <i class="fas fa-smile-beam"></i>
+          </div>
+          <h4 class="font-bold" style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #ffffff">
+            Índice
+            de
+            Satisfação Global</h4>
+          <p class="text-xs font-bold" style="margin: 0 0 var(--space-3) 0; color: #ffffff">92.3%</p>
+          <p class="text-xs" style="margin: 0 0 var(--space-3) 0; opacity: 0.95; color: #f3f4f6">Baseado
+            em 847
+            pesquisas coletadas nos últimos 30 dias</p>
+          <div class="flex gap-2" style="flex-wrap: wrap">
+            <span class="badge text-xs"
+              style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem; color: #f3f4f6">
+              <i class="fas fa-arrow-up"></i> +3.2% vs mês anterior
+            </span>
+            <span class="badge text-xs"
+              style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem; color: #f3f4f6">
+              <i class="fas fa-robot"></i> IA Ativa
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Card: Alertas de Insatisfação -->
+      <div class="card p-4"
+        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #1f2937; position: relative; overflow: hidden">
+        <div class="text-xs" style="position: absolute; top: -20px; right: -20px; opacity: 0.15; color: #1f2937">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div style="position: relative">
+          <div class="text-xs mb-2" style="color: #1f2937">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <h4 class="font-bold" style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937">
+            Alertas de Baixo
+            Engajamento</h4>
+          <p class="text-xs font-bold" style="margin: 0 0 var(--space-3) 0; color: #1f2937">7 Rotas</p>
+          <p class="text-xs" style="margin: 0 0 var(--space-3) 0; opacity: 0.95; color: #1f2937">
+            Identificadas com
+            satisfação abaixo de 75%. Intervenção imediata recomendada pela IA.</p>
+          <div class="flex gap-2" style="flex-wrap: wrap">
+            <span class="badge text-xs"
+              style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem; color: #1f2937">
+              <i class="fas fa-bell"></i> 7 Alertas Ativos
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Card: Taxa de Resposta -->
+      <div class="card p-4"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937; position: relative; overflow: hidden">
+        <div class="text-xs" style="position: absolute; top: -20px; right: -20px; opacity: 0.15; color: #1f2937">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <div style="position: relative">
+          <div class="text-xs mb-2" style="color: #1f2937">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <h4 class="font-bold" style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937">
+            Taxa
+            de Resposta
+            às Pesquisas</h4>
+          <p class="text-xs font-bold" style="margin: 0 0 var(--space-3) 0; color: #1f2937">68%</p>
+          <p class="text-xs" style="margin: 0 0 var(--space-3) 0; opacity: 0.95; color: #1f2937">847
+            respostas de
+            1.247 famílias contactadas via WhatsApp automatizado</p>
+          <div class="flex gap-2" style="flex-wrap: wrap">
+            <span class="badge text-xs"
+              style="background: rgba(255,255,255,0.25); padding: 0.4rem 0.8rem; color: #1f2937">
+              <i class="fab fa-whatsapp"></i> Integrado
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ===================================================
+ QUICK STATS - ENGAJAMENTO
+ =================================================== -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <!-- Alunos em Risco -->
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #ef4444 0%, var(--md-sys-color-error) 100%); color: #1f2937">
+        <i class="fas fa-user-slash text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937" id="stat-alunos-risco-1">18</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Alunos em Risco</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Acima de 20% de faltas</small>
+      </div>
+
+      <!-- Taxa de Ausência Média -->
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-chart-pie text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff" id="stat-taxa-ausencia-1">7.2%
+        </h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Taxa de Ausência</p>
+        <small class="opacity-80 text-xs" style="color: #f3f4f6">Média últimos 30 dias</small>
+      </div>
+
+      <!-- Comunicações Enviadas -->
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fab fa-whatsapp text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff" id="stat-comunicacoes-1">142</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Comunicações</p>
+        <small class="opacity-80 text-xs" style="color: #f3f4f6">Notificações enviadas</small>
+      </div>
+
+      <!-- Feedback Positivo -->
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-thumbs-up text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff" id="stat-feedback-positivo-1">94%
+        </h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Feedback Positivo</p>
+        <small class="opacity-80 text-xs" style="color: #f3f4f6">Motoristas e monitores</small>
+      </div>
+    </div>
+    <!-- ===================================================
+ GRÁFICO DE SATISFAÇÃO POR CATEGORIA
+ =================================================== -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3 class="flex items-center gap-2" style="margin: 0 0 var(--space-4) 0">
+          <i class="fas fa-chart-bar"></i> Satisfação por Categoria
+        </h3>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <div class="mb-3">
+              <div class="flex" style="justify-content: space-between; margin-bottom: var(--space-1)">
+                <span class="text-xs">Pontualidade</span>
+                <span class="font-bold" style="color: #10b981">96%</span>
+              </div>
+              <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden">
+                <div
+                  style="width: 96%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); transition: width 0.3s ease">
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="flex" style="justify-content: space-between; margin-bottom: var(--space-1)">
+                <span class="text-xs">Segurança</span>
+                <span class="font-bold" style="color: #10b981">98%</span>
+              </div>
+              <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden">
+                <div
+                  style="width: 98%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); transition: width 0.3s ease">
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="flex" style="justify-content: space-between; margin-bottom: var(--space-1)">
+                <span class="text-xs">Limpeza do Veículo</span>
+                <span class="font-bold" style="color: #10b981">94%</span>
+              </div>
+              <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden">
+                <div
+                  style="width: 94%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); transition: width 0.3s ease">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="mb-3">
+              <div class="flex" style="justify-content: space-between; margin-bottom: var(--space-1)">
+                <span class="text-xs">Atendimento Motorista</span>
+                <span class="font-bold" style="color: #10b981">95%</span>
+              </div>
+              <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden">
+                <div
+                  style="width: 95%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); transition: width 0.3s ease">
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="flex" style="justify-content: space-between; margin-bottom: var(--space-1)">
+                <span class="text-xs">Atendimento Monitor</span>
+                <span class="font-bold" style="color: #10b981">93%</span>
+              </div>
+              <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden">
+                <div
+                  style="width: 93%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); transition: width 0.3s ease">
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="flex" style="justify-content: space-between; margin-bottom: var(--space-1)">
+                <span class="text-xs">Conforto Geral</span>
+                <span class="font-bold" style="color: #f59e0b">87%</span>
+              </div>
+              <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden">
+                <div
+                  style="width: 87%; height: 100%; background: linear-gradient(90deg, #f59e0b, #fbbf24); transition: width 0.3s ease">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ===================================================
+ TABELA: ALUNOS COM ALTO ÍNDICE DE FALTAS
+ =================================================== -->
+    <div class="card mb-4">
+      <div class="card-header flex items-center" style="justify-content: space-between">
+        <h3 class="flex items-center gap-2" style="margin: 0">
+          <i class="fas fa-list-ol"></i> Alunos com Alto Índice de Faltas (Últimos 30 dias)
+        </h3>
+        <button class="btn btn-primary btn-sm">
+          <i class="fas fa-download"></i> Exportar
+        </button>
+      </div>
+      <div class="card-body" style="padding: 0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Aluno</th>
+              <th>Rota</th>
+              <th>Faltas</th>
+              <th>Taxa de Ausência</th>
+              <th>Última Ação</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Mariana Oliveira</td>
+              <td>Rota 03</td>
+              <td>6</td>
+              <td><span class="badge"
+                  style="background: var(--md-sys-color-error); color: white; padding: 0.3rem 0.6rem; border-radius: 4px">27%</span>
+              </td>
+              <td>Notificação enviada há 2 dias</td>
+              <td>
+                <button aria-label="Contatar família" class="btn btn-sm btn-primary" title="Contatar família">
+                  <i class="fas fa-phone"></i> Contatar
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td>Pedro Martins</td>
+              <td>Rota 12</td>
+              <td>5</td>
+              <td><span class="badge"
+                  style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem; border-radius: 4px">22%</span>
+              </td>
+              <td>Aguardando justificativa</td>
+              <td>
+                <button aria-label="Contatar família" class="btn btn-sm btn-primary" title="Contatar família">
+                  <i class="fas fa-phone"></i> Contatar
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td>Lucas Ferreira</td>
+              <td>Rota 08</td>
+              <td>5</td>
+              <td><span class="badge"
+                  style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem; border-radius: 4px">21%</span>
+              </td>
+              <td>Família contactada hoje</td>
+              <td>
+                <button aria-label="Contatar família" class="btn btn-sm btn-primary" title="Contatar família">
+                  <i class="fas fa-phone"></i> Contatar
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- ===================================================
+ AÇÕES RÁPIDAS DE ENGAJAMENTO
+ =================================================== -->
+    <div class="w-full cards-grid gap-3 mb-4">
+      <div class="card action-card p-4 text-center"
+        style="cursor: pointer; transition: all 0.3s ease; border: 2px solid var(--md-sys-color-outline-variant)"
+        onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--shadow-lg)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''">
+        <div class="text-xs mb-2" style="color: var(--md-sys-color-primary)">
+          <i class="fas fa-poll"></i>
+        </div>
+        <h4 class="text-xs" style="margin: 0 0 var(--space-2) 0">Nova Pesquisa</h4>
+        <p class="text-xs" style="margin: 0; color: var(--md-sys-color-on-surface-variant)">Criar enquete
+        </p>
+      </div>
+
+      <div class="card action-card p-4 text-center"
+        style="cursor: pointer; transition: all 0.3s ease; border: 2px solid var(--md-sys-color-outline-variant)"
+        onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--shadow-lg)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''">
+        <div class="text-xs mb-2" style="color: var(--md-sys-color-secondary)">
+          <i class="fab fa-whatsapp"></i>
+        </div>
+        <h4 class="text-xs" style="margin: 0 0 var(--space-2) 0">Enviar WhatsApp</h4>
+        <p class="text-xs" style="margin: 0; color: var(--md-sys-color-on-surface-variant)">Mensagem em
+          massa</p>
+      </div>
+
+      <div class="card action-card p-4 text-center"
+        style="cursor: pointer; transition: all 0.3s ease; border: 2px solid var(--md-sys-color-outline-variant)"
+        onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--shadow-lg)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''">
+        <div class="text-xs mb-2" style="color: var(--md-sys-color-tertiary)">
+          <i class="fas fa-file-export"></i>
+        </div>
+        <h4 class="text-xs" style="margin: 0 0 var(--space-2) 0">Relatório Detalhado</h4>
+        <p class="text-xs" style="margin: 0; color: var(--md-sys-color-on-surface-variant)">Gerar análise
+          completa
+        </p>
+      </div>
+
+      <div class="card action-card p-4 text-center"
+        style="cursor: pointer; transition: all 0.3s ease; border: 2px solid var(--md-sys-color-outline-variant)"
+        onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--shadow-lg)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''">
+        <div class="text-xs mb-2" style="color: #f59e0b">
+          <i class="fas fa-robot"></i>
+        </div>
+        <h4 class="text-xs" style="margin: 0 0 var(--space-2) 0">IA Insights</h4>
+        <p class="text-xs" style="margin: 0; color: var(--md-sys-color-on-surface-variant)">Análise
+          preditiva</p>
+      </div>
+    </div>
+    <div id="engagement-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="incidentes-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-red">
+      <div class="section-title-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Protocolo de Incidentes</h2>
+        <p class="page-subtitle">Registre e acompanhe ocorrências em conformidade com SEI-GDF</p>
+      </div>
+    </div>
+    <!-- Quick Stats - Incidentes -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #ef4444 0%, var(--md-sys-color-error) 100%); color: #1f2937">
+        <i class="fas fa-exclamation-circle text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937" id="stat-incidentes-abertos-1">---
+        </h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Abertos</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-check-circle text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff" id="stat-incidentes-resolvidos-1">
+          ---</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Resolvidos</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-clock text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff" id="stat-tempo-medio-1">---</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Tempo Médio</p>
+      </div>
+    </div>
+    <!-- Alerta: Procedimentos para Incidentes -->
+    <div class="alert alert-danger mb-4" role="alert">
+      <i class="fas fa-shield-alt"></i>
+      <div>
+        <strong>Encaminhamento de Ouvidorias e Reclamações:</strong>
+        <p class="mt-2 text-small">Ouvidorias, reclamações e manifestações sobre comportamento inadequado,
+          direção
+          perigosa ou descumprimento de normas devem ser encaminhadas à GCOTE com vistas ao Executor do
+          Contrato
+          dentro do prazo de 48 horas para deliberações pertinentes.</p>
+      </div>
+    </div>
+    <div id="incidentes-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="whatsapp-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-green">
+      <div class="section-title-icon"><i class="fab fa-whatsapp"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Integração WhatsApp</h2>
+        <p class="page-subtitle">Comunicação automática com pais e responsáveis</p>
+      </div>
+    </div>
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fab fa-whatsapp text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">8,472</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Mensagens Enviadas</p>
+        <small class="opacity-80 text-xs" style="color: #f3f4f6">Últimos 30 dias</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-check-double text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">97.8%</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Taxa Entrega</p>
+        <small class="opacity-80 text-xs" style="color: #f3f4f6">Entregues com sucesso</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-users text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">1,247</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Contatos Ativos</p>
+        <small class="opacity-80 text-xs" style="color: #f3f4f6">Pais e responsáveis</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%); color: #f3f4f6">
+        <i class="fas fa-comment-dots text-xs mb-2" style="color: #f3f4f6"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #ffffff">12</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #f3f4f6">Templates Ativos</p>
+        <small class="opacity-80 text-xs" style="color: #f3f4f6">Mensagens predefinidas</small>
+      </div>
+    </div>
+    <!-- Templates de Mensagens -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="flex items-center gap-2" style="margin: 0"><i class="fas fa-file-alt"></i> Templates de
+          Mensagens
+          Populares</h3>
+      </div>
+      <div class="card-body">
+        <div class="w-full cards-grid gap-3">
+          <div
+            style="padding: var(--space-3); background: var(--md-sys-color-surface-container); border-radius: var(--radius-base); border-left: 4px solid #25D366">
+            <h4 class="font-bold flex items-center gap-2" style="margin: 0 0 var(--space-2) 0">
+              <i class="fas fa-calendar-check"></i> Confirmação de Viagem
+            </h4>
+            <p style="margin: 0 0 var(--space-2) 0; font-size: 0.9rem; color: var(--md-sys-color-on-surface-variant)">
+              Enviado diariamente às 6h para confirmar a viagem do dia</p>
+            <span class="badge"
+              style="background: rgba(37, 211, 102, 0.2); color: #128C7E; padding: 0.3rem 0.6rem">2,847
+              envios/mês</span>
+          </div>
+          <div
+            style="padding: var(--space-3); background: var(--md-sys-color-surface-container); border-radius: var(--radius-base); border-left: 4px solid #667eea">
+            <h4 class="font-bold flex items-center gap-2" style="margin: 0 0 var(--space-2) 0">
+              <i class="fas fa-exclamation-circle"></i> Alerta de Ausência
+            </h4>
+            <p style="margin: 0 0 var(--space-2) 0; font-size: 0.9rem; color: var(--md-sys-color-on-surface-variant)">
+              Notifica pais quando aluno não embarca no transporte</p>
+            <span class="badge" style="background: rgba(102, 126, 234, 0.2); color: #764ba2; padding: 0.3rem 0.6rem">347
+              envios/mês</span>
+          </div>
+          <div
+            style="padding: var(--space-3); background: var(--md-sys-color-surface-container); border-radius: var(--radius-base); border-left: 4px solid #10b981">
+            <h4 class="font-bold flex items-center gap-2" style="margin: 0 0 var(--space-2) 0">
+              <i class="fas fa-clock"></i> Aviso de Atraso
+            </h4>
+            <p style="margin: 0 0 var(--space-2) 0; font-size: 0.9rem; color: var(--md-sys-color-on-surface-variant)">
+              Informa sobre atrasos previstos na rota</p>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #059669; padding: 0.3rem 0.6rem">127
+              envios/mês</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="whatsapp-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="mcp-server-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-red">
+      <div class="section-title-icon"><i class="fas fa-network-wired"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">MCP Server - Orquestração</h2>
+        <p class="page-subtitle">Gerencie a integração entre robôs na nuvem e agentes locais</p>
+      </div>
+    </div>
+    <!-- Quick Stats - MCP Server -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <i class="fas fa-cloud text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">5</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Robôs Online (Cloud)</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-desktop text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">12</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Agentes Online (Local)</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+        <i class="fas fa-folder-open text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">8</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Tarefas na Fila</p>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #1f2937">
+        <i class="fas fa-brain text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">Ativa</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">API Ollama</p>
+      </div>
+    </div>
+    <div id="mcp-server-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="automacoes-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-purple">
+      <div class="section-title-icon"><i class="fas fa-magic"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Automações Inteligentes</h2>
+        <p class="page-subtitle">Configure fluxos automáticos e workflows com IA</p>
+      </div>
+    </div>
+    <!-- Quick Stats Automações -->
+    <div class="w-full cards-grid gap-3 mb-5">
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <i class="fas fa-robot text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">47</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Workflows Ativos</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Executando em tempo real</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <i class="fas fa-check-circle text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">8,472</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Tarefas Executadas</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Este mês</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #1f2937">
+        <i class="fas fa-clock text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">847h</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Tempo Economizado</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Trabalho manual</small>
+      </div>
+      <div class="card p-4 text-center"
+        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #1f2937">
+        <i class="fas fa-percentage text-xs mb-2" style="color: #1f2937"></i>
+        <h3 class="text-xs font-bold" style="margin: 0; color: #1f2937">99.2%</h3>
+        <p class="mt-2 text-xs" style="opacity: 0.9; color: #1f2937">Taxa Sucesso</p>
+        <small class="opacity-80 text-xs" style="color: #1f2937">Execuções bem-sucedidas</small>
+      </div>
+    </div>
+    <!-- Workflows Populares -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="flex items-center gap-2" style="margin: 0"><i class="fas fa-stream"></i> Workflows Mais
+          Utilizados</h3>
+      </div>
+      <div class="card-body">
+        <div class="flex gap-3" style="flex-direction: column">
+          <div class="flex items-center gap-3"
+            style="padding: var(--space-3); background: var(--md-sys-color-surface-container); border-radius: var(--radius-base); border-left: 4px solid #10b981">
+            <i class="fas fa-calendar-check text-xs" style="color: #10b981"></i>
+            <div style="flex: 1">
+              <h4 class="font-bold" style="margin: 0">Confirmação Automática de Viagens</h4>
+              <p class="mt-2 text-xs" style="color: var(--md-sys-color-on-surface-variant)">Envia
+                confirmações
+                diárias via WhatsApp às 6h</p>
+            </div>
+            <span class="badge"
+              style="background: rgba(16, 185, 129, 0.2); color: #059669; padding: 0.4rem 0.8rem">2,847
+              exec/mês</span>
+          </div>
+          <div class="flex items-center gap-3"
+            style="padding: var(--space-3); background: var(--md-sys-color-surface-container); border-radius: var(--radius-base); border-left: 4px solid #667eea">
+            <i class="fas fa-bell text-xs" style="color: #667eea"></i>
+            <div style="flex: 1">
+              <h4 class="font-bold" style="margin: 0">Alertas de Ausência</h4>
+              <p class="mt-2 text-xs" style="color: var(--md-sys-color-on-surface-variant)">Notifica pais
+                quando
+                aluno não embarca</p>
+            </div>
+            <span class="badge" style="background: rgba(102, 126, 234, 0.2); color: #764ba2; padding: 0.4rem 0.8rem">347
+              exec/mês</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="automacoes-crud-container-1" class="section-standardized"></div>
+  </section>
+
+  <section id="configuracoes-section-1" class="section hidden section-standardized">
+
+    <div class="page-header section-header-standardized color-blue">
+      <div class="section-title-icon"><i class="fas fa-cog"></i></div>
+      <div>
+        <h2 class="page-title section-title-standardized">Configurações</h2>
+        <p class="page-subtitle">Personalize parâmetros e preferências da aplicação</p>
+      </div>
+    </div>
+    <!-- Settings Cards -->
+    <div class="w-full cards-grid gap-4 mb-5">
+      <div class="card p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1f2937">
+        <h3 class="flex items-center gap-2"
+          style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937"><i
+            class="fas fa-user-cog" style="color: #1f2937"></i> Perfil</h3>
+        <p class="text-xs" style="margin: 0 0 var(--space-3) 0; color: #1f2937; opacity: 0.9">Dados
+          pessoais e
+          preferências</p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%">Editar Perfil</button>
+      </div>
+      <div class="card p-4" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #1f2937">
+        <h3 class="flex items-center gap-2"
+          style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937"><i class="fas fa-bell"
+            style="color: #1f2937"></i> Notificações</h3>
+        <p class="text-xs" style="margin: 0 0 var(--space-3) 0; color: #1f2937; opacity: 0.9">Alertas e
+          avisos do
+          sistema</p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%">Configurar</button>
+      </div>
+      <div class="card p-4" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #1f2937">
+        <h3 class="flex items-center gap-2"
+          style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937"><i
+            class="fas fa-shield-alt" style="color: #1f2937"></i> Segurança</h3>
+        <p class="text-xs" style="margin: 0 0 var(--space-3) 0; color: #1f2937; opacity: 0.9">Senha e
+          autenticação
+        </p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%">Alterar Senha</button>
+      </div>
+      <div class="card p-4"
+        style="background: linear-gradient(135deg, #ef4444 0%, var(--md-sys-color-error) 100%); color: #1f2937">
+        <h3 class="flex items-center gap-2"
+          style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-small); color: #1f2937"><i
+            class="fas fa-palette" style="color: #1f2937"></i> Aparência</h3>
+        <p class="text-xs" style="margin: 0 0 var(--space-3) 0; color: #1f2937; opacity: 0.9">Tema e
+          personalização
+        </p>
+        <button class="btn btn-secondary btn-sm" style="width: 100%">Personalizar</button>
+      </div>
+    </div>
+    <div id="configuracoes-crud-container-1" class="section-standardized"></div>
+  </section>
+  </div>
+  </main>
+
+  <footer class="app-footer">
+    <div class="container">
+      <div class="footer-bottom">
+        <p> <strong>UNIAE/PP:</strong> (61) 3318-2680 | transporteescolar.crepp@edu.se.df.gov.br</p>
+        <div class="flex gap-2">
+          <button aria-label="Atualizar Dados" class="btn-icon" id="update-data-button-1" title="Atualizar Dados">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+          <button aria-label="Fazer Backup" class="btn-icon" id="backup-button-1" title="Fazer Backup">
+            <i class="fas fa-hdd"></i>
+          </button>
+          <button aria-label="Alternar Tema" class="btn-icon" id="theme-toggle-1" title="Alternar Tema (Claro/Escuro)">
+            <i class="fa-solid fa-circle-half-stroke"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Container -->
+  <div id="toast-container-1" class="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay-1" class="loading-overlay" aria-hidden="true" aria-busy="false">
+    <div class="loading-spinner-container">
+      <div class="loading-spinner"></div>
+      <p id="loading-text-1" class="loading-text">Carregando...</p>
+      <div class="loading-progress-container" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+        aria-valuenow="0">
+        <div id="loading-progress-bar-1" class="loading-progress-bar"></div>
+      </div>
+    </div>
+    <?!= include('JS-HeaderActions') ?>
+    <?!= include('JS-SheetMapping') ?>
+    <?!= include('JS-Navigation') ?>
+    <?!= include('JS-MenuToggle') ?>
+    <?!= include('JS-TabManager') ?>
+    <?!= include('JS-Components') ?>
+    <?!= include('JS-CRUD-Universal') ?>
+    <?!= include('JS-FormHelpers') ?>
+    <?!= include('JS-CustomFormsIntegration') ?>
+    <?!= include('JS-DebugTools') ?>
+    <?!= include('JS-CascadingLogic') ?>
+    <!--
+      * Configuração CRUD para Alunos
+       ->
+      const AlunosCRUDConfig = {
+        sectionId: 'alunos',
+        sheetName: 'Alunos',
+  
+        fields: [
+          { name: 'Nome_Completo', label: 'Nome Completo', type: 'text', required: true },
+          { name: 'RA_Aluno', label: 'RA do Aluno', type: 'text', required: true },
+          { name: 'Data_Nascimento', label: 'Data de Nascimento', type: 'date', required: true },
+          { name: 'CPF', label: 'CPF', type: 'text', required: true, placeholder: '000.000.000-00' },
+          { name: 'RG', label: 'RG', type: 'text', required: false },
+          { name: 'Escola', label: 'Escola', type: 'text', required: true },
+          { name: 'Serie_Ano', label: 'Série/Ano', type: 'text', required: true, placeholder: 'Ex: 8º Ano' },
+          {
+            name: 'Turno',
+            label: 'Turno',
+            type: 'select',
+            required: true,
+            options: [
+              { value: 'Matutino', label: 'Matutino' },
+              { value: 'Vespertino', label: 'Vespertino' },
+              { value: 'Noturno', label: 'Noturno' },
+              { value: 'Integral', label: 'Integral' }
+            ]
+          },
+          { name: 'Endereco_Residencial', label: 'Endereço Residencial', type: 'text', required: true },
+          { name: 'CEP', label: 'CEP', type: 'text', required: true, placeholder: '00000-000' },
+          { name: 'Bairro', label: 'Bairro', type: 'text', required: true },
+          { name: 'ID_Rota', label: 'Rota', type: 'select', required: true, options: [] },
+          { name: 'Ponto_Embarque', label: 'Ponto de Embarque', type: 'text', required: false },
+          { name: 'Ponto_Desembarque', label: 'Ponto de Desembarque', type: 'text', required: false },
+          { name: 'Responsavel1_Nome', label: 'Responsável 1 - Nome', type: 'text', required: true },
+          { name: 'Responsavel1_Telefone', label: 'Responsável 1 - Telefone', type: 'tel', required: true, placeholder: '(00) 00000-0000' },
+          { name: 'Responsavel2_Nome', label: 'Responsável 2 - Nome', type: 'text', required: false },
+          { name: 'Responsavel2_Telefone', label: 'Responsável 2 - Telefone', type: 'tel', required: false, placeholder: '(00) 00000-0000' },
+          {
+            name: 'Necessidades_Especiais',
+            label: 'Necessidades Especiais',
+            type: 'select',
+            required: false,
+            options: [
+              { value: 'Não', label: 'Não' },
+              { value: 'Sim', label: 'Sim' }
+            ]
+          },
+          {
+            name: 'Status',
+            label: 'Status',
+            type: 'select',
+            required: true,
+            default: 'Ativo',
+            options: [
+              { value: 'Ativo', label: 'Ativo' },
+              { value: 'Inativo', label: 'Inativo' },
+              { value: 'Suspenso', label: 'Suspenso' },
+              { value: 'Aguardando Vaga', label: 'Aguardando Vaga' }
+            ]
+          }
+        ],
+  
+        tableConfig: {
+          columns: [
+            { field: 'Nome_Completo', label: 'Nome', sortable: true, searchable: true },
+            { field: 'RA_Aluno', label: 'RA', sortable: true, searchable: true },
+            { field: 'Escola', label: 'Escola', sortable: true, searchable: true },
+            { field: 'Serie_Ano', label: 'Série', sortable: false },
+            { field: 'Turno', label: 'Turno', sortable: true },
+            {
+              field: 'Status',
+              label: 'Status',
+              sortable: true,
+              render: (value) => {
+                const statusColors = {
+                  'Ativo': 'success',
+                  'Inativo': 'secondary',
+                  'Suspenso': 'warning',
+                  'Aguardando Vaga': 'info'
+                };
+                const color = statusColors[value] || 'secondary';
+                return `<span class="badge badge-${color}">${value}</span>`;
+              }
+            }
+          ],
+          pageSize: 10,
+          searchPlaceholder: 'Buscar por nome, RA ou escola...'
+        }
+      };
+  
+      /**
+      * Inicializa CRUD para Alunos
+      */
+      async function initAlunosCRUD() {
+        try {
+          const log = window.Logger || console;
+          log.info('[Alunos] Inicializando CRUD...');
+
+          // Carregar rotas para o dropdown
+          const rotasResponse = await API.run('readRecords', { sheetName: 'Rotas' });
+          if (rotasResponse && rotasResponse.success && rotasResponse.data) {
+            const rotasField = AlunosCRUDConfig.fields.find(f => f.name === 'ID_Rota');
+            if (rotasField) {
+              rotasField.options = rotasResponse.data.map(rota => ({
+                value: rota.ID || rota.id,
+                label: `${rota.Nome_Rota || rota.Codigo_Rota || 'Rota'} - ${rota.Descricao || rota.Origem || ''}`
+              }));
+            }
+          }
+
+          // Inicializar CRUD Universal
+          await CRUDManagerUniversal.init('alunos', AlunosCRUDConfig);
+
+          log.info('[Alunos] ✅ CRUD inicializado com sucesso!');
+          return { success: true };
+        } catch (error) {
+          const log = window.Logger || console;
+          log.error('[Alunos] ❌ Erro ao inicializar CRUD:', error);
+          if (window.ToastManager) {
+            ToastManager.show('Falha ao carregar módulo de alunos', 'error');
+          }
+          return { success: false, error: error.message };
+        }
+      }
+
+      /**
+      * Sistema de inicialização automática de CRUDs
+      */
+      document.addEventListener('DOMContentLoaded', async () => {
+        if (window.Logger) {
+          Logger.info('[CRUD Init] Sistema de inicialização carregado');
+        } else {
+          console.log('[CRUD Init] Sistema de inicialização carregado');
+        }
+
+        // Observer para detectar mudanças de seção
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'class') {
+              const section = mutation.target;
+              if (section.classList.contains('section') && !section.classList.contains('hidden')) {
+                const sectionId = section.id.replace('-section', '');
+                initCRUDForSection(sectionId);
+              }
+            }
+          });
+        });
+
+        // Observar todas as seções
+        document.querySelectorAll('.section').forEach(section => {
+          observer.observe(section, { attributes: true });
+        });
+
+        // Inicializar seção ativa atual
+        const activeSection = document.querySelector('.section:not(.hidden)');
+        if (activeSection) {
+          const sectionId = activeSection.id.replace('-section', '');
+          initCRUDForSection(sectionId);
+        }
+      });
+
+      /**
+      * Inicializa CRUD para uma seção específica
+      */
+      async function initCRUDForSection(sectionId) {
+        const log = window.Logger || console;
+        log.info(`[CRUD Init] Tentando inicializar CRUD para: ${sectionId}`);
+
+        switch (sectionId) {
+          case 'alunos':
+            if (!CRUDManagerUniversal.instances['alunos']) {
+              await initAlunosCRUD();
+            }
+            break;
+          // Adicionar outros cases aqui conforme novos CRUDs forem criados
+          default:
+            if (log.debug) {
+              log.debug(`[CRUD Init] Nenhum CRUD configurado para seção: ${sectionId}`);
+            } else {
+              console.log(`[CRUD Init] Nenhum CRUD configurado para seção: ${sectionId}`);
+            }
+        }
+      }
+
+      window.addEventListener('load', async () => {
+        try {
+          // Registrar o service worker servido pelo Google Apps Script
+          const registration = await navigator.serviceWorker.register('?file=sw.js', {
+            scope: './'
+          });
+
+          console.log('[PWA] ✅ Service Worker registrado com sucesso:', registration.scope);
+
+          // Verificar atualizações do service worker
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            console.log('[PWA] 🔄 Nova versão do Service Worker detectada');
+
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Nova versão disponível, notificar usuário
+                if (window.ToastManager) {
+                  ToastManager.show('Nova versão disponível! Recarregue a página.', 'info', 5000);
+                }
+                console.log('[PWA] 📦 Nova versão instalada e aguardando ativação');
+              }
+            });
+          });
+
+          // Verificar por atualizações a cada 1 hora
+          setInterval(() => {
+            registration.update();
+          }, 60 * 60 * 1000);
+
+        } catch (error) {
+          console.error('[PWA] ❌ Falha ao registrar Service Worker:', error);
+        }
+      });
+
+      // Detectar quando o app está rodando como PWA instalado
+      window.addEventListener('DOMContentLoaded', () => {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+          || window.navigator.standalone
+          || document.referrer.includes('android-app://');
+
+        if (isStandalone) {
+          console.log('[PWA] 📱 App rodando como PWA instalado');
+          document.body.classList.add('pwa-mode');
+        }
+      });
+              } else {
+        console.warn('[PWA] ⚠️ Service Worker não suportado neste navegador');
+      }
+    </script>
+
+</body>
+
+</html>
+
+
+
+<!--============================================================================-->

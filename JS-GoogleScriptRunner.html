@@ -1,0 +1,473 @@
+<script>
+  /**
+   * @file JS-GoogleScriptRunner.html
+   * @description Wrapper centralizado para google.script.run com tratamento de erro estruturado
+   * @version 1.0.0
+   * @author Sistema TE-DF-PP
+   * @since 2024-11-22
+   * 
+   * Padroniza chamadas ao backend com:
+   * - Tratamento de erro consistente
+   * - Timeout configurável
+   * - Retry automático
+   * - Loading states
+   * - Logging estruturado
+   */
+
+  // ============================================================================
+  // GOOGLE SCRIPT RUNNER - WRAPPER CENTRALIZADO
+  // ============================================================================
+
+  /**
+   * @class GoogleScriptRunner
+   * @description Wrapper para google.script.run com recursos avançados
+   */
+  var GoogleScriptRunner = (function () {
+
+    /**
+     * Configuração padrão
+     */
+    var config = {
+      timeout: 30000,           // 30 segundos
+      retries: 2,               // 2 tentativas
+      retryDelay: 1000,         // 1 segundo entre tentativas
+      showLoading: true,        // Mostrar loading
+      logErrors: true           // Logar erros
+    };
+
+    /**
+     * Estatísticas
+     */
+    var stats = {
+      total: 0,
+      success: 0,
+      errors: 0,
+      timeouts: 0,
+      retries: 0
+    };
+
+    /**
+     * Executa função do backend
+     * 
+     * @param {string} functionName - Nome da função
+     * @param {Array} args - Argumentos
+     * @param {Object} options - Opções
+     * @return {Promise} Promise com resultado
+     * 
+     * @example
+     * GoogleScriptRunner.run('readRecords', ['Alunos'])
+     *   .then(result => console.log(result))
+     *   .catch(error => console.error(error));
+     */
+    function run(functionName, args, options) {
+      return new Promise(function (resolve, reject) {
+        try {
+          // Merge options com config padrão
+          options = Object.assign({}, config, options || {});
+
+          // Incrementa contador
+          stats.total++;
+
+          // Verifica se google.script.run está disponível
+          if (typeof google === 'undefined' || !google.script || !google.script.run) {
+            var error = createError(
+              'UNAVAILABLE',
+              'google.script.run não está disponível',
+              { functionName: functionName }
+            );
+            handleError(error, options);
+            return reject(error);
+          }
+
+          // Mostra loading
+          if (options.showLoading && typeof showLoading === 'function') {
+            showLoading(true);
+          }
+
+          // Configura timeout
+          var timeoutId = null;
+          var timedOut = false;
+
+          if (options.timeout > 0) {
+            timeoutId = setTimeout(function () {
+              timedOut = true;
+              stats.timeouts++;
+
+              var error = createError(
+                'TIMEOUT',
+                'Operação excedeu o tempo limite de ' + (options.timeout / 1000) + 's',
+                { functionName: functionName, timeout: options.timeout }
+              );
+
+              handleError(error, options);
+
+              // Esconde loading
+              if (options.showLoading && typeof showLoading === 'function') {
+                showLoading(false);
+              }
+
+              reject(error);
+            }, options.timeout);
+          }
+
+          // Executa função
+          var runner = google.script.run
+            .withSuccessHandler(function (result) {
+              // Cancela timeout
+              if (timeoutId) clearTimeout(timeoutId);
+
+              // Se já deu timeout, ignora
+              if (timedOut) return;
+
+              // Esconde loading
+              if (options.showLoading && typeof showLoading === 'function') {
+                showLoading(false);
+              }
+
+              // Verifica se resultado é um erro estruturado
+              if (result && result.success === false && result.error) {
+                stats.errors++;
+                var error = createError(
+                  result.errorType || 'SERVER_ERROR',
+                  result.error,
+                  result.details || {}
+                );
+                handleError(error, options);
+                return reject(error);
+              }
+
+              // Sucesso
+              stats.success++;
+              resolve(result);
+            })
+            .withFailureHandler(function (error) {
+              // Cancela timeout
+              if (timeoutId) clearTimeout(timeoutId);
+
+              // Se já deu timeout, ignora
+              if (timedOut) return;
+
+              // Esconde loading
+              if (options.showLoading && typeof showLoading === 'function') {
+                showLoading(false);
+              }
+
+              // Tenta retry se configurado
+              if (options.retries > 0) {
+                stats.retries++;
+
+                setTimeout(function () {
+                  // Decrementa retries e tenta novamente
+                  var newOptions = Object.assign({}, options, {
+                    retries: options.retries - 1
+                  });
+
+                  run(functionName, args, newOptions)
+                    .then(resolve)
+                    .catch(reject);
+
+                }, options.retryDelay);
+
+                return;
+              }
+
+              // Sem mais retries, retorna erro
+              stats.errors++;
+
+              var structuredError = createError(
+                'EXECUTION_ERROR',
+                error.message || error.toString(),
+                { functionName: functionName, originalError: error }
+              );
+
+              handleError(structuredError, options);
+              reject(structuredError);
+            });
+
+          // Chama função com argumentos
+          if (args && args.length > 0) {
+            runner[functionName].apply(runner, args);
+          } else {
+            runner[functionName]();
+          }
+
+        } catch (error) {
+          stats.errors++;
+
+          var structuredError = createError(
+            'UNEXPECTED_ERROR',
+            error.message || error.toString(),
+            { functionName: functionName }
+          );
+
+          handleError(structuredError, options);
+          reject(structuredError);
+        }
+      });
+    }
+
+    /**
+     * Cria objeto de erro estruturado
+     * 
+     * @param {string} type - Tipo do erro
+     * @param {string} message - Mensagem técnica ou amigável
+     * @param {Object} details - Detalhes
+     * @return {Object} Erro estruturado
+     */
+    function createError(type, message, details) {
+      // Tenta determinar se é uma mensagem amigável ou técnica
+      // Por padrão, erros criados no cliente (timeout, unavailable) são considerados técnicos
+      // e recebem uma mensagem amigável padrão
+
+      var friendlyMessage = 'Ocorreu um erro na comunicação. Tente novamente.';
+
+      if (type === 'TIMEOUT') {
+        friendlyMessage = 'A operação demorou muito para responder. Tente novamente.';
+      } else if (type === 'UNAVAILABLE') {
+        friendlyMessage = 'Serviço indisponível. Verifique sua conexão.';
+      }
+
+      return {
+        success: false,
+        message: friendlyMessage,
+        code: 'ERR_CLIENT_' + type,
+        type: type,
+        technical: message,
+        details: details || {},
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    /**
+     * Trata erro
+     * 
+     * @param {Object} error - Erro
+     * @param {Object} options - Opções
+     */
+    function handleError(error, options) {
+      // Log técnico no console (sempre, para debug)
+      if (options.logErrors) {
+        var technicalMsg = error.technical || error.error || error.message;
+        var context = error.type || 'UNKNOWN';
+
+        // Usa Logger se disponível para respeitar flag de produção
+        if (typeof Logger !== 'undefined' && Logger.error) {
+          Logger.error('[GoogleScriptRunner] ❌ ' + context + ':', technicalMsg);
+          if (error.details) Logger.debug('Detalhes:', error.details);
+        } else {
+          console.error('[GoogleScriptRunner] ❌ ' + context + ':', technicalMsg);
+        }
+      }
+
+      // Mostra toast com mensagem amigável
+      // Prioriza error.message (novo padrão) sobre error.error (antigo)
+      var displayMessage = error.message || error.error || 'Ocorreu um erro inesperado.';
+
+      if (typeof showToast === 'function') {
+        showToast(displayMessage, 'error');
+      } else if (typeof ToastManager !== 'undefined' && ToastManager.show) {
+        ToastManager.show(displayMessage, 'error');
+      }
+
+      // Callback de erro customizado
+      if (options.onError && typeof options.onError === 'function') {
+        options.onError(error);
+      }
+    }
+
+    /**
+     * Executa múltiplas funções em paralelo
+     * 
+     * @param {Array} calls - Array de chamadas [{fn, args}, ...]
+     * @param {Object} options - Opções
+     * @return {Promise} Promise com array de resultados
+     * 
+     * @example
+     * GoogleScriptRunner.runBatch([
+     *   { fn: 'readRecords', args: ['Alunos'] },
+     *   { fn: 'readRecords', args: ['Veiculos'] }
+     * ]).then(results => console.log(results));
+     */
+    function runBatch(calls, options) {
+      var promises = calls.map(function (call) {
+        return run(call.fn, call.args, options);
+      });
+
+      return Promise.all(promises);
+    }
+
+    /**
+     * Obtém estatísticas
+     * 
+     * @return {Object} Estatísticas
+     */
+    function getStats() {
+      var successRate = stats.total > 0
+        ? ((stats.success / stats.total) * 100).toFixed(2)
+        : 0;
+
+      return {
+        total: stats.total,
+        success: stats.success,
+        errors: stats.errors,
+        timeouts: stats.timeouts,
+        retries: stats.retries,
+        successRate: successRate + '%'
+      };
+    }
+
+    /**
+     * Reseta estatísticas
+     */
+    function resetStats() {
+      stats = {
+        total: 0,
+        success: 0,
+        errors: 0,
+        timeouts: 0,
+        retries: 0
+      };
+    }
+
+    /**
+     * Configura o runner
+     * @param {Object} newConfig - Nova configuração
+     */
+    function configure(newConfig) {
+      config = Object.assign({}, config, newConfig);
+    }
+
+    /**
+     * Obtém configuração atual
+     * 
+     * @return {Object} Configuração
+     */
+    function getConfig() {
+      return Object.assign({}, config);
+    }
+
+    // API pública
+    return {
+      run: run,
+      runBatch: runBatch,
+      getStats: getStats,
+      resetStats: resetStats,
+      configure: configure,
+      getConfig: getConfig,
+      createError: createError
+    };
+  })();
+
+  // ============================================================================
+  // FUNÇÕES AUXILIARES GLOBAIS
+  // ============================================================================
+
+  /**
+   * Executa função do backend (wrapper simplificado)
+   * 
+   * @param {string} functionName - Nome da função
+   * @param {...*} args - Argumentos
+   * @return {Promise} Promise com resultado
+   * 
+   * @example
+   * runServerFunction('readRecords', 'Alunos')
+   *   .then(result => console.log(result))
+   *   .catch(error => console.error(error));
+   */
+  function runServerFunction(functionName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return GoogleScriptRunner.run(functionName, args);
+  }
+
+  /**
+   * Executa função com callback (compatibilidade)
+   * 
+   * @param {string} functionName - Nome da função
+   * @param {Array} args - Argumentos
+   * @param {Function} onSuccess - Callback de sucesso
+   * @param {Function} onError - Callback de erro
+   * 
+   * @example
+   * callServerFunction('readRecords', ['Alunos'], 
+   *   function(result) { console.log(result); },
+   *   function(error) { console.error(error); }
+   * );
+   */
+  function callServerFunction(functionName, args, onSuccess, onError) {
+    GoogleScriptRunner.run(functionName, args)
+      .then(onSuccess)
+      .catch(onError);
+  }
+
+  /**
+   * Wrapper para manter compatibilidade com código existente
+   * Cria um proxy para google.script.run que usa o GoogleScriptRunner
+   */
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    // Salva referência original
+    var originalGoogleScriptRun = google.script.run;
+
+    // Cria wrapper (opcional - comentado por padrão para não quebrar código existente)
+    /*
+    google.script.run = new Proxy(originalGoogleScriptRun, {
+      get: function(target, prop) {
+        if (prop === 'withSuccessHandler' || prop === 'withFailureHandler' || prop === 'withUserObject') {
+          return target[prop].bind(target);
+        }
+        
+        // Intercepta chamadas de função
+        return function() {
+          var args = Array.prototype.slice.call(arguments);
+          return GoogleScriptRunner.run(prop, args);
+        };
+      }
+    });
+    */
+  }
+
+  // ============================================================================
+  // HELPERS DE UI
+  // ============================================================================
+
+  /**
+   * Mostra/esconde loading global
+   * 
+   * @param {boolean} show - Mostrar ou esconder
+   */
+  function showLoading(show) {
+    var loader = document.getElementById('globalLoader');
+    if (loader) {
+      loader.style.display = show ? 'flex' : 'none';
+    }
+  }
+
+  /**
+   * Mostra toast de mensagem
+   * 
+   * @param {string} message - Mensagem
+   * @param {string} type - Tipo (success, error, warning, info)
+   */
+  function showToast(message, type) {
+    // Tenta usar ToastManager se disponível
+    if (typeof ToastManager !== 'undefined' && ToastManager.show) {
+      ToastManager.show(message, type);
+      return;
+    }
+
+    // Fallback: console
+    console.log('[Toast ' + type + '] ' + message);
+  }
+
+  // ============================================================================
+  // INICIALIZAÇÃO
+  // ============================================================================
+
+  // Log de inicialização
+  console.log('✅ GoogleScriptRunner carregado');
+
+  // Expõe no window para debug
+  if (typeof window !== 'undefined') {
+    window.GoogleScriptRunner = GoogleScriptRunner;
+  }
+
+</script>

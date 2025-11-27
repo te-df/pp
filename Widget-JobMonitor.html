@@ -1,0 +1,506 @@
+<!-- Widget de Monitoramento de Jobs -->
+<div id="job-monitor-widget" class="job-monitor-widget">
+  <div class="job-monitor-header">
+    <h3><i class="fas fa-tasks"></i> Jobs em Andamento</h3>
+    <button class="btn-icon" onclick="JobMonitorWidget.toggle()">
+      <i class="fas fa-chevron-down"></i>
+    </button>
+  </div>
+  <div class="job-monitor-body">
+    <div id="job-monitor-list" class="job-monitor-list">
+      <p class="text-muted">Nenhum job em andamento</p>
+    </div>
+  </div>
+</div>
+
+<style>
+.job-monitor-widget {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 350px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 9999;
+  transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .job-monitor-widget {
+  background: #2d2d2d;
+  color: #e0e0e0;
+}
+
+.job-monitor-widget.collapsed .job-monitor-body {
+  display: none;
+}
+
+.job-monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .job-monitor-header {
+  border-bottom-color: #444;
+}
+
+.job-monitor-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-monitor-body {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.job-monitor-list {
+  padding: 12px;
+}
+
+.job-item {
+  padding: 12px;
+  margin-bottom: 8px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  border-left: 4px solid #2196f3;
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .job-item {
+  background: #3d3d3d;
+}
+
+.job-item:hover {
+  transform: translateX(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.job-item.completed {
+  border-left-color: #4caf50;
+  opacity: 0.7;
+}
+
+.job-item.failed {
+  border-left-color: #f44336;
+}
+
+.job-item.running {
+  border-left-color: #ff9800;
+}
+
+.job-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.job-item-title {
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.job-item-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.job-item-status.pending {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.job-item-status.running {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.job-item-status.completed {
+  background: #e8f5e9;
+  color: #388e3c;
+}
+
+.job-item-status.failed {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+.job-item-details {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+[data-theme="dark"] .job-item-details {
+  color: #aaa;
+}
+
+.job-item-progress {
+  margin-top: 8px;
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .job-item-progress {
+  background: #555;
+}
+
+.job-item-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #2196f3, #64b5f6);
+  transition: width 0.3s ease;
+  animation: progress-animation 1.5s infinite;
+}
+
+@keyframes progress-animation {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.job-item-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.job-item-actions button {
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.text-muted {
+  color: #999;
+  text-align: center;
+  padding: 20px;
+  font-size: 13px;
+}
+</style>
+
+<script>
+/**
+ * JobMonitorWidget - Widget de monitoramento visual de jobs
+ */
+const JobMonitorWidget = (function() {
+  'use strict';
+
+  let widget = null;
+  let listContainer = null;
+  let isCollapsed = false;
+  let activeJobs = new Map();
+
+  /**
+   * Inicializa o widget
+   */
+  function init() {
+    widget = document.getElementById('job-monitor-widget');
+    listContainer = document.getElementById('job-monitor-list');
+    
+    if (!widget || !listContainer) {
+      console.warn('JobMonitorWidget: Elementos não encontrados');
+      return;
+    }
+
+    // Oculta o widget inicialmente
+    widget.style.display = 'none';
+  }
+
+  /**
+   * Mostra o widget
+   */
+  function show() {
+    if (widget) {
+      widget.style.display = 'block';
+    }
+  }
+
+  /**
+   * Oculta o widget
+   */
+  function hide() {
+    if (widget) {
+      widget.style.display = 'none';
+    }
+  }
+
+  /**
+   * Alterna entre expandido/colapsado
+   */
+  function toggle() {
+    if (widget) {
+      isCollapsed = !isCollapsed;
+      widget.classList.toggle('collapsed', isCollapsed);
+    }
+  }
+
+  /**
+   * Adiciona um job ao monitor
+   */
+  function addJob(jobId, jobName, payload) {
+    show();
+
+    const jobItem = createJobElement(jobId, jobName, 'PENDING', payload);
+    activeJobs.set(jobId, {
+      element: jobItem,
+      jobName: jobName,
+      status: 'PENDING',
+      startTime: Date.now()
+    });
+
+    updateList();
+  }
+
+  /**
+   * Atualiza o status de um job
+   */
+  function updateJob(jobId, status, result) {
+    const job = activeJobs.get(jobId);
+    if (!job) return;
+
+    job.status = status;
+    job.result = result;
+
+    const statusBadge = job.element.querySelector('.job-item-status');
+    const progressBar = job.element.querySelector('.job-item-progress-bar');
+
+    // Atualiza badge de status
+    statusBadge.textContent = status;
+    statusBadge.className = 'job-item-status ' + status.toLowerCase();
+
+    // Atualiza classe do item
+    job.element.className = 'job-item ' + status.toLowerCase();
+
+    // Atualiza barra de progresso
+    if (status === 'RUNNING') {
+      progressBar.style.width = '60%';
+    } else if (status === 'COMPLETED') {
+      progressBar.style.width = '100%';
+      progressBar.style.background = 'linear-gradient(90deg, #4caf50, #81c784)';
+      
+      // Remove após 5 segundos
+      setTimeout(() => removeJob(jobId), 5000);
+    } else if (status === 'FAILED') {
+      progressBar.style.width = '100%';
+      progressBar.style.background = '#f44336';
+      
+      // Remove após 10 segundos
+      setTimeout(() => removeJob(jobId), 10000);
+    }
+  }
+
+  /**
+   * Remove um job do monitor
+   */
+  function removeJob(jobId) {
+    const job = activeJobs.get(jobId);
+    if (!job) return;
+
+    job.element.style.opacity = '0';
+    job.element.style.transform = 'translateX(400px)';
+
+    setTimeout(() => {
+      activeJobs.delete(jobId);
+      updateList();
+
+      // Oculta widget se não houver mais jobs
+      if (activeJobs.size === 0) {
+        hide();
+      }
+    }, 300);
+  }
+
+  /**
+   * Cria elemento HTML para um job
+   */
+  function createJobElement(jobId, jobName, status, payload) {
+    const item = document.createElement('div');
+    item.className = 'job-item ' + status.toLowerCase();
+    item.dataset.jobId = jobId;
+
+    const icon = getJobIcon(jobName);
+    const label = getJobLabel(jobName);
+
+    item.innerHTML = `
+      <div class="job-item-header">
+        <div class="job-item-title">
+          <i class="${icon}"></i>
+          <span>${label}</span>
+        </div>
+        <span class="job-item-status ${status.toLowerCase()}">${status}</span>
+      </div>
+      <div class="job-item-details">
+        ${getJobDetails(jobName, payload)}
+      </div>
+      <div class="job-item-progress">
+        <div class="job-item-progress-bar" style="width: 10%;"></div>
+      </div>
+    `;
+
+    return item;
+  }
+
+  /**
+   * Atualiza a lista de jobs
+   */
+  function updateList() {
+    listContainer.innerHTML = '';
+
+    if (activeJobs.size === 0) {
+      listContainer.innerHTML = '<p class="text-muted">Nenhum job em andamento</p>';
+      return;
+    }
+
+    activeJobs.forEach((job, jobId) => {
+      listContainer.appendChild(job.element);
+    });
+  }
+
+  /**
+   * Retorna ícone para o tipo de job
+   */
+  function getJobIcon(jobName) {
+    const icons = {
+      'EXPORT_CSV': 'fas fa-file-csv',
+      'EXPORT_PDF': 'fas fa-file-pdf',
+      'CALCULATE_STATS': 'fas fa-chart-bar',
+      'BATCH_CLEANUP': 'fas fa-broom',
+      'GENERATE_REPORT': 'fas fa-file-alt'
+    };
+    return icons[jobName] || 'fas fa-cog';
+  }
+
+  /**
+   * Retorna label para o tipo de job
+   */
+  function getJobLabel(jobName) {
+    const labels = {
+      'EXPORT_CSV': 'Exportar CSV',
+      'EXPORT_PDF': 'Exportar PDF',
+      'CALCULATE_STATS': 'Calcular Estatísticas',
+      'BATCH_CLEANUP': 'Limpeza em Lote',
+      'GENERATE_REPORT': 'Gerar Relatório'
+    };
+    return labels[jobName] || jobName;
+  }
+
+  /**
+   * Retorna detalhes do job
+   */
+  function getJobDetails(jobName, payload) {
+    if (payload && payload.sheetName) {
+      return `Planilha: ${payload.sheetName}`;
+    }
+    return 'Processando...';
+  }
+
+  /**
+   * Limpa todos os jobs
+   */
+  function clearAll() {
+    activeJobs.clear();
+    updateList();
+    hide();
+  }
+
+  // Inicializa quando o DOM estiver pronto
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  return {
+    init: init,
+    show: show,
+    hide: hide,
+    toggle: toggle,
+    addJob: addJob,
+    updateJob: updateJob,
+    removeJob: removeJob,
+    clearAll: clearAll
+  };
+})();
+
+/**
+ * Integração com JobManager
+ * Monitora automaticamente todos os jobs
+ */
+(function() {
+  // Sobrescreve executeJob para adicionar monitoramento
+  const originalExecuteJob = JobManager.executeJob;
+  
+  JobManager.executeJob = function(jobName, payload, callbacks) {
+    const enhancedCallbacks = {
+      onStart: function() {
+        // Callbacks originais
+        if (callbacks && callbacks.onStart) {
+          callbacks.onStart();
+        }
+      },
+      onProgress: function(status) {
+        // Atualiza widget
+        JobMonitorWidget.updateJob(status.jobId, status.status, status.result);
+        
+        // Callbacks originais
+        if (callbacks && callbacks.onProgress) {
+          callbacks.onProgress(status);
+        }
+      },
+      onComplete: function(status) {
+        // Atualiza widget
+        JobMonitorWidget.updateJob(status.jobId, 'COMPLETED', status.result);
+        
+        // Callbacks originais
+        if (callbacks && callbacks.onComplete) {
+          callbacks.onComplete(status);
+        }
+      },
+      onError: function(error) {
+        // Callbacks originais
+        if (callbacks && callbacks.onError) {
+          callbacks.onError(error);
+        }
+      }
+    };
+    
+    // Inicia job
+    JobManager.startJob(jobName, payload)
+      .then(jobData => {
+        const jobId = jobData.jobId;
+        
+        // Adiciona ao widget
+        JobMonitorWidget.addJob(jobId, jobName, payload);
+        
+        // Inicia polling
+        JobManager.pollJobStatus(
+          jobId,
+          enhancedCallbacks.onProgress,
+          enhancedCallbacks.onComplete,
+          enhancedCallbacks.onError
+        );
+      })
+      .catch(error => {
+        if (enhancedCallbacks.onError) {
+          enhancedCallbacks.onError(error);
+        }
+      });
+  };
+})();
+</script>

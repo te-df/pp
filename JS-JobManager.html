@@ -1,0 +1,340 @@
+<script>
+/**
+ * JobManager - Gerencia jobs assíncronos com o backend
+ */
+const JobManager = (function() {
+  'use strict';
+
+  const POLL_INTERVAL = 3000; // 3 segundos
+  const MAX_POLL_ATTEMPTS = 200; // 10 minutos máximo
+  
+  const activePolls = new Map();
+
+  /**
+   * Inicia um novo job
+   */
+  function startJob(jobName, payload = {}) {
+    return new Promise((resolve, reject) => {
+      const apiService = new APIService();
+      
+      apiService.handleRequest('/api/job/start', 'POST', {
+        jobName: jobName,
+        payload: payload
+      })
+      .then(response => {
+        if (response.success) {
+          resolve(response.data);
+        } else {
+          reject(new Error(response.error || 'Erro ao iniciar job'));
+        }
+      })
+      .catch(error => {
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Consulta o status de um job
+   */
+  function getJobStatus(jobId) {
+    return new Promise((resolve, reject) => {
+      const apiService = new APIService();
+      
+      apiService.handleRequest('/api/job/status', 'GET', {
+        jobId: jobId
+      })
+      .then(response => {
+        if (response.success) {
+          resolve(response.data);
+        } else {
+          reject(new Error(response.error || 'Erro ao consultar status'));
+        }
+      })
+      .catch(error => {
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Inicia polling de um job até completar
+   */
+  function pollJobStatus(jobId, onProgress, onComplete, onError) {
+    let attempts = 0;
+    
+    const pollInterval = setInterval(() => {
+      attempts++;
+      
+      if (attempts > MAX_POLL_ATTEMPTS) {
+        clearInterval(pollInterval);
+        activePolls.delete(jobId);
+        if (onError) {
+          onError(new Error('Timeout: Job demorou muito para completar'));
+        }
+        return;
+      }
+      
+      getJobStatus(jobId)
+        .then(status => {
+          if (onProgress) {
+            onProgress(status);
+          }
+          
+          if (status.status === 'COMPLETED') {
+            clearInterval(pollInterval);
+            activePolls.delete(jobId);
+            if (onComplete) {
+              onComplete(status);
+            }
+          } else if (status.status === 'FAILED') {
+            clearInterval(pollInterval);
+            activePolls.delete(jobId);
+            if (onError) {
+              onError(new Error(status.error || 'Job falhou'));
+            }
+          }
+        })
+        .catch(error => {
+          clearInterval(pollInterval);
+          activePolls.delete(jobId);
+          if (onError) {
+            onError(error);
+          }
+        });
+    }, POLL_INTERVAL);
+    
+    activePolls.set(jobId, pollInterval);
+    
+    return {
+      cancel: () => {
+        clearInterval(pollInterval);
+        activePolls.delete(jobId);
+      }
+    };
+  }
+
+  /**
+   * Inicia um job e monitora até completar
+   */
+  function executeJob(jobName, payload = {}, callbacks = {}) {
+    const { onStart, onProgress, onComplete, onError } = callbacks;
+    
+    if (onStart) {
+      onStart();
+    }
+    
+    startJob(jobName, payload)
+      .then(jobData => {
+        const jobId = jobData.jobId;
+        
+        pollJobStatus(
+          jobId,
+          onProgress,
+          onComplete,
+          onError
+        );
+      })
+      .catch(error => {
+        if (onError) {
+          onError(error);
+        }
+      });
+  }
+
+  /**
+   * Cancela o polling de um job
+   */
+  function cancelJob(jobId) {
+    if (activePolls.has(jobId)) {
+      clearInterval(activePolls.get(jobId));
+      activePolls.delete(jobId);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Cancela todos os pollings ativos
+   */
+  function cancelAllJobs() {
+    activePolls.forEach((interval, jobId) => {
+      clearInterval(interval);
+    });
+    activePolls.clear();
+  }
+
+  /**
+   * Retorna lista de jobs em polling
+   */
+  function getActiveJobs() {
+    return Array.from(activePolls.keys());
+  }
+
+  return {
+    startJob: startJob,
+    getJobStatus: getJobStatus,
+    pollJobStatus: pollJobStatus,
+    executeJob: executeJob,
+    cancelJob: cancelJob,
+    cancelAllJobs: cancelAllJobs,
+    getActiveJobs: getActiveJobs
+  };
+})();
+
+/**
+ * Funções auxiliares para jobs comuns
+ */
+const JobHelpers = {
+  
+  /**
+   * Exporta dados para CSV
+   */
+  exportCSV: function(sheetName, callbacks = {}) {
+    JobManager.executeJob('EXPORT_CSV', { sheetName: sheetName }, {
+      onStart: () => {
+        if (callbacks.onStart) callbacks.onStart();
+        showNotification('Iniciando exportação...', 'info');
+      },
+      onProgress: (status) => {
+        if (callbacks.onProgress) callbacks.onProgress(status);
+      },
+      onComplete: (status) => {
+        if (callbacks.onComplete) callbacks.onComplete(status);
+        
+        const result = JSON.parse(status.result || '{}');
+        if (result.fileId) {
+          showNotification('Exportação concluída!', 'success');
+          window.open(`https://drive.google.com/file/d/${result.fileId}/view`, '_blank');
+        }
+      },
+      onError: (error) => {
+        if (callbacks.onError) callbacks.onError(error);
+        showNotification('Erro na exportação: ' + error.message, 'error');
+      }
+    });
+  },
+
+  /**
+   * Exporta dados para PDF
+   */
+  exportPDF: function(sheetName, callbacks = {}) {
+    JobManager.executeJob('EXPORT_PDF', { sheetName: sheetName }, {
+      onStart: () => {
+        if (callbacks.onStart) callbacks.onStart();
+        showNotification('Gerando PDF...', 'info');
+      },
+      onProgress: (status) => {
+        if (callbacks.onProgress) callbacks.onProgress(status);
+      },
+      onComplete: (status) => {
+        if (callbacks.onComplete) callbacks.onComplete(status);
+        
+        const result = JSON.parse(status.result || '{}');
+        if (result.fileId) {
+          showNotification('PDF gerado com sucesso!', 'success');
+          window.open(`https://drive.google.com/file/d/${result.fileId}/view`, '_blank');
+        }
+      },
+      onError: (error) => {
+        if (callbacks.onError) callbacks.onError(error);
+        showNotification('Erro ao gerar PDF: ' + error.message, 'error');
+      }
+    });
+  },
+
+  /**
+   * Calcula estatísticas
+   */
+  calculateStats: function(sheetName, callbacks = {}) {
+    JobManager.executeJob('CALCULATE_STATS', { sheetName: sheetName }, {
+      onStart: () => {
+        if (callbacks.onStart) callbacks.onStart();
+        showNotification('Calculando estatísticas...', 'info');
+      },
+      onProgress: (status) => {
+        if (callbacks.onProgress) callbacks.onProgress(status);
+      },
+      onComplete: (status) => {
+        if (callbacks.onComplete) callbacks.onComplete(status);
+        
+        const result = JSON.parse(status.result || '{}');
+        showNotification('Estatísticas calculadas!', 'success');
+        console.log('Stats:', result);
+      },
+      onError: (error) => {
+        if (callbacks.onError) callbacks.onError(error);
+        showNotification('Erro ao calcular: ' + error.message, 'error');
+      }
+    });
+  },
+
+  /**
+   * Limpeza em lote
+   */
+  batchCleanup: function(retentionDays, sheets, callbacks = {}) {
+    JobManager.executeJob('BATCH_CLEANUP', { 
+      retention_days: retentionDays,
+      sheets: sheets
+    }, {
+      onStart: () => {
+        if (callbacks.onStart) callbacks.onStart();
+        showNotification('Iniciando limpeza...', 'info');
+      },
+      onProgress: (status) => {
+        if (callbacks.onProgress) callbacks.onProgress(status);
+      },
+      onComplete: (status) => {
+        if (callbacks.onComplete) callbacks.onComplete(status);
+        
+        const result = JSON.parse(status.result || '{}');
+        showNotification(`Limpeza concluída! ${result.cleaned || 0} registros removidos`, 'success');
+      },
+      onError: (error) => {
+        if (callbacks.onError) callbacks.onError(error);
+        showNotification('Erro na limpeza: ' + error.message, 'error');
+      }
+    });
+  },
+
+  /**
+   * Gera relatório
+   */
+  generateReport: function(options, callbacks = {}) {
+    JobManager.executeJob('GENERATE_REPORT', options, {
+      onStart: () => {
+        if (callbacks.onStart) callbacks.onStart();
+        showNotification('Gerando relatório...', 'info');
+      },
+      onProgress: (status) => {
+        if (callbacks.onProgress) callbacks.onProgress(status);
+      },
+      onComplete: (status) => {
+        if (callbacks.onComplete) callbacks.onComplete(status);
+        
+        const result = JSON.parse(status.result || '{}');
+        if (result.fileId) {
+          showNotification('Relatório gerado!', 'success');
+          window.open(`https://drive.google.com/file/d/${result.fileId}/view`, '_blank');
+        }
+      },
+      onError: (error) => {
+        if (callbacks.onError) callbacks.onError(error);
+        showNotification('Erro ao gerar relatório: ' + error.message, 'error');
+      }
+    });
+  }
+};
+
+/**
+ * Função auxiliar para exibir notificações
+ */
+function showNotification(message, type = 'info') {
+  console.log(`[${type.toUpperCase()}] ${message}`);
+  
+  // Se existir um sistema de notificação, use-o
+  if (typeof NotificationManager !== 'undefined') {
+    NotificationManager.show(message, type);
+  }
+}
+</script>

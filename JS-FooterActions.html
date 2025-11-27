@@ -1,0 +1,131 @@
+<!--============================================================================-->
+
+<script>
+
+/* ============================================================================
+ FOOTER ACTIONS MANAGER
+ Gerencia as ações dos botões do rodapé: Tema, Atualização e Backup.
+ ============================================================================ */
+
+(function(window) {
+    'use strict';
+
+ /* * Gerenciador de Tema (Light/Dark) */
+ const ThemeManager = {
+ init() {
+            this.toggleButton = document.getElementById('theme-toggle');
+ if (!this.toggleButton) return;
+
+            this.toggleButton.addEventListener('click', () => this.toggleTheme());
+ this.applyInitialTheme();
+            console.log('[ThemeManager] ✅ Gerenciador de tema inicializado.');
+ },
+
+ getCurrentTheme() {
+            return document.documentElement.getAttribute('data-theme') || 'dark';
+ },
+
+ applyInitialTheme() {
+            const savedTheme = localStorage.getItem('sigte:theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+ },
+
+ toggleTheme() {
+ const currentTheme = this.getCurrentTheme();
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('sigte:theme', newTheme);
+
+            ToastManager.show(`Tema alterado para ${newTheme === 'dark' ? 'Escuro' : 'Claro'}`, 'success', 1500);
+
+ // Dispara um evento para que outros componentes (ex: gráficos) possam se adaptar
+            document.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
+ }
+ };
+
+ /* * Gerenciador de Sincronização e Backup */
+ const DataSyncManager = {
+ init() {
+            this.updateButton = document.getElementById('update-data-button');
+            this.backupButton = document.getElementById('backup-button');
+
+ if (this.updateButton) {
+                this.updateButton.addEventListener('click', () => this.refreshCurrentSectionData());
+ }
+
+ if (this.backupButton) {
+                this.backupButton.addEventListener('click', () => this.triggerBackup());
+ }
+            console.log('[DataSyncManager] ✅ Gerenciador de dados inicializado.');
+ },
+
+ async refreshCurrentSectionData() {
+            const activeSection = document.querySelector('.section.active');
+ if (!activeSection) {
+                ToastManager.show('Nenhuma seção ativa para atualizar.', 'warning');
+ return;
+ }
+
+            const sectionId = activeSection.id.replace('-section', '');
+            const icon = this.updateButton.querySelector('i');
+
+            if (icon) icon.classList.add('fa-spin');
+            ToastManager.show('Atualizando dados...', 'info');
+
+ try {
+ if (window.CRUDManagerUniversal && CRUDManagerUniversal.instances[sectionId]) {
+ await CRUDManagerUniversal.loadData(sectionId);
+                } else if (sectionId === 'frequencia' && window.AttendanceManager) {
+ // Lógica específica para a seção de frequência
+ await window.AttendanceManager.loadInitialData();
+                    ToastManager.show('Rotas de frequência recarregadas.', 'info');
+ }
+ else {
+                    console.warn(`[DataSync] Nenhuma ação de atualização definida para a seção '${sectionId}'.`);
+ }
+
+                ToastManager.show('Dados atualizados com sucesso!', 'success');
+ } catch (error) {
+ console.error(`[DataSync] Erro ao atualizar dados da seção ${sectionId}:`, error);
+                ToastManager.show('Falha ao atualizar os dados.', 'error');
+ } finally {
+                if (icon) icon.classList.remove('fa-spin');
+ }
+ },
+
+ async triggerBackup() {
+            if (!confirm('Deseja criar um backup completo da base de dados agora? Esta operação pode levar alguns minutos.')) {
+ return;
+ }
+
+            const icon = this.backupButton.querySelector('i');
+            if (icon) icon.classList.add('fa-spin');
+            ToastManager.show('Iniciando processo de backup...', 'info');
+
+ try {
+ // Esta função deve existir no seu Code.gs
+                const result = await API.run('createBackup');
+                ToastManager.show(result.message || 'Backup concluído com sucesso!', 'success');
+ } catch (error) {
+                console.error('[Backup] Erro ao criar backup:', error);
+                ToastManager.show(`Falha no backup: ${error.message}`, 'error');
+ } finally {
+                if (icon) icon.classList.remove('fa-spin');
+ }
+ }
+ };
+
+ // Inicializa os gerenciadores quando o DOM estiver pronto
+    document.addEventListener('DOMContentLoaded', () => {
+ ThemeManager.init();
+ DataSyncManager.init();
+ });
+
+})(window);
+
+</script>
+
+
+
+<!--============================================================================-->

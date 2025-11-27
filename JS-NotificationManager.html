@@ -1,0 +1,218 @@
+<script>
+  /**
+   * NotificationManager - Sistema de notificações para o usuário
+   */
+  const NotificationManager = (function () {
+    'use strict';
+
+    let container = null;
+    const notifications = [];
+    const MAX_NOTIFICATIONS = 5;
+
+    /**
+     * Inicializa o container de notificações
+     */
+    function init() {
+      if (container) return;
+
+      container = document.createElement('div');
+      container.id = 'notification-container';
+      container.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      max-width: 400px;
+    `;
+      document.body.appendChild(container);
+    }
+
+    /**
+     * Cria elemento de notificação
+     */
+    function createNotificationElement(message, type, duration) {
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${type}`;
+
+      const colors = {
+        success: '#4caf50',
+        error: '#f44336',
+        warning: '#ff9800',
+        info: '#2196f3'
+      };
+
+      const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '⚠',
+        info: 'ℹ'
+      };
+
+      // Determine background color
+      let bgColor = colors[type] || colors.info;
+      if (type && (type.startsWith('#') || type.startsWith('rgb'))) {
+        bgColor = type;
+      }
+
+      notification.style.cssText = `
+      background: ${bgColor};
+      color: white;
+      padding: 16px 20px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideIn 0.3s ease-out;
+      cursor: pointer;
+      transition: opacity 0.3s, transform 0.3s;
+    `;
+
+      const icon = document.createElement('span');
+      icon.textContent = icons[type] || icons.info;
+      icon.style.cssText = `
+      font-size: 20px;
+      font-weight: bold;
+    `;
+
+      const text = document.createElement('span');
+      text.textContent = message;
+      text.style.cssText = `
+      flex: 1;
+      font-size: 14px;
+    `;
+
+      const closeBtn = document.createElement('span');
+      closeBtn.textContent = '×';
+      closeBtn.style.cssText = `
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      opacity: 0.7;
+    `;
+      closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        removeNotification(notification);
+      };
+
+      notification.appendChild(icon);
+      notification.appendChild(text);
+      notification.appendChild(closeBtn);
+
+      // Auto-remove após duração
+      if (duration > 0) {
+        setTimeout(() => {
+          removeNotification(notification);
+        }, duration);
+      }
+
+      return notification;
+    }
+
+    /**
+     * Remove uma notificação
+     */
+    function removeNotification(element) {
+      element.style.opacity = '0';
+      element.style.transform = 'translateX(400px)';
+
+      setTimeout(() => {
+        if (element.parentNode) {
+          element.parentNode.removeChild(element);
+        }
+
+        const index = notifications.indexOf(element);
+        if (index > -1) {
+          notifications.splice(index, 1);
+        }
+      }, 300);
+    }
+
+    /**
+     * Exibe uma notificação
+     */
+    function show(message, type = 'info', duration = 5000) {
+      init();
+
+      // Remove notificações antigas se exceder o limite
+      while (notifications.length >= MAX_NOTIFICATIONS) {
+        removeNotification(notifications[0]);
+      }
+
+      const notification = createNotificationElement(message, type, duration);
+      container.appendChild(notification);
+      notifications.push(notification);
+
+      return {
+        close: () => removeNotification(notification)
+      };
+    }
+
+    /**
+     * Atalhos para tipos específicos
+     */
+    function success(message, duration = 5000) {
+      return show(message, 'success', duration);
+    }
+
+    function error(message, duration = 7000) {
+      return show(message, 'error', duration);
+    }
+
+    function warning(message, duration = 6000) {
+      return show(message, 'warning', duration);
+    }
+
+    function info(message, duration = 5000) {
+      return show(message, 'info', duration);
+    }
+
+    /**
+     * Notificação de progresso (não desaparece automaticamente)
+     */
+    function progress(message) {
+      return show(message, 'info', 0);
+    }
+
+    /**
+     * Limpa todas as notificações
+     */
+    function clearAll() {
+      notifications.forEach(notification => {
+        removeNotification(notification);
+      });
+    }
+
+    // Adiciona estilos de animação
+    const style = document.createElement('style');
+    style.textContent = `
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .notification:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+  `;
+    document.head.appendChild(style);
+
+    return {
+      show: show,
+      success: success,
+      error: error,
+      warning: warning,
+      info: info,
+      progress: progress,
+      clearAll: clearAll
+    };
+  })();
+</script>

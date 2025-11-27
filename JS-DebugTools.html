@@ -1,0 +1,425 @@
+<!--============================================================================-->
+
+<script>
+
+/* ============================================================================
+ DEBUG TOOLS & DIAGNOSTICS
+ Ferramentas de debug e diagnóstico para desenvolvimento
+ ============================================================================ */
+
+(function(window) {
+    'use strict';
+
+ /* * Gerenciador de Ferramentas de Debug */
+ const DebugTools = {
+
+ enabled: false,
+ logHistory: [],
+ maxHistorySize: 100,
+
+ /* * Ativa modo debug */
+ enable() {
+ this.enabled = true;
+            console.log('%c[DebugTools] 🔧 Modo debug ATIVADO', 'color: #00ff00; font-weight: bold;');
+ this.showDebugPanel();
+ },
+
+ /* * Desativa modo debug */
+ disable() {
+ this.enabled = false;
+            console.log('%c[DebugTools] Modo debug desativado', 'color: #ff0000;');
+ this.hideDebugPanel();
+ },
+
+ /* * Toggle modo debug */
+ toggle() {
+ if (this.enabled) {
+ this.disable();
+ } else {
+ this.enable();
+ }
+ },
+
+ /* * Loga mensagem no histórico */
+ log(category, message, data = null) {
+ const entry = {
+ timestamp: new Date(),
+ category,
+ message,
+ data
+ };
+
+ this.logHistory.unshift(entry);
+
+ // Limita tamanho do histórico
+ if (this.logHistory.length > this.maxHistorySize) {
+ this.logHistory.pop();
+ }
+
+ if (this.enabled) {
+ const style = this.getCategoryStyle(category);
+                console.log(`%c[${category}] ${message}`, style, data || '');
+ }
+ },
+
+ /* * Retorna estilo CSS para categoria */
+ getCategoryStyle(category) {
+ const styles = {
+                'FORM': 'color: var(--md-sys-color-primary); font-weight: bold;',
+                'CRUD': 'color: var(--md-sys-color-success); font-weight: bold;',
+                'VALIDATION': 'color: var(--md-sys-color-warning); font-weight: bold;',
+                'CALCULATION': 'color: var(--md-sys-color-tertiary); font-weight: bold;',
+                'API': 'color: var(--md-sys-color-error); font-weight: bold;',
+                'PERFORMANCE': 'color: #00BCD4; font-weight: bold;',
+                'ERROR': 'color: #f00; font-weight: bold; background: #ffe0e0;'
+ };
+            return styles[category] || 'color: #666;';
+ },
+
+ /* * Verifica estado do sistema */
+ checkSystem() {
+ const report = {
+ timestamp: new Date().toISOString(),
+ modules: {},
+ sections: {},
+ forms: {},
+ issues: []
+ };
+
+ // Verifica módulos carregados
+ report.modules = {
+                API: typeof window.API !== 'undefined',
+                CRUDManagerUniversal: typeof window.CRUDManagerUniversal !== 'undefined',
+                FormBuilder: typeof window.FormBuilder !== 'undefined',
+                ModalManager: typeof window.ModalManager !== 'undefined',
+                SheetMappingManager: typeof window.SheetMappingManager !== 'undefined',
+                CalculatedFieldsManager: typeof window.CalculatedFieldsManager !== 'undefined',
+                AutoFillManager: typeof window.AutoFillManager !== 'undefined',
+                CustomValidator: typeof window.CustomValidator !== 'undefined',
+                InputMasksManager: typeof window.InputMasksManager !== 'undefined',
+                CustomFormsIntegration: typeof window.CustomFormsIntegration !== 'undefined'
+ };
+
+ // Verifica instâncias CRUD
+ if (window.CRUDManagerUniversal) {
+ report.sections = Object.keys(window.CRUDManagerUniversal.instances || {});
+ report.forms = Object.keys(window.CRUDManagerUniversal.customFormHandlers || {});
+ }
+
+ // Identifica problemas
+ Object.entries(report.modules).forEach(([module, loaded]) => {
+ if (!loaded) {
+                    report.issues.push(`Módulo '${module}' não carregado`);
+ }
+ });
+
+ console.table(report.modules);
+            console.log('Seções inicializadas:', report.sections);
+            console.log('Formulários registrados:', report.forms);
+
+ if (report.issues.length > 0) {
+                console.warn('⚠️ Problemas encontrados:', report.issues);
+ } else {
+                console.log('✅ Sistema OK');
+ }
+
+ return report;
+ },
+
+ /* * Testa funcionalidade específica */
+ test(testName) {
+ console.group(`🧪 Testando: ${testName}`);
+
+ const tests = {
+                'campos-calculados': () => this.testCalculatedFields(),
+                'validacoes': () => this.testValidations(),
+                'mascaras': () => this.testMasks(),
+                'crud': () => this.testCRUD(),
+                'formularios': () => this.testForms(),
+                'mapeamento': () => this.testMapping(),
+                'carregamento-crud': () => this.testCrudLoad(),
+                'abertura-forms': () => this.testFormOpening()
+ };
+
+ const testFn = tests[testName];
+ if (testFn) {
+ try {
+ testFn();
+                    console.log('✅ Teste concluído');
+ } catch (error) {
+                    console.error('❌ Teste falhou:', error);
+ }
+ } else {
+                console.error(`❌ Teste '${testName}' não encontrado`);
+                console.log('Testes disponíveis:', Object.keys(tests));
+ }
+
+ console.groupEnd();
+ },
+
+ /* * Testa campos calculados */
+ testCalculatedFields() {
+ if (!window.CalculatedFieldsManager) {
+                throw new Error('CalculatedFieldsManager não disponível');
+ }
+
+ const configs = window.CalculatedFieldsManager.calculations;
+            console.log('Configurações de cálculo:', configs);
+
+ Object.keys(configs).forEach(sectionId => {
+                console.log(`✓ Seção '${sectionId}': ${configs[sectionId].length} cálculos configurados`);
+ });
+ },
+
+ /* * Testa validações */
+ testValidations() {
+ if (!window.CustomValidator) {
+                throw new Error('CustomValidator não disponível');
+ }
+
+ const tests = [
+                { type: 'CPF', value: '123.456.789-01', expected: false },
+                { type: 'CPF', value: '111.111.111-11', expected: false },
+                { type: 'Placa', value: 'ABC-1234', expected: true },
+                { type: 'Placa', value: 'ABC1D23', expected: true },
+                { type: 'Phone', value: '(61) 99999-1234', expected: true }
+ ];
+
+ tests.forEach(test => {
+ let result;
+ switch(test.type) {
+                    case 'CPF':
+ result = window.CustomValidator.validateCPF(test.value);
+ break;
+                    case 'Placa':
+ result = window.CustomValidator.validatePlaca(test.value);
+ break;
+                    case 'Phone':
+ result = window.CustomValidator.validatePhone(test.value);
+ break;
+ }
+
+                const status = result === test.expected ? '✅' : '❌';
+ console.log(`${status} ${test.type}: ${test.value} → ${result}`);
+ });
+ },
+
+ /* * Testa máscaras */
+ testMasks() {
+ if (!window.InputMasksManager) {
+                throw new Error('InputMasksManager não disponível');
+ }
+
+ const masks = window.InputMasksManager.masks;
+            console.log('Máscaras disponíveis:', Object.keys(masks));
+
+ const tests = [
+                { mask: 'cpf', input: '12345678901', expected: '123.456.789-01' },
+                { mask: 'phone', input: '61999991234', expected: '(61) 99999-1234' },
+                { mask: 'cep', input: '72110120', expected: '72110-120' }
+ ];
+
+ tests.forEach(test => {
+ const result = maskstest.mask;
+                const status = result === test.expected ? '✅' : '❌';
+ console.log(`${status} ${test.mask}: ${test.input} → ${result}`);
+ });
+ },
+
+ /* * Testa CRUD */
+ testCRUD() {
+ if (!window.CRUDManagerUniversal) {
+                throw new Error('CRUDManagerUniversal não disponível');
+ }
+
+ const instances = Object.keys(window.CRUDManagerUniversal.instances);
+ const handlers = Object.keys(window.CRUDManagerUniversal.customFormHandlers);
+
+ console.log(`Instâncias CRUD: ${instances.length}`);
+ console.log(instances);
+ console.log(`Handlers customizados: ${handlers.length}`);
+ console.log(handlers);
+
+ instances.forEach(sectionId => {
+ const hasCustom = window.CRUDManagerUniversal.hasCustomForm(sectionId);
+                console.log(`${hasCustom ? '📝' : '📋'} ${sectionId}`);
+ });
+ },
+
+ /* * Testa formulários */
+ testForms() {
+            const forms = document.querySelectorAll('form[id^="form-"]');
+ console.log(`Formulários encontrados: ${forms.length}`);
+
+ forms.forEach(form => {
+                const fields = form.querySelectorAll('input, select, textarea');
+ console.log(`📝 ${form.id}: ${fields.length} campos`);
+ });
+ },
+
+ /* * Testa se o mapeamento do frontend corresponde ao backend */
+ async testMapping() {
+            if (!window.SheetMappingManager) throw new Error('SheetMappingManager não disponível');
+
+            console.log('Validando mapeamento de seções...');
+ await SheetMappingManager.validateMapping();
+ },
+
+ /* * Testa o carregamento de dados de todas as seções CRUD */
+ async testCrudLoad() {
+            if (!window.CRUDManagerUniversal) throw new Error('CRUDManagerUniversal não disponível');
+
+ const instances = Object.keys(window.CRUDManagerUniversal.instances);
+ console.log(`Testando carregamento de dados para ${instances.length} seções CRUD...`);
+
+ for (const sectionId of instances) {
+ try {
+ await window.CRUDManagerUniversal.loadData(sectionId);
+                    console.log(`✅ Dados para '${sectionId}' carregados com sucesso.`);
+ } catch (error) {
+                    console.error(`❌ Falha ao carregar dados para '${sectionId}':`, error);
+ }
+ }
+ },
+
+ /* * Testa a abertura de todos os formulários de criação */
+ testFormOpening() {
+            if (!window.CRUDManagerUniversal) throw new Error('CRUDManagerUniversal não disponível');
+
+ const instances = Object.keys(window.CRUDManagerUniversal.instances);
+ instances.forEach(sectionId => {
+                console.log(`Testando abertura do formulário para '${sectionId}'...`);
+ window.CRUDManagerUniversal.openCreateModal(sectionId);
+ });
+ },
+
+ /* * Monitora performance */
+ startPerformanceMonitor() {
+ this.performanceMarks = {};
+
+            console.log('⏱️ Monitor de performance iniciado');
+            console.log('Use: DebugTools.mark("nome") e DebugTools.measure("nome")');
+ },
+
+ /* * Marca início de medição */
+ mark(name) {
+ this.performanceMarks = this.performanceMarks || {};
+ this.performanceMarks[name] = performance.now();
+            this.log('PERFORMANCE', `Marca '${name}' registrada`);
+ },
+
+ /* * Mede tempo desde marca */
+ measure(name) {
+ if (!this.performanceMarks || !this.performanceMarks[name]) {
+                console.warn(`Marca '${name}' não encontrada`);
+ return null;
+ }
+
+ const elapsed = performance.now() - this.performanceMarks[name];
+            this.log('PERFORMANCE', `${name}: ${elapsed.toFixed(2)}ms`);
+ return elapsed;
+ },
+
+ /* * Mostra painel de debug */
+ showDebugPanel() {
+ // Remove painel existente se houver
+ this.hideDebugPanel();
+
+            const panel = document.createElement('div');
+            panel.id = 'debug-panel';
+ panel.innerHTML = `
+                <div  style="position: fixed; bottom: 20px; right: 20px; background: var(--md-sys-color-surface-container-low); color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 99999; font-family: monospace; font-size: 12px; max-width: 300px">
+                    <div  class="flex items-center" style="justify-content: space-between; margin-bottom: 10px">
+ <strong>🔧 Debug Tools</strong>
+                        <button onclick="DebugTools.hideDebugPanel()"
+                                 style="background: var(--md-sys-color-error); border: none; color: white; padding: 2px 8px; border-radius: 4px; cursor: pointer">✕</button>
+ </div>
+                    <div  class="flex" style="flex-direction: column; gap: 5px">
+                        <button onclick="DebugTools.checkSystem()"
+                                 style="background: var(--md-sys-color-primary); border: none; color: white; padding: 5px; border-radius: 4px; cursor: pointer">
+ ✅ Verificar Sistema
+ </button>
+                        <button onclick="DebugTools.test('campos-calculados')"
+                                 style="background: var(--md-sys-color-success); border: none; color: white; padding: 5px; border-radius: 4px; cursor: pointer">
+ 🧮 Testar Cálculos
+ </button>
+                        <button onclick="DebugTools.test('validacoes')"
+                                 style="background: var(--md-sys-color-warning); border: none; color: white; padding: 5px; border-radius: 4px; cursor: pointer">
+ ✔️ Testar Validações
+ </button>
+                        <button onclick="DebugTools.test('mapeamento')"
+                                 style="background: #673AB7; border: none; color: white; padding: 5px; border-radius: 4px; cursor: pointer">
+ 🗺️ Testar Mapeamento
+ </button>
+                        <button onclick="console.clear()"
+                                 style="background: #9E9E9E; border: none; color: white; padding: 5px; border-radius: 4px; cursor: pointer">
+ 🗑️ Limpar Console
+ </button>
+ </div>
+                    <div  style="margin-top: 10px; font-size: 10px; color: #888">
+ Abra o console (F12) para ver detalhes
+ </div>
+ </div>
+ `;
+
+ document.body.appendChild(panel);
+ },
+
+ /* * Esconde painel de debug */
+ hideDebugPanel() {
+            const panel = document.getElementById('debug-panel');
+ if (panel) {
+ panel.remove();
+ }
+ },
+
+ /* * Exporta logs */
+ exportLogs() {
+ const logs = JSON.stringify(this.logHistory, null, 2);
+            const blob = new Blob([logs], { type: 'application/json' });
+ const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+ a.href = url;
+ a.download = `debug-logs-${new Date().toISOString()}.json`;
+ a.click();
+
+ URL.revokeObjectURL(url);
+            console.log('📥 Logs exportados');
+ },
+
+ /* * Limpa histórico */
+ clearHistory() {
+ this.logHistory = [];
+            console.log('🗑️ Histórico limpo');
+ }
+ };
+
+ // Exporta para escopo global
+ window.DebugTools = DebugTools;
+
+ // Atalho de teclado: Ctrl+Shift+D para toggle debug
+    document.addEventListener('keydown', function(e) {
+ // Habilita o atalho apenas em ambiente de desenvolvimento
+        if (Logger && Logger.environment === 'development') {
+            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+ e.preventDefault();
+ DebugTools.toggle();
+ }
+ }
+ });
+
+    console.log('[DebugTools] Módulo carregado');
+    console.log('💡 Dica: Use Ctrl+Shift+D para ativar/desativar debug');
+    console.log('💡 Comandos disponíveis:');
+    console.log('   - DebugTools.enable()');
+    console.log('   - DebugTools.checkSystem()');
+    console.log('   - DebugTools.test("nome-do-teste")');
+
+})(window);
+
+</script>
+
+
+
+<!--============================================================================-->

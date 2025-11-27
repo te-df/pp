@@ -1,0 +1,218 @@
+<!--============================================================================-->
+
+<script>
+/**
+ * ============================================================================
+ * AUTH MANAGER ENHANCED - Sistema de Autenticação com Backend Real
+ * ============================================================================
+ * Carrega usuários das planilhas 'Usuarios' e 'Pessoal' via DataLoader
+ * Mantém compatibilidade com usuários demo para desenvolvimento
+ * ============================================================================
+ */
+(function() {
+    'use strict';
+
+    const AuthManagerEnhanced = {
+        async loadUsersFromBackend() {
+            try {
+                console.log('[AuthEnhanced] 📥 Carregando usuários do backend...');
+                
+                // Verificar se DataLoader está disponível
+                if (typeof window.DataLoader === 'undefined') {
+                    console.warn('[AuthEnhanced] ⚠️ DataLoader não disponível, usando demo users');
+                    return false;
+                }
+
+                // Carregar usuários de ambas as planilhas em paralelo
+                const [usuarios, pessoal] = await Promise.all([
+                    window.DataLoader.load('Usuarios', {}, false).catch(e => {
+                        console.warn('[AuthEnhanced] Não foi possível carregar "Usuarios":', e.message);
+                        return [];
+                    }),
+                    window.DataLoader.load('Pessoal', {}, false).catch(e => {
+                        console.warn('[AuthEnhanced] Não foi possível carregar "Pessoal":', e.message);
+                        return [];
+                    })
+                ]);
+                
+                const allUsers = [];
+                let usuariosCount = 0;
+                let pessoalCount = 0;
+
+                // Mapear usuários da planilha 'Usuarios'
+                usuarios.forEach(user => {
+                    const mapped = this.mapUsuario(user);
+                    if (mapped) {
+                        allUsers.push(mapped);
+                        usuariosCount++;
+                    }
+                });
+
+                // Mapear usuários da planilha 'Pessoal' (Motoristas/Monitores)
+                pessoal.forEach(user => {
+                    const mapped = this.mapPessoal(user);
+                    if (mapped) {
+                        allUsers.push(mapped);
+                        pessoalCount++;
+                    }
+                });
+
+                console.log(`[AuthEnhanced] 📊 Usuários mapeados: ${usuariosCount} de Usuarios + ${pessoalCount} de Pessoal = ${allUsers.length} total`);
+
+                if (allUsers.length === 0) {
+                    console.warn('[AuthEnhanced] ⚠️ Nenhum usuário encontrado no backend (Usuarios ou Pessoal)');
+                    return false;
+                }
+
+                // Converter para formato do AuthManager
+                const backendUsers = {};
+                allUsers.forEach(user => {
+                    if (user && user.username) {
+                        backendUsers[user.username] = user;
+                    }
+                });
+
+                // Atualizar demoUsers do AuthManager com dados do backend
+                if (window.AuthManager && Object.keys(backendUsers).length > 0) {
+                    // Mesclar: manter demo users e adicionar backend users
+                    window.AuthManager.demoUsers = {
+                        ...window.AuthManager.demoUsers,
+                        ...backendUsers
+                    };
+                    
+                    console.log('[AuthEnhanced] ✅ Usuários carregados:', Object.keys(backendUsers).length);
+                    console.log('[AuthEnhanced] 📋 Usuários disponíveis:', Object.keys(window.AuthManager.demoUsers));
+                    return true;
+                }
+
+                return false;
+
+            } catch (error) {
+                console.error('[AuthEnhanced] ❌ Erro ao carregar usuários:', error);
+                return false;
+            }
+        },
+
+        /**
+         * Mapeia um registro da planilha 'Usuarios' para o formato de usuário.
+         */
+        mapUsuario(user) {
+            const username = user.Username || user.Email; // Usar Email como fallback para username
+            if (!username) return null;
+
+            return {
+                username: username,
+                password: user.Password_Hash || '', // O hash é tratado no login
+                role: user.Role || 'Visualizador',
+                nome: user.Username,
+                email: user.Email || '',
+                permissions: this.parsePermissions(user.Permissions || ''),
+                ativo: user.Status === 'Ativo'
+            };
+        },
+
+        /**
+         * Mapeia um registro da planilha 'Pessoal' para o formato de usuário.
+         */
+        mapPessoal(user) {
+            const username = user.Email; // Usar Email como username
+            if (!username) return null;
+
+            // Gerar senha padrão: CPF sem pontos/traços (primeiros 6 dígitos)
+            const cpfLimpo = (user.CPF || '').replace(/\D/g, '');
+            const senhaDefault = cpfLimpo.substring(0, 6) || 'senha123';
+
+            // Permissões específicas por função
+            let permissions = 'frequencia:read';
+            if (user.Funcao === 'Motorista') {
+                permissions = 'frequencia:read,frequencia:write,incidentes:create,tracking:view';
+            } else if (user.Funcao === 'Monitora' || user.Funcao === 'Monitor') {
+                permissions = 'frequencia:read,frequencia:write,incidentes:create,alunos:read';
+            }
+
+            return {
+                username: username,
+                password: senhaDefault, // Senha padrão baseada no CPF
+                role: user.Funcao || 'Operacional', // 'Motorista', 'Monitora', 'Monitor'
+                nome: user.Nome_Completo || username,
+                email: user.Email || '',
+                permissions: this.parsePermissions(permissions),
+                ativo: user.Status === 'Ativo',
+                isPessoal: true, // Flag para identificar que veio da planilha Pessoal
+                cpf: user.CPF || '',
+                telefone: user.Telefone || '',
+                idRota: user.ID_Rota_Associada || ''
+            };
+        },
+        /**
+         * Converte string de permissões em array
+         */
+        parsePermissions(permissionsStr) {
+            if (!permissionsStr) return [];
+            if (permissionsStr === '*') return ['*'];
+            
+            // Suporta: "read,write" ou "module:read,module:write"
+            return permissionsStr
+                .split(',')
+                .map(p => p.trim())
+                .filter(p => p.length > 0);
+        },
+
+        /**
+         * Inicializa o sistema enhanced
+         */
+        async init() {
+            console.log('[AuthEnhanced] 🚀 Inicializando sistema enhanced...');
+            
+            // Aguardar AuthManager estar disponível
+            if (typeof window.AuthManager === 'undefined') {
+                console.warn('[AuthEnhanced] ⚠️ AuthManager não disponível ainda, aguardando...');
+                await this.waitForAuthManager();
+            }
+
+            // Carregar usuários do backend
+            await this.loadUsersFromBackend();
+
+            // Atualizar a cada 5 minutos
+            setInterval(() => {
+                this.loadUsersFromBackend();
+            }, 5 * 60 * 1000);
+
+            console.log('[AuthEnhanced] ✅ Sistema enhanced ativo!');
+        },
+
+        /**
+         * Aguarda AuthManager ficar disponível
+         */
+        async waitForAuthManager(timeout = 5000) {
+            const startTime = Date.now();
+            
+            while (typeof window.AuthManager === 'undefined') {
+                if (Date.now() - startTime > timeout) {
+                    throw new Error('Timeout esperando AuthManager');
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+    };
+
+    // Inicializar após DOM e DataLoader estarem prontos
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            // Aguardar um pouco para garantir que outros scripts carreguem
+            setTimeout(() => AuthManagerEnhanced.init(), 500);
+        });
+    } else {
+        setTimeout(() => AuthManagerEnhanced.init(), 500);
+    }
+
+    // Expor globalmente
+    window.AuthManagerEnhanced = AuthManagerEnhanced;
+
+    console.log('[AuthEnhanced] 📦 Script carregado');
+
+})();
+</script>
+
+
+<!--============================================================================-->

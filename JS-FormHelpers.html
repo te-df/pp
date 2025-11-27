@@ -1,0 +1,766 @@
+<!--============================================================================-->
+
+<script>
+
+/* ============================================================================
+ FORM HELPERS & CALCULATED FIELDS
+ Sistema de campos calculados, validações e auto-preenchimento
+ ============================================================================ */
+
+(function(window) {
+    'use strict';
+
+ /* * Gerenciador de Campos Calculados
+ * Implementa lógica de cálculos automáticos em formulários */
+ const CalculatedFieldsManager = {
+
+ /* * Configurações de campos calculados por seção */
+ calculations: {
+            'frequencia': [
+ {
+ // KM Rodados = KM Final - KM Inicial
+                    inputs: ['frequencia-km-inicial', 'frequencia-km-final'],
+                    output: 'frequencia-km-rodados',
+ calculate: (inicial, final) => {
+ const kmInicial = parseFloat(inicial) || 0;
+ const kmFinal = parseFloat(final) || 0;
+                        return kmFinal > kmInicial ? (kmFinal - kmInicial).toFixed(1) : '';
+ },
+ validate: (result, inicial, final) => {
+ if (result < 0) {
+                            return 'KM Final deve ser maior que KM Inicial';
+ }
+ if (result > 500) {
+                            return 'KM Rodados parece muito alto. Verifique os valores.';
+ }
+ return null;
+ }
+ }
+ ],
+            'manutencao': [
+ {
+ // Próximo serviço baseado em KM atual
+                    inputs: ['manutencao-km-servico', 'manutencao-intervalo-km'],
+                    output: 'manutencao-proximo-km',
+ calculate: (kmAtual, intervalo) => {
+ const km = parseFloat(kmAtual) || 0;
+ const int = parseFloat(intervalo) || 0;
+                        return km > 0 && int > 0 ? (km + int).toFixed(0) : '';
+ }
+ }
+ ],
+            'utilizacao-frota': [
+ {
+ // Eficiência de combustível (KM/L)
+                    inputs: ['utilizacao-km-rodados', 'utilizacao-combustivel-usado'],
+                    output: 'utilizacao-eficiencia',
+ calculate: (km, combustivel) => {
+ const kmVal = parseFloat(km) || 0;
+ const combVal = parseFloat(combustivel) || 0;
+                        return combVal > 0 ? (kmVal / combVal).toFixed(2) : '';
+ }
+ },
+ {
+ // Taxa de ocupação (%)
+                    inputs: ['utilizacao-alunos-transportados', 'utilizacao-capacidade-veiculo'],
+                    output: 'utilizacao-taxa-ocupacao',
+ calculate: (alunos, capacidade) => {
+ const alunosVal = parseFloat(alunos) || 0;
+ const capVal = parseFloat(capacidade) || 0;
+                        return capVal > 0 ? ((alunosVal / capVal) * 100).toFixed(1) + '%' : '';
+ }
+ }
+ ]
+ },
+
+ /* * Inicializa campos calculados para uma seção */
+ init(sectionId) {
+ const configs = this.calculations[sectionId];
+ if (!configs) return;
+
+ console.log(`[CalculatedFields] Inicializando para: ${sectionId}`);
+
+ configs.forEach(config => {
+ config.inputs.forEach(inputId => {
+ const input = document.getElementById(inputId);
+ if (input) {
+                        input.addEventListener('input', () => {
+ this.recalculate(config);
+ });
+                        input.addEventListener('blur', () => {
+ this.validateCalculation(config);
+ });
+ }
+ });
+ });
+ },
+
+ /* * Recalcula um campo */
+ recalculate(config) {
+ const values = config.inputs.map(id => {
+ const el = document.getElementById(id);
+                return el ? el.value : '';
+ });
+
+ const result = config.calculate(...values);
+ const outputEl = document.getElementById(config.output);
+
+ if (outputEl) {
+ outputEl.value = result;
+                outputEl.dispatchEvent(new Event('change')); // Trigger outros listeners
+ }
+ },
+
+ /* * Valida um cálculo */
+ validateCalculation(config) {
+ if (!config.validate) return;
+
+ const values = config.inputs.map(id => {
+ const el = document.getElementById(id);
+                return el ? el.value : '';
+ });
+
+ const result = config.calculate(...values);
+ const error = config.validate(parseFloat(result), ...values);
+
+ const outputEl = document.getElementById(config.output);
+ if (outputEl && error) {
+                outputEl.classList.add('is-invalid');
+
+ // Mostra mensagem de erro
+                let errorDiv = outputEl.parentElement.querySelector('.form-error-message');
+ if (!errorDiv) {
+                    errorDiv = document.createElement('div');
+                    errorDiv.className = 'form-error-message';
+ outputEl.parentElement.appendChild(errorDiv);
+ }
+ errorDiv.textContent = error;
+ } else if (outputEl) {
+                outputEl.classList.remove('is-invalid');
+                const errorDiv = outputEl.parentElement.querySelector('.form-error-message');
+                if (errorDiv) errorDiv.textContent = '';
+ }
+ }
+ };
+
+ /* * Gerenciador de Auto-Preenchimento
+ * Preenche campos automaticamente baseado em seleções */
+ const AutoFillManager = {
+
+ /* * Configurações de auto-preenchimento */
+ autoFillRules: {
+            'frequencia': {
+ // Ao selecionar rota, preencher veículo e alunos
+                'frequencia-rota': async (value, formId) => {
+ if (!value) return;
+
+ try {
+                        LoadingManager.show('Carregando dados da rota...');
+
+ // Busca dados da rota
+                        const rotaData = await API.run('readRecords', {
+                            sheetName: 'Rotas',
+ id: value
+ });
+
+ if (rotaData && rotaData.Veiculo_ID) {
+                            const veiculoSelect = document.getElementById('veiculo_id');
+ if (veiculoSelect) {
+ veiculoSelect.value = rotaData.Veiculo_ID;
+                                veiculoSelect.dispatchEvent(new Event('change'));
+ }
+ }
+
+ // Carrega alunos da rota
+ if (window.AttendanceManager && window.AttendanceManager.loadStudentsForRoute) {
+ await window.AttendanceManager.loadStudentsForRoute(value);
+ }
+
+ LoadingManager.hide();
+ } catch (error) {
+                        console.error('[AutoFill] Erro ao carregar dados da rota:', error);
+ LoadingManager.hide();
+ }
+ }
+ },
+            'alunos': {
+ // Ao selecionar rota, preencher pontos de embarque
+                'aluno-rota': async (value, formId) => {
+ if (!value) return;
+
+ try {
+                        const rotaData = await API.run('readRecords', {
+                            sheetName: 'Rotas',
+ id: value
+ });
+
+ if (rotaData && rotaData.Pontos_Parada) {
+ // Atualiza select de pontos de embarque
+                            const embarqueSelect = document.getElementById('aluno-ponto-embarque');
+ if (embarqueSelect) {
+                                const pontos = rotaData.Pontos_Parada.split(';');
+                                embarqueSelect.innerHTML = '<option value="">Selecione...</option>';
+ pontos.forEach(ponto => {
+                                    const option = document.createElement('option');
+ option.value = ponto;
+ option.textContent = ponto;
+ embarqueSelect.appendChild(option);
+ });
+ }
+ }
+ } catch (error) {
+                        console.error('[AutoFill] Erro ao carregar pontos da rota:', error);
+ }
+ }
+ }
+ },
+
+ /* * Inicializa auto-preenchimento para um formulário */
+ init(sectionId, formId) {
+ const rules = this.autoFillRules[sectionId];
+ if (!rules) return;
+
+ console.log(`[AutoFill] Inicializando para: ${sectionId}`);
+
+ Object.keys(rules).forEach(fieldId => {
+ const field = document.getElementById(fieldId);
+ if (field) {
+                    field.addEventListener('change', (e) => {
+ const handler = rules[fieldId];
+ if (handler) {
+ handler(e.target.value, formId);
+ }
+ });
+ }
+ });
+ }
+ };
+
+ /* * Validador de Campos Customizados
+ * Validações específicas por tipo de campo */
+ const CustomValidator = {
+
+ /* * Valida CPF */
+ validateCPF(cpf) {
+            cpf = cpf.replace(/[^\d]/g, '');
+
+ if (cpf.length !== 11) return false;
+ if (/^(\d)\1{10}$/.test(cpf)) return false; // Sequência repetida
+
+ // Valida dígitos verificadores
+ let sum = 0;
+ for (let i = 0; i < 9; i++) {
+ sum += parseInt(cpf.charAt(i)) * (10 - i);
+ }
+ let digit = 11 - (sum % 11);
+ if (digit >= 10) digit = 0;
+ if (digit !== parseInt(cpf.charAt(9))) return false;
+
+ sum = 0;
+ for (let i = 0; i < 10; i++) {
+ sum += parseInt(cpf.charAt(i)) * (11 - i);
+ }
+ digit = 11 - (sum % 11);
+ if (digit >= 10) digit = 0;
+ if (digit !== parseInt(cpf.charAt(10))) return false;
+
+ return true;
+ },
+
+ /* * Valida CNPJ */
+ validateCNPJ(cnpj) {
+            cnpj = cnpj.replace(/[^\d]/g, '');
+
+ if (cnpj.length !== 14) return false;
+ if (/^(\d)\1{13}$/.test(cnpj)) return false;
+
+ return true; // Simplificado - adicionar validação completa se necessário
+ },
+
+ /* * Valida Placa de Veículo (Mercosul ou antiga) */
+ validatePlaca(placa) {
+            placa = placa.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+ // Formato Mercosul: ABC1D23
+ const mercosul = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
+ // Formato antigo: ABC1234
+ const antiga = /^[A-Z]{3}[0-9]{4}$/;
+
+ return mercosul.test(placa) || antiga.test(placa);
+ },
+
+ /* * Valida Telefone Brasileiro */
+ validatePhone(phone) {
+            const cleaned = phone.replace(/\D/g, '');
+
+ // 8-11 dígitos (com ou sem DDD)
+ if (cleaned.length < 8 || cleaned.length > 11) return false;
+
+ // Se tiver 11 dígitos, o 3º deve ser 9 (celular)
+            if (cleaned.length === 11 && cleaned.charAt(2) !== '9') return false;
+
+ return true;
+ },
+
+ /* * Aplica validação customizada a um campo */
+ applyValidation(fieldId, validationType) {
+ const field = document.getElementById(fieldId);
+ if (!field) return;
+
+            field.addEventListener('blur', (e) => {
+ const value = e.target.value;
+ if (!value) return; // Não valida se estiver vazio
+
+ let isValid = false;
+                let errorMsg = '';
+
+ switch(validationType) {
+                    case 'cpf':
+ isValid = this.validateCPF(value);
+                        errorMsg = 'CPF inválido';
+ break;
+                    case 'cnpj':
+ isValid = this.validateCNPJ(value);
+                        errorMsg = 'CNPJ inválido';
+ break;
+                    case 'placa':
+ isValid = this.validatePlaca(value);
+                        errorMsg = 'Placa inválida (use formato ABC-1234 ou ABC1D23)';
+ break;
+                    case 'phone':
+ isValid = this.validatePhone(value);
+                        errorMsg = 'Telefone inválido';
+ break;
+ }
+
+ if (!isValid) {
+                    field.classList.add('is-invalid');
+                    let errorDiv = field.parentElement.querySelector('.form-error-message');
+ if (!errorDiv) {
+                        errorDiv = document.createElement('div');
+                        errorDiv.className = 'form-error-message';
+ field.parentElement.appendChild(errorDiv);
+ }
+ errorDiv.textContent = errorMsg;
+ } else {
+                    field.classList.remove('is-invalid');
+                    const errorDiv = field.parentElement.querySelector('.form-error-message');
+                    if (errorDiv) errorDiv.textContent = '';
+ }
+ });
+ }
+ };
+
+ /* * Máscaras de Input
+ * Formata campos enquanto o usuário digita */
+ const InputMasksManager = {
+
+ masks: {
+            'cpf': (value) => {
+                value = value.replace(/\D/g, '');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+ return value;
+ },
+            'cnpj': (value) => {
+                value = value.replace(/\D/g, '');
+                value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+                value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                value = value.replace(/(\d{4})(\d)/, '$1-$2');
+ return value;
+ },
+            'phone': (value) => {
+                value = value.replace(/\D/g, '');
+ if (value.length <= 10) {
+                    value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+                    value = value.replace(/(\d)(\d{4})$/, '$1-$2');
+ } else {
+                    value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+                    value = value.replace(/(\d)(\d{4})$/, '$1-$2');
+ }
+ return value;
+ },
+            'cep': (value) => {
+                value = value.replace(/\D/g, '');
+                value = value.replace(/^(\d{5})(\d)/, '$1-$2');
+ return value;
+ },
+            'placa': (value) => {
+                value = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+ return value;
+ }
+ },
+
+ /* * Aplica máscara a um campo */
+ applyMask(fieldId, maskType) {
+ const field = document.getElementById(fieldId);
+ if (!field || !this.masks[maskType]) return;
+
+            field.addEventListener('input', (e) => {
+ const cursorPosition = e.target.selectionStart;
+ const oldLength = e.target.value.length;
+
+ e.target.value = this.masks[maskType](e.target.value);
+
+ const newLength = e.target.value.length;
+ const diff = newLength - oldLength;
+
+ // Ajusta posição do cursor
+                e.target.setSelectionRange(cursorPosition + diff, cursorPosition + diff);
+            });
+        }
+    };
+
+    /* * Gerenciador de População Automática de Dropdowns
+     * Popula selects automaticamente usando DataLoader */
+    const DropdownPopulator = {
+
+        /* * Configurações de dropdowns por planilha */
+        configs: {
+            'Rotas': {
+                valueField: 'ID',
+                labelFields: ['Codigo', 'Nome_Rota'],
+                labelTemplate: (row) => `${row.Codigo} - ${row.Nome_Rota}`,
+                filters: { Status: 'Ativa' },
+                sortBy: 'Codigo'
+            },
+            'Veiculos': {
+                valueField: 'ID',
+                labelFields: ['Placa', 'Modelo'],
+                labelTemplate: (row) => `${row.Placa} - ${row.Modelo}`,
+                filters: { Status: 'Operacional' },
+                sortBy: 'Placa'
+            },
+            'Pessoal_Motoristas': {
+                sheetName: 'Pessoal',
+                valueField: 'ID',
+                labelFields: ['Nome_Completo'],
+                labelTemplate: (row) => row.Nome_Completo,
+                filters: { Cargo: 'Motorista', Status_Contrato: 'ATIVO' },
+                sortBy: 'Nome_Completo'
+            },
+            'Pessoal_Monitores': {
+                sheetName: 'Pessoal',
+                valueField: 'ID',
+                labelFields: ['Nome_Completo'],
+                labelTemplate: (row) => row.Nome_Completo,
+                filters: { Cargo: 'Monitor', Status_Contrato: 'ATIVO' },
+                sortBy: 'Nome_Completo'
+            }
+        },
+
+        /* * Popula um dropdown
+         * @param {string} selectId - ID do elemento select
+         * @param {string} configKey - Chave da configuração
+         * @param {Object} additionalFilters - Filtros adicionais opcionais */
+        async populate(selectId, configKey, additionalFilters = {}) {
+            const select = document.getElementById(selectId);
+            if (!select) {
+                console.error(`[DropdownPopulator] Select não encontrado: ${selectId}`);
+                return;
+            }
+
+            const config = this.configs[configKey];
+            if (!config) {
+                console.error(`[DropdownPopulator] Configuração não encontrada: ${configKey}`);
+                return;
+            }
+
+            try {
+                // Mostra estado de carregamento
+                select.disabled = true;
+                select.innerHTML = '<option value="">Carregando...</option>';
+
+                // Carrega dados
+                const sheetName = config.sheetName || configKey;
+                const filters = { ...config.filters, ...additionalFilters };
+                const data = await window.DataLoader.load(sheetName, filters, false);
+
+                // Limpa e adiciona opção padrão
+                select.innerHTML = '<option value="">Selecione...</option>';
+
+                // Ordena dados se configurado
+                if (config.sortBy) {
+                    data.sort((a, b) => {
+                        const valA = a[config.sortBy] || '';
+                        const valB = b[config.sortBy] || '';
+                        return valA.toString().localeCompare(valB.toString());
+                    });
+                }
+
+                // Adiciona opções
+                data.forEach(row => {
+                    const option = document.createElement('option');
+                    option.value = row[config.valueField];
+                    option.textContent = config.labelTemplate(row);
+                    // Armazena dados completos no option para uso posterior
+                    option.dataset.rowData = JSON.stringify(row);
+                    select.appendChild(option);
+                });
+
+                console.log(`[DropdownPopulator] ${selectId}: ${data.length} opções carregadas`);
+
+                // Auto-seleciona se houver apenas 1 opção
+                if (data.length === 1) {
+                    select.value = data[0][config.valueField];
+                    select.dispatchEvent(new Event('change'));
+                    if (window.ToastManager) {
+                        window.ToastManager.show(
+                            `${configKey} selecionado automaticamente`,
+                            'info'
+                        );
+                    }
+                }
+
+            } catch (error) {
+                console.error(`[DropdownPopulator] Erro ao carregar ${configKey}:`, error);
+                select.innerHTML = '<option value="">Erro ao carregar</option>';
+                if (window.ToastManager) {
+                    window.ToastManager.show(`Erro ao carregar ${configKey}`, 'error');
+                }
+            } finally {
+                select.disabled = false;
+            }
+        },
+
+        /* * Popula múltiplos dropdowns em paralelo
+         * @param {Array<{selectId: string, configKey: string, filters?: Object}>} configs */
+        async populateMultiple(configs) {
+            const promises = configs.map(({ selectId, configKey, filters }) =>
+                this.populate(selectId, configKey, filters)
+            );
+            await Promise.allSettled(promises);
+        },
+
+        /* * Obtém dados completos da opção selecionada
+         * @param {string} selectId - ID do select
+         * @returns {Object|null} */
+        getSelectedData(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select || !select.value) return null;
+
+            const selectedOption = select.options[select.selectedIndex];
+            if (!selectedOption || !selectedOption.dataset.rowData) return null;
+
+            try {
+                return JSON.parse(selectedOption.dataset.rowData);
+            } catch (error) {
+                console.error('[DropdownPopulator] Erro ao parsear dados da opção:', error);
+                return null;
+            }
+        }
+    };
+
+    /* * Gerenciador Universal de Submit de Formulários
+     * Padroniza o fluxo de criação/edição de registros */
+    const UniversalFormSubmit = {
+
+        /* * Configura submit de um formulário
+         * @param {string} formId - ID do formulário
+         * @param {string} sheetName - Nome da planilha destino
+         * @param {Object} options - Opções adicionais */
+        setup(formId, sheetName, options = {}) {
+            const form = document.getElementById(formId);
+            if (!form) {
+                console.error(`[UniversalFormSubmit] Formulário não encontrado: ${formId}`);
+                return;
+            }
+
+            const defaultOptions = {
+                onSuccess: null,
+                onError: null,
+                beforeSubmit: null,
+                afterSubmit: null,
+                successMessage: 'Registro salvo com sucesso!',
+                redirectAfterSuccess: false,
+                clearFormAfterSuccess: true,
+                validateBeforeSubmit: true
+            };
+
+            const config = { ...defaultOptions, ...options };
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.handleSubmit(form, sheetName, config);
+            });
+
+            console.log(`[UniversalFormSubmit] Configurado: ${formId} → ${sheetName}`);
+        },
+
+        /* * Processa submit do formulário */
+        async handleSubmit(form, sheetName, config) {
+            // Validação básica
+            if (config.validateBeforeSubmit && !form.checkValidity()) {
+                if (window.ToastManager) {
+                    window.ToastManager.show(
+                        'Por favor, preencha todos os campos obrigatórios.',
+                        'warning'
+                    );
+                }
+                form.reportValidity();
+                return;
+            }
+
+            // Callback antes do submit
+            if (config.beforeSubmit) {
+                const shouldContinue = await config.beforeSubmit(form);
+                if (shouldContinue === false) return;
+            }
+
+            // Captura dados do formulário
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            // Detecta modo edição
+            const isEditMode = form.dataset.editingId;
+            if (isEditMode) {
+                data.ID = form.dataset.editingId;
+            }
+
+            // Adiciona timestamps
+            if (!isEditMode) {
+                data.Timestamp_Criacao = new Date().toISOString();
+            }
+            data.Timestamp_Atualizacao = new Date().toISOString();
+
+            // Loading state
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton && window.LoadingManager) {
+                window.LoadingManager.showButtonLoading(submitButton);
+            }
+
+            try {
+                // Chama backend
+                const method = isEditMode ? 'updateRecord' : 'createRecord';
+                const result = await window.API.run(method, {
+                    sheetName: sheetName,
+                    data: data
+                });
+
+                if (result.success) {
+                    // Toast de sucesso
+                    if (window.ToastManager) {
+                        window.ToastManager.show(config.successMessage, 'success');
+                    }
+
+                    // Callback de sucesso
+                    if (config.onSuccess) {
+                        await config.onSuccess(result);
+                    }
+
+                    // Limpa formulário
+                    if (config.clearFormAfterSuccess) {
+                        form.reset();
+                        delete form.dataset.editingId;
+                        
+                        // Reset botão para modo criação
+                        if (submitButton) {
+                            submitButton.innerHTML = '<i class="fas fa-save"></i> Salvar';
+                        }
+                    }
+
+                    // Dispara evento para outros componentes
+                    window.dispatchEvent(new CustomEvent('recordSaved', {
+                        detail: { sheetName, data: result.data, isEdit: !!isEditMode }
+                    }));
+
+                    // Invalida cache
+                    if (window.DataLoader) {
+                        window.DataLoader.invalidateCache(sheetName);
+                    }
+
+                    // Redireciona se configurado
+                    if (config.redirectAfterSuccess && window.NavigationManager) {
+                        setTimeout(() => {
+                            window.NavigationManager.navigate(config.redirectAfterSuccess);
+                        }, 1000);
+                    }
+
+                } else {
+                    throw new Error(result.error || 'Erro ao salvar registro');
+                }
+
+            } catch (error) {
+                console.error('[UniversalFormSubmit] Erro:', error);
+                
+                if (window.ToastManager) {
+                    window.ToastManager.show(
+                        `Erro ao salvar: ${error.message}`,
+                        'error'
+                    );
+                }
+
+                // Callback de erro
+                if (config.onError) {
+                    await config.onError(error);
+                }
+
+            } finally {
+                // Remove loading state
+                if (submitButton && window.LoadingManager) {
+                    window.LoadingManager.hideButtonLoading(submitButton);
+                }
+
+                // Callback após submit
+                if (config.afterSubmit) {
+                    await config.afterSubmit();
+                }
+            }
+        },
+
+        /* * Preenche formulário com dados para edição
+         * @param {string} formId - ID do formulário
+         * @param {Object} data - Dados do registro */
+        fillForm(formId, data) {
+            const form = document.getElementById(formId);
+            if (!form) return;
+
+            // Marca como modo edição
+            form.dataset.editingId = data.ID || data.id;
+
+            // Preenche campos
+            Object.keys(data).forEach(key => {
+                const field = form.querySelector(`[name="${key}"]`);
+                if (field) {
+                    if (field.type === 'checkbox') {
+                        field.checked = data[key] === 'Sim' || data[key] === true;
+                    } else if (field.type === 'radio') {
+                        const radio = form.querySelector(`[name="${key}"][value="${data[key]}"]`);
+                        if (radio) radio.checked = true;
+                    } else {
+                        field.value = data[key] || '';
+                    }
+                    // Dispara evento change para triggers
+                    field.dispatchEvent(new Event('change'));
+                }
+            });
+
+            // Atualiza botão de submit
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.innerHTML = '<i class="fas fa-save"></i> Atualizar';
+            }
+
+            console.log(`[UniversalFormSubmit] Formulário preenchido para edição: ${data.ID}`);
+        }
+    };
+
+    // Exporta para escopo global
+    window.CalculatedFieldsManager = CalculatedFieldsManager;
+    window.AutoFillManager = AutoFillManager;
+    window.CustomValidator = CustomValidator;
+    window.InputMasksManager = InputMasksManager;
+    window.DropdownPopulator = DropdownPopulator;
+    window.UniversalFormSubmit = UniversalFormSubmit;
+
+    console.log('[FormHelpers] Módulo carregado com DropdownPopulator e UniversalFormSubmit');
+
+})(window);
+
+</script>
+
+
+
+<!--============================================================================-->

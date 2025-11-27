@@ -1,0 +1,822 @@
+<!--============================================================================-->
+
+<script>
+
+/* ============================================================================
+ UNIVERSAL CRUD MANAGER & FORM BUILDER
+ ============================================================================ */
+
+(function() {
+    'use strict';
+
+ // ============================================================================
+ // FORM BUILDER - Construtor Dinâmico de Formulários
+ // ============================================================================
+
+ const FormBuilder = {
+ /* * Constrói HTML de formulário a partir de configuração de campos
+ * @param {Array} fields - Array de configuração de campos
+ * @param {Object} initialData - Dados iniciais para popular formulário
+ * @returns {string} HTML do formulário. */
+ build(fields, initialData = {}) {
+ return fields.map(field => {
+                const value = initialData[field.name] || field.default || '';
+ let fieldHtml = `
+                    <div class="form-group">
+                        <label class="form-label" for="form-${field.name}">
+                            ${field.label}${field.required ? ' <span class="required">*</span>' : ''}
+ </label>`;
+
+ switch (field.type) {
+                    case 'textarea':
+ fieldHtml += `
+ <textarea
+                                id="form-${field.name}"
+                                name="${field.name}"
+                                class="form-control"
+                                rows="${field.rows || 3}"
+                                placeholder="${field.placeholder || ''}"
+                                ${field.required ? 'required' : ''}
+ >${value}</textarea>`;
+ break;
+
+                    case 'select':
+ fieldHtml += `
+ <select
+                                id="form-${field.name}"
+                                name="${field.name}"
+                                class="form-control"
+                                ${field.required ? 'required' : ''}
+ >
+                                <option value="">Selecione...</option>`;
+ (field.options || []).forEach(opt => {
+ const optValue = opt.value !== undefined ? opt.value : opt;
+ const optLabel = opt.label !== undefined ? opt.label : opt;
+ fieldHtml += `
+                                <option value="${optValue}" ${value === optValue ? 'selected' : ''}>
+ ${optLabel}
+ </option>`;
+ });
+ fieldHtml += `</select>`;
+ break;
+
+                    case 'checkbox':
+ fieldHtml += `
+                            <div class="checkbox-wrapper">
+ <input
+                                    type="checkbox"
+                                    id="form-${field.name}"
+                                    name="${field.name}"
+                                    value="true"
+                                    ${value === true || value === 'true' ? 'checked' : ''}
+ >
+                                <label for="form-${field.name}">${field.checkboxLabel || field.label}</label>
+ </div>`;
+ break;
+
+                    case 'date':
+ fieldHtml += `
+ <input
+                                type="date"
+                                id="form-${field.name}"
+                                name="${field.name}"
+                                class="form-control"
+                                value="${value}"
+                                ${field.required ? 'required' : ''}
+ >`;
+ break;
+
+                    case 'number':
+ fieldHtml += `
+ <input
+                                type="number"
+                                id="form-${field.name}"
+                                name="${field.name}"
+                                class="form-control"
+                                value="${value}"
+                                min="${field.min !== undefined ? field.min : ''}"
+                                max="${field.max !== undefined ? field.max : ''}"
+                                step="${field.step || '1'}"
+                                placeholder="${field.placeholder || ''}"
+                                ${field.required ? 'required' : ''}
+ >`;
+ break;
+
+                    case 'email':
+ fieldHtml += `
+ <input
+                                type="email"
+                                id="form-${field.name}"
+                                name="${field.name}"
+                                class="form-control"
+                                value="${value}"
+                                placeholder="${field.placeholder || ''}"
+                                ${field.required ? 'required' : ''}
+ >`;
+ break;
+
+                    case 'tel':
+ fieldHtml += `
+ <input
+                                type="tel"
+                                id="form-${field.name}"
+                                name="${field.name}"
+                                class="form-control"
+                                value="${value}"
+                                placeholder="${field.placeholder || ''}"
+                                ${field.required ? 'required' : ''}
+ >`;
+ break;
+
+ default: // text
+ fieldHtml += `
+ <input
+                                type="text"
+                                id="form-${field.name}"
+                                name="${field.name}"
+                                class="form-control"
+                                value="${value}"
+                                placeholder="${field.placeholder || ''}"
+                                ${field.required ? 'required' : ''}
+ >`;
+ }
+
+ if (field.helpText) {
+                    fieldHtml += `<small class="form-help-text">${field.helpText}</small>`;
+ }
+
+ // Container for validation messages
+                fieldHtml += `<div class="form-error-message" id="error-form-${field.name}"></div>`;
+
+ fieldHtml += `</div>`;
+ return fieldHtml;
+            }).join('');
+ },
+
+ /* * Extrai dados do formulário
+ * @param {string} formId - ID do formulário
+ * @returns {Object} Dados do formulário. */
+ getData(formId) {
+ const form = document.getElementById(formId);
+ if (!form) return {};
+
+ const formData = new FormData(form);
+ const data = {};
+
+ for (let [key, value] of formData.entries()) {
+ data[key] = value;
+ }
+
+            // Handle checkboxes that weren't checked
+            form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+ if (!data.hasOwnProperty(checkbox.name)) {
+ data[checkbox.name] = false;
+ }
+ });
+
+ return data;
+ },
+
+ /* * Valida formulário
+ * @param {string} formId - ID do formulário.
+ * @returns {{isValid: boolean, invalidFields: Array<Element>}} Objeto com status de validação e campos inválidos. */
+ validate(formId) {
+ const form = document.getElementById(formId);
+ if (!form) return { isValid: false, invalidFields: [] };
+
+ const invalidFields = [];
+ let firstInvalidField = null;
+
+ // Limpa erros anteriores
+            form.querySelectorAll('.form-control').forEach(el => {
+                el.classList.remove('is-invalid');
+ const errorContainer = document.getElementById(`error-${el.id}`);
+                if (errorContainer) errorContainer.textContent = '';
+ });
+
+ // Verifica a validade de cada campo
+ for (const el of form.elements) {
+ if (el.willValidate && !el.checkValidity()) {
+ invalidFields.push(el);
+                    el.classList.add('is-invalid');
+
+ const errorContainer = document.getElementById(`error-${el.id}`);
+ if (errorContainer) {
+ errorContainer.textContent = el.validationMessage;
+ }
+
+ if (!firstInvalidField) {
+ firstInvalidField = el;
+ }
+ }
+ }
+
+ // Foca no primeiro campo inválido
+ if (firstInvalidField) {
+ firstInvalidField.focus();
+ }
+
+ return { isValid: invalidFields.length === 0, invalidFields };
+ }
+ };
+
+ window.FormBuilder = FormBuilder;
+
+ // ============================================================================
+ // MODAL MANAGER - Gerenciador de Modais
+ // ============================================================================
+
+ const ModalManager = {
+ modals: new Map(),
+
+ /* * Cria um modal
+ * @param {string} modalId - ID único do modal
+ * @param {Object} config - Configuração (title, content, footer) */
+ create(modalId, config) {
+ // Remove modal existente se houver
+ this.destroy(modalId);
+
+            const modal = document.createElement('div');
+ modal.id = modalId;
+            modal.className = 'modal';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', `${modalId}-title`);
+
+ modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-header">
+                        <h3 class="modal-title" id="${modalId}-title">${config.title || 'Modal'}</h3>
+                        <button class="btn-icon" onclick="ModalManager.close('${modalId}')" aria-label="Fechar">
+                            <i class="fas fa-times"></i>
+ </button>
+ </div>
+                    <div class="modal-body">
+                        ${config.content || ''}
+ </div>
+                    ${config.footer ? `<div class="modal-footer">${config.footer}</div>` : ''}
+ </div>
+ `;
+
+ document.body.appendChild(modal);
+ this.modals.set(modalId, modal);
+
+ // Close on backdrop click
+            modal.addEventListener('click', (e) => {
+ if (e.target === modal) {
+ this.close(modalId);
+ }
+ });
+
+ // Close on ESC key
+ const escHandler = (e) => {
+                if (e.key === 'Escape') {
+ this.close(modalId);
+ }
+ };
+ modal.escHandler = escHandler;
+            document.addEventListener('keydown', escHandler);
+ },
+
+ /* * Abre um modal */
+ open(modalId) {
+ const modal = this.modals.get(modalId) || document.getElementById(modalId);
+ if (!modal) return;
+
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+
+ // Focus first focusable element
+            const firstFocusable = modal.querySelector('input, select, textarea, button');
+ if (firstFocusable) {
+ setTimeout(() => firstFocusable.focus(), 100);
+ }
+ },
+
+ /* * Fecha um modal */
+ close(modalId) {
+ const modal = this.modals.get(modalId) || document.getElementById(modalId);
+ if (!modal) return;
+
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+ },
+
+ /* * Destrói um modal */
+ destroy(modalId) {
+ const modal = this.modals.get(modalId) || document.getElementById(modalId);
+ if (!modal) return;
+
+ if (modal.escHandler) {
+                document.removeEventListener('keydown', modal.escHandler);
+ }
+
+ modal.remove();
+ this.modals.delete(modalId);
+ }
+ };
+
+ window.ModalManager = ModalManager;
+
+ // ============================================================================
+ // UNIVERSAL CRUD MANAGER
+ // ============================================================================
+
+ window.CRUDManagerUniversal = {
+ instances: {},
+ customFormHandlers: {}, // Registro de handlers para formulários customizados
+
+ /* * Registra um handler para formulário customizado
+ * @param {string} sectionId - ID da seção
+ * @param {Object} handler - Objeto com funções open, submit, validate */
+ registerCustomForm(sectionId, handler) {
+ this.customFormHandlers[sectionId] = handler;
+ console.log(`[CRUD] Formulário customizado registrado para: ${sectionId}`);
+ },
+
+ /* * Verifica se uma seção tem formulário customizado */
+ hasCustomForm(sectionId) {
+ return this.customFormHandlers.hasOwnProperty(sectionId);
+ },
+
+ /* * Inicializa sistema CRUD para uma seção
+ * @param {Object} config - Configuração completa */
+ init(config) {
+ const { sectionId, sheetName, title, columns, fields, searchPlaceholder, subtitle, icon, hasCustomUI } = config;
+
+ if (this.instances[sectionId]) {
+ console.log(`[CRUD] Seção ${sectionId} já inicializada`);
+ return;
+ }
+
+ const instance = {
+ subtitle,
+ icon,
+ sectionId,
+ sheetName,
+ title,
+ columns,
+ fields,
+ data: [],
+                searchQuery: '',
+                sortColumn: columns[0]?.field || 'ID',
+                sortDirection: 'asc',
+ currentPage: 1,
+ itemsPerPage: 10,
+ hasCustomUI: hasCustomUI || false // Marca se tem UI customizada
+ };
+ this.instances[sectionId] = instance;
+
+ const container = document.getElementById(`${sectionId}-crud-container`);
+ if (!container) {
+ console.warn(`[CRUD] Container não encontrado: ${sectionId}-crud-container`);
+ return;
+ }
+
+ // Renderiza UI do CRUD
+ container.innerHTML = `
+                <div class="page-header section-header-standardized">
+                    <h2 class="page-title section-title-standardized"><i class="fas ${icon || 'fa-cogs'}"></i> ${title}</h2>
+                    ${subtitle ? `<p class="page-subtitle">${subtitle}</p>` : ''}
+ </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-list"></i> Lista de Registros</h3>
+                        <div class="crud-actions">
+ <input
+                                type="search"
+                                class="form-control"
+                                placeholder="${searchPlaceholder || 'Buscar...'}"
+                                id="${sectionId}-search-input"
+                                oninput="CRUDManagerUniversal.debouncedSearchHandler('${sectionId}', this.value)"
+ >
+                            <button class="btn btn-primary" onclick="CRUDManagerUniversal.openCreateModal('${sectionId}')">
+                                <i class="fas fa-plus"></i> Novo
+ </button>
+ </div>
+ </div>
+                    <div class="card-body">
+                        <div class="data-table-container" id="${sectionId}-table-container"></div>
+ </div>
+                    <div class="card-footer">
+                        <div id="${sectionId}-pagination-container" class="pagination-container"></div>
+ </div>
+ </div>`;
+
+ this.loadData(sectionId);
+ },
+
+ /* * Carrega dados da API */
+ async loadData(sectionId) {
+ const instance = this.instances[sectionId];
+ if (!instance) return;
+
+            LoadingManager.show('Carregando dados...');
+ try {
+                // ✅ USA APISync para chamadas padronizadas
+                const data = await APISync.read({ sheetName: instance.sheetName });
+                instance.data = Array.isArray(data) ? data : [];
+ this.renderTable(sectionId);
+ } catch (error) {
+ console.error(`[CRUD] Erro ao carregar dados de ${sectionId}:`, error);
+                ToastManager.show(`Falha ao carregar dados: ${error.message}`, 'error');
+ instance.data = [];
+ } finally {
+ LoadingManager.hide();
+ }
+ },
+
+ /* * Renderiza tabela */
+ renderTable(sectionId) {
+ const instance = this.instances[sectionId];
+ if (!instance) {
+ console.warn(`[renderTable] Instância não encontrada para ${sectionId}`);
+ return;
+ }
+
+ let filteredData = instance.data;
+
+ // Aplica filtro de busca
+ if (instance.searchQuery) {
+ const query = instance.searchQuery.toLowerCase();
+ filteredData = instance.data.filter(row => {
+ return JSON.stringify(row).toLowerCase().includes(query);
+ });
+ }
+
+ // Aplica ordenação
+ if (instance.sortColumn) {
+ filteredData.sort((a, b) => {
+ const valA = a[instance.sortColumn];
+ const valB = b[instance.sortColumn];
+
+ if (valA < valB) {
+                        return instance.sortDirection === 'asc' ? -1 : 1;
+ }
+ if (valA > valB) {
+                        return instance.sortDirection === 'asc' ? 1 : -1;
+ }
+ return 0;
+ });
+ }
+
+ // Aplica paginação
+ const totalItems = filteredData.length;
+ const totalPages = Math.ceil(totalItems / instance.itemsPerPage);
+ instance.currentPage = Math.max(1, Math.min(instance.currentPage, totalPages)); // Garante que a página atual é válida
+
+ const startIndex = (instance.currentPage - 1) * instance.itemsPerPage;
+ const endIndex = startIndex + instance.itemsPerPage;
+ const paginatedData = filteredData.slice(startIndex, endIndex);
+
+ const columnsWithActions = [
+ ...instance.columns,
+ {
+                    label: 'Ações',
+ render: (row) => `
+                        <div class="table-actions">
+                            <button aria-label="Editar" class="btn-icon btn-sm" title="Editar" onclick='CRUDManagerUniversal.openEditModal("${sectionId}", ${JSON.stringify(row).replace(/'/g, "&apos;")})'>
+                                <i class="fas fa-pencil-alt"></i>
+ </button>
+                            <button aria-label="Excluir" class="btn-icon btn-sm btn-error" title="Excluir" onclick='CRUDManagerUniversal.confirmDelete("${sectionId}", "${row.ID || row.id}")'>
+                                <i class="fas fa-trash"></i>
+ </button>
+ </div>`
+ }
+ ];
+
+ TableRenderer.render(`${sectionId}-table-container`, paginatedData, columnsWithActions, {
+ emptyMessage: `Nenhum registro de ${instance.title.toLowerCase()} encontrado.`,
+ sectionId: sectionId,
+ sortState: { column: instance.sortColumn, direction: instance.sortDirection }
+ });
+
+ this.renderPaginationControls(sectionId, totalPages, totalItems);
+ },
+
+ /* * Lida com a busca (chamada diretamente pelo debouncer) */
+ handleSearch(sectionId, query) {
+ const instance = this.instances[sectionId];
+ if (!instance) return;
+
+ instance.searchQuery = query;
+ instance.currentPage = 1; // Reseta para a primeira página ao buscar
+ this.renderTable(sectionId);
+ },
+
+ /* * Handler de busca com debounce para o evento oninput.
+ * Usa o Utils.debounce para evitar chamadas excessivas. */
+ debouncedSearchHandler: Utils.debounce(function(sectionId, query) {
+            // O 'this' aqui dentro será o CRUDManagerUniversal por causa do debounce
+ this.handleSearch(sectionId, query);
+ }, 300),
+
+ /* * Lida com a ordenação da tabela */
+ handleSort(sectionId, field) {
+ const instance = this.instances[sectionId];
+ if (!instance) return;
+
+ if (instance.sortColumn === field) {
+                instance.sortDirection = instance.sortDirection === 'asc' ? 'desc' : 'asc';
+ } else {
+ instance.sortColumn = field;
+                instance.sortDirection = 'asc';
+ }
+ this.renderTable(sectionId);
+ },
+
+ /* * Lida com mudanças de página */
+ handlePageChange(sectionId, newPage) {
+     const instance = this.instances[sectionId];
+     if (!instance) return;
+     
+     instance.currentPage = newPage;
+     this.renderTable(sectionId);
+ },
+
+ /* * Renderiza os controles de paginação */
+ renderPaginationControls(sectionId, totalPages, totalItems) {
+ const instance = this.instances[sectionId];
+ const container = document.getElementById(`${sectionId}-pagination-container`);
+ if (!container || totalPages <= 1) {
+                if(container) container.innerHTML = '';
+ return;
+ }
+
+ const currentPage = instance.currentPage;
+
+ let paginationHtml = `
+                <div class="pagination-info">
+ Página ${currentPage} de ${totalPages} (${totalItems} registros)
+ </div>
+                <div class="pagination-buttons">
+ <button
+                        class="btn btn-sm btn-secondary"
+                        onclick="CRUDManagerUniversal.handlePageChange('${sectionId}', ${currentPage - 1})"
+                        ${currentPage === 1 ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-left"></i> Anterior
+ </button>
+ `;
+
+ // Lógica para mostrar números de página (simplificada)
+ for (let i = 1; i <= totalPages; i++) {
+ if (i === currentPage) {
+                    paginationHtml += `<button class="btn btn-sm btn-primary" disabled>${i}</button>`;
+ } else {
+                    paginationHtml += `<button class="btn btn-sm btn-secondary" onclick="CRUDManagerUniversal.handlePageChange('${sectionId}', ${i})">${i}</button>`;
+ }
+ }
+
+ paginationHtml += `
+ <button
+                        class="btn btn-sm btn-secondary"
+                        onclick="CRUDManagerUniversal.handlePageChange('${sectionId}', ${currentPage + 1})"
+                        ${currentPage === totalPages ? 'disabled' : ''}>
+                        Próxima <i class="fas fa-chevron-right"></i>
+ </button>
+ </div>
+ `;
+
+ container.innerHTML = paginationHtml;
+ },
+
+ /* * Abre modal de criação */
+ async openCreateModal(sectionId) {
+ this.openFormModal(sectionId);
+ },
+
+ /* * Abre modal de edição */
+ openEditModal(sectionId, rowData) {
+ this.openFormModal(sectionId, rowData);
+ },
+
+ /* * Função unificada para abrir modal de formulário (criação ou edição) */
+ async openFormModal(sectionId, initialData = null) {
+ const instance = this.instances[sectionId];
+ if (!instance) return;
+
+ const isEditMode = initialData !== null;
+             const modalId = `${isEditMode ? 'edit' : 'create'}-${sectionId}-modal`;
+ const formId = `form-${sectionId}`;
+             const title = `${isEditMode ? 'Editar' : 'Novo'} ${instance.title}`;
+
+ // Verifica se existe handler customizado para formulários (mantido para compatibilidade)
+ if (this.hasCustomForm(sectionId)) {
+ const handler = this.customFormHandlers[sectionId];
+ if (isEditMode && handler.openEdit) {
+ handler.openEdit(initialData.ID || initialData.id);
+ return;
+ }
+ if (!isEditMode && handler.openCreate) {
+ handler.openCreate();
+ return;
+ }
+ }
+
+        let formContent = '';
+        
+        // Se houver formUrl, carrega o HTML customizado dinamicamente
+        if (instance.formUrl) {
+            LoadingManager.show('Carregando formulário...');
+            try {
+                const response = await fetch(`?file=${instance.formUrl}`);
+                if (!response.ok) throw new Error(`Erro ao carregar formulário: ${response.status}`);
+                
+                let customHtml = await response.text();
+                
+                // Extrai apenas o conteúdo do form (remove wrappers desnecessários)
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = customHtml;
+                const formElement = tempDiv.querySelector('form');
+                
+                if (formElement) {
+                    // Garante que o form tenha o ID correto
+                    formElement.id = formId;
+                    formContent = formElement.outerHTML;
+                } else {
+                    // Se não houver um <form>, usa o HTML completo
+                    formContent = `<form id="${formId}">${customHtml}</form>`;
+                }
+                
+                // Se estiver em modo edição, vai preencher os campos após abrir o modal
+                if (isEditMode) {
+                    instance._pendingEditData = initialData;
+                }
+            } catch (error) {
+                console.error('[CRUD] Erro ao carregar formulário customizado:', error);
+                ToastManager.show('Erro ao carregar formulário. Usando formulário padrão.', 'error');
+                // Fallback para FormBuilder se houver fields configurados
+                if (instance.fields) {
+                    formContent = FormBuilder.build(instance.fields, initialData || {});
+                } else {
+                    ToastManager.show('Formulário não configurado corretamente.', 'error');
+                    LoadingManager.hide();
+                    return;
+                }
+            } finally {
+                LoadingManager.hide();
+            }
+        } else if (instance.fields) {
+            // Se não houver formUrl, usa FormBuilder como antes
+            formContent = FormBuilder.build(instance.fields, initialData || {});
+        } else {
+            console.error('[CRUD] Nem formUrl nem fields estão definidos para:', sectionId);
+            ToastManager.show('Configuração de formulário ausente.', 'error');
+            return;
+        }
+
+ const footer = `
+                 <button class="btn btn-secondary" onclick="ModalManager.close('${modalId}')">Cancelar</button>
+                 <button class="btn btn-primary" onclick="CRUDManagerUniversal.handleFormSubmit('${sectionId}', '${formId}', ${isEditMode ? `'${initialData.ID || initialData.id}'` : 'null'})">
+                     <i class="fas fa-save"></i> ${isEditMode ? 'Atualizar' : 'Salvar'}
+ </button>
+ `;
+
+ ModalManager.create(modalId, {
+ title: title,
+                 content: formContent,
+ footer: footer
+ });
+
+ ModalManager.open(modalId);
+        
+        // Se houver dados pendentes para edição, preenche os campos
+        if (instance._pendingEditData) {
+            setTimeout(() => {
+                this.populateCustomForm(formId, instance._pendingEditData);
+                delete instance._pendingEditData;
+            }, 100);
+        }
+ },
+
+ /* * Submete criação */
+ async submitCreate(sectionId) {
+ const instance = this.instances[sectionId];
+ if (!instance) return;
+
+ const formData = FormBuilder.getData(`form-create-${sectionId}`);
+
+ const validationResult = FormBuilder.validate(`form-create-${sectionId}`);
+ if (!validationResult.isValid) {
+                ToastManager.show('Por favor, corrija os campos destacados.', 'warning');
+ return;
+ }
+
+            LoadingManager.show('Salvando...');
+ try {
+                await API.run('createRecord', { sheetName: instance.sheetName, data: formData });
+                ToastManager.show('Registro criado com sucesso!', 'success');
+ ModalManager.close(`create-${sectionId}`);
+ this.loadData(sectionId);
+ } catch (error) {
+ console.error(`[CRUD] Erro em submitCreate para ${sectionId}:`, error);
+                ToastManager.show(`Falha ao criar registro. Detalhe: ${error.message}`, 'error');
+ } finally {
+ LoadingManager.hide();
+ }
+ },
+
+ /* * Submete edição */
+ async handleFormSubmit(sectionId, formId, recordId = null) {
+ const instance = this.instances[sectionId];
+ const formData = FormBuilder.getData(formId);
+ const validationResult = FormBuilder.validate(formId);
+ if (!validationResult.isValid) {
+                ToastManager.show('Por favor, corrija os campos destacados.', 'warning');
+ return;
+ }
+
+            LoadingManager.show(recordId ? 'Atualizando...' : 'Salvando...');
+ try {
+                // ✅ USA APISync para chamadas padronizadas
+ if (recordId) {
+                    await APISync.update({ 
+                        sheetName: instance.sheetName, 
+                        id: recordId, 
+                        data: formData 
+                    });
+                    ToastManager.show('Registro atualizado com sucesso!', 'success');
+ } else {
+                    await APISync.create({ 
+                        sheetName: instance.sheetName, 
+                        data: formData 
+                    });
+                    ToastManager.show('Registro criado com sucesso!', 'success');
+ }
+                
+                ModalManager.close(`${recordId ? 'edit' : 'create'}-${sectionId}-modal`);
+ this.loadData(sectionId);
+ } catch (error) {
+ console.error(`[CRUD] Erro em handleFormSubmit para ${sectionId}:`, error);
+                ToastManager.show(`Falha ao salvar: ${error.message}`, 'error');
+ } finally {
+ LoadingManager.hide();
+ }
+ },
+
+ /* * Popula formulário customizado com dados para edição */
+ populateCustomForm(formId, data) {
+     const form = document.getElementById(formId);
+     if (!form || !data) return;
+
+     Object.keys(data).forEach(key => {
+         // Procura campo pelo atributo name
+         let field = form.querySelector(`[name="${key}"]`);
+         
+         // Se não encontrar, tenta com nomes transformados (ex: Nome_Completo -> nome_completo)
+         if (!field) {
+             const lowerKey = key.toLowerCase();
+             field = form.querySelector(`[name="${lowerKey}"]`);
+         }
+         
+         if (field) {
+             if (field.type === 'checkbox') {
+                 field.checked = data[key] === true || data[key] === 'true' || data[key] === 'Sim';
+             } else if (field.type === 'radio') {
+                 const radio = form.querySelector(`[name="${key}"][value="${data[key]}"]`);
+                 if (radio) radio.checked = true;
+             } else {
+                 field.value = data[key] || '';
+             }
+         }
+     });
+
+     // Marca o formulário como em modo edição
+     form.dataset.editingId = data.ID || data.id;
+     
+     console.log('[CRUD] Formulário customizado populado com dados:', data);
+ },
+
+ /* * Confirma exclusão */
+ async confirmDelete(sectionId, recordId) {
+            if (!confirm('Tem certeza que deseja excluir este registro?')) return;
+
+ const instance = this.instances[sectionId];
+ if (!instance) return;
+
+            LoadingManager.show('Excluindo...');
+ try {
+                // ✅ USA APISync para chamadas padronizadas
+                await APISync.delete({ 
+                    sheetName: instance.sheetName, 
+                    id: recordId 
+                });
+                ToastManager.show('Registro excluído com sucesso!', 'success');
+ this.loadData(sectionId);
+ } catch (error) {
+ console.error(`[CRUD] Erro em confirmDelete para ${sectionId}:`, error);
+                ToastManager.show(`Falha ao excluir: ${error.message}`, 'error');
+ } finally {
+ LoadingManager.hide();
+ }
+ }
+ };
+
+    console.log('[CRUD Universal] Sistema CRUD Universal inicializado');
+})();
+
+</script>
+
+
+
+<!--============================================================================-->

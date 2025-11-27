@@ -1,0 +1,538 @@
+<!--============================================================================-->
+
+<script>
+/* ============================================================================
+ UI COMPONENTS - Tooltips, Search, Chatbot, Tables, etc.
+ SIG-TE - Sistema de Transporte Escolar do DF
+ ============================================================================
+ Versão: 2.0 (Refatorado por Gemini Code Assist)
+ ============================================================================ */
+
+(function() {
+    'use strict';
+
+    document.addEventListener('DOMContentLoaded', () => {
+
+ // ============================================================================
+ // TOOLTIP MANAGER
+ // ============================================================================
+
+ const TooltipManager = {
+ tooltipEl: null,
+ hideTimeout: null,
+ prefersReducedMotion: false,
+
+ init() {
+                this.prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+                this.tooltipEl = document.createElement('div');
+                this.tooltipEl.className = 'tooltip-bubble';
+                this.tooltipEl.id = 'tooltip-bubble';
+                this.tooltipEl.setAttribute('role', 'tooltip');
+                this.tooltipEl.setAttribute('aria-hidden', 'true');
+ document.body.appendChild(this.tooltipEl);
+
+ // Use event delegation for performance
+                document.body.addEventListener('mouseover', this.handleMouseOver.bind(this));
+                document.body.addEventListener('mouseout', this.handleMouseOut.bind(this));
+                document.body.addEventListener('focusin', this.handleFocusIn.bind(this));
+                document.body.addEventListener('focusout', this.handleFocusOut.bind(this));
+
+                console.log('[TooltipManager] Event delegation initialized.');
+ },
+
+ handleMouseOver(e) {
+                const target = e.target.closest('[data-tooltip]');
+ if (target) this.show(target);
+ },
+
+ handleMouseOut(e) {
+                const target = e.target.closest('[data-tooltip]');
+ if (target) this.hide(target);
+ },
+
+ handleFocusIn(e) {
+                const target = e.target.closest('[data-tooltip]');
+ if (target) this.show(target);
+ },
+
+ handleFocusOut(e) {
+                const target = e.target.closest('[data-tooltip]');
+ if (target) this.hide(target);
+ },
+
+ show(target) {
+ clearTimeout(this.hideTimeout);
+                const text = target.getAttribute('data-tooltip');
+ if (!text) return;
+
+ this.tooltipEl.textContent = text;
+                this.tooltipEl.classList.add('show');
+                this.tooltipEl.setAttribute('aria-hidden', 'false');
+
+ const targetRect = target.getBoundingClientRect();
+ const tooltipRect = this.tooltipEl.getBoundingClientRect();
+ const padding = 10;
+
+ let top = window.scrollY + targetRect.top - tooltipRect.height - padding;
+ let left = window.scrollX + targetRect.left + (targetRect.width - tooltipRect.width) / 2;
+
+ // Keep within viewport
+ left = Math.max(window.scrollX + padding, Math.min(left, window.scrollX + window.innerWidth - tooltipRect.width - padding));
+ if (top < window.scrollY + padding) {
+ top = window.scrollY + targetRect.bottom + padding;
+                    this.tooltipEl.classList.add('below');
+ } else {
+                    this.tooltipEl.classList.remove('below');
+ }
+
+ this.tooltipEl.style.top = `${top}px`;
+ this.tooltipEl.style.left = `${left}px`;
+
+                const id = 'tt-' + Math.random().toString(36).slice(2, 8);
+ this.tooltipEl.id = id;
+                target.setAttribute('aria-describedby', id);
+ },
+
+ hide(target) {
+ this.hideTimeout = setTimeout(() => {
+                    this.tooltipEl.classList.remove('show');
+                    this.tooltipEl.setAttribute('aria-hidden', 'true');
+                    target.removeAttribute('aria-describedby');
+ }, 80);
+ }
+ };
+ TooltipManager.init();
+
+ // ============================================================================
+ // SEARCH MANAGER
+ // ============================================================================
+
+ window.performSearch = function() {
+            const searchInput = document.getElementById('global-search-input');
+            const resultsContainer = document.getElementById('search-results');
+
+ if (!searchInput || !resultsContainer) return;
+
+ const query = searchInput.value.trim();
+
+ if (!query) {
+ resultsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search empty-state-icon" aria-hidden="true"></i>
+                        <p class="empty-state-text">Digite para buscar</p>
+                        <p class="empty-state-subtext">Encontre alunos, veículos, rotas e mais</p>
+ </div>
+ `;
+ return;
+ }
+
+            LoadingManager.show('Buscando...');
+
+        // Busca real em múltiplas planilhas
+        (async () => {
+            try {
+                const lowerQuery = query.toLowerCase();
+                const allResults = [];
+
+                // Buscar em paralelo em múltiplas planilhas
+                if (window.DataLoader) {
+                    const [alunos, veiculos, rotas] = await Promise.all([
+                        DataLoader.load('Alunos', {}, false).catch(() => []),
+                        DataLoader.load('Veiculos', {}, false).catch(() => []),
+                        DataLoader.load('Rotas', {}, false).catch(() => [])
+                    ]);
+
+                    // Processar Alunos
+                    alunos.forEach(a => {
+                        if (a.Nome_Completo?.toLowerCase().includes(lowerQuery) || 
+                            a.RA?.toLowerCase().includes(lowerQuery)) {
+                            allResults.push({
+                                type: 'Aluno',
+                                name: a.Nome_Completo || 'Sem nome',
+                                info: `${a.Escola || ''} - Rota ${a.Rota_ID || 'N/A'}`
+                            });
+                        }
+                    });
+
+                    // Processar Veículos
+                    veiculos.forEach(v => {
+                        if (v.Placa?.toLowerCase().includes(lowerQuery) || 
+                            v.Modelo?.toLowerCase().includes(lowerQuery)) {
+                            allResults.push({
+                                type: 'Veículo',
+                                name: v.Placa || 'Sem placa',
+                                info: `${v.Modelo || ''} - Capacidade: ${v.Capacidade || 0}`
+                            });
+                        }
+                    });
+
+                    // Processar Rotas
+                    rotas.forEach(r => {
+                        if (r.Nome_Rota?.toLowerCase().includes(lowerQuery) || 
+                            r.Codigo?.toLowerCase().includes(lowerQuery)) {
+                            allResults.push({
+                                type: 'Rota',
+                                name: r.Nome_Rota || 'Sem nome',
+                                info: `Código: ${r.Codigo || 'N/A'} - Status: ${r.Status || ''}`
+                            });
+                        }
+                    });
+                }
+
+                resultsContainer.innerHTML = `
+                    <div class="search-results-list">
+                        ${allResults.length > 0 ? allResults.map(result => `
+                            <div class="search-result-item">
+                                <div class="search-result-icon"><i class="fas fa-search"></i></div>
+                                <div class="search-result-content">
+                                    <div class="search-result-name">${result.name}</div>
+                                    <div class="search-result-info">${result.info}</div>
+                                </div>
+                                <div class="search-result-type-badge">${result.type}</div>
+                            </div>
+                        `).join('') : '<p class="empty-state-text">Nenhum resultado encontrado.</p>'}
+                    </div>
+                `;
+
+                LoadingManager.hide();
+                ToastManager.show(`${allResults.length} resultados encontrados`, 'success', 1500);
+            } catch (error) {
+                console.error('[Search] Erro na busca:', error);
+                LoadingManager.hide();
+                ToastManager.show('Erro ao realizar busca', 'error', 3000);
+                resultsContainer.innerHTML = '<p class="empty-state-text">Erro ao buscar.</p>';
+            }
+        })();
+ };
+
+ // Enter key on search input
+        const searchInput = document.getElementById('global-search-input');
+ if (searchInput) {
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+ performSearch();
+ }
+ });
+ }
+
+ // ============================================================================
+ // CHATBOT MANAGER
+ // ============================================================================
+
+ window.sendChatMessage = function() {
+            const chatInput = document.getElementById('chatbot-input');
+            const messagesContainer = document.getElementById('chatbot-messages');
+
+ if (!chatInput || !messagesContainer) return;
+
+ const message = chatInput.value.trim();
+ if (!message) return;
+
+ // Add user message
+            const userMessage = document.createElement('div');
+            userMessage.className = 'chatbot-message user';
+            userMessage.setAttribute('role', 'article');
+ userMessage.innerHTML = `
+                <div class="chatbot-message-avatar" aria-hidden="true">
+                    <i class="fas fa-user"></i>
+ </div>
+                <div class="chatbot-message-content">
+ <p>${Utils.sanitizeHTML(message)}</p>
+ </div>
+ `;
+ messagesContainer.appendChild(userMessage);
+
+            chatInput.value = '';
+ messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+ // Simulated bot response
+ setTimeout(() => {
+                const botMessage = document.createElement('div');
+                botMessage.className = 'chatbot-message bot';
+                botMessage.setAttribute('role', 'article');
+ botMessage.innerHTML = `
+                    <div class="chatbot-message-avatar" aria-hidden="true">
+                        <i class="fas fa-robot"></i>
+ </div>
+                    <div class="chatbot-message-content">
+                        <p>Recebi sua mensagem: "${message}". Como posso ajudar?</p>
+ </div>
+ `;
+ messagesContainer.appendChild(botMessage);
+ messagesContainer.scrollTop = messagesContainer.scrollHeight;
+ }, 1000);
+ };
+
+ // ============================================================================
+ // VOICE INPUT MANAGER (Web Speech API)
+ // ============================================================================
+
+ window.startVoiceInput = function() {
+            const chatInput = document.getElementById('chatbot-input');
+            const voiceBtn = document.querySelector('.chatbot-voice');
+
+ if (!chatInput || !voiceBtn) return;
+
+ // Check browser support
+ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+ if (!SpeechRecognition) {
+                Utils.showToast('Seu navegador não suporta reconhecimento de voz.', 'error');
+ return;
+ }
+
+ const recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+ recognition.continuous = false;
+ recognition.interimResults = false;
+
+ // Visual feedback - listening
+            voiceBtn.classList.add('listening');
+            voiceBtn.innerHTML = '<i class="fas fa-circle" aria-hidden="true"  style="color: var(--error, var(--md-sys-color-error)); animation: pulse 1s infinite"></i>';
+ voiceBtn.disabled = true;
+
+ recognition.onresult = (event) => {
+ const transcript = event.results[0][0].transcript;
+ chatInput.value = transcript;
+ chatInput.focus();
+
+                Utils.showToast('Mensagem reconhecida!', 'success');
+ };
+
+ recognition.onerror = (event) => {
+                console.error('[Voice Input] Erro:', event.error);
+                let errorMsg = 'Erro ao reconhecer voz.';
+
+                if (event.error === 'no-speech') {
+                    errorMsg = 'Nenhuma fala detectada. Tente novamente.';
+                } else if (event.error === 'not-allowed') {
+                    errorMsg = 'Permissão de microfone negada.';
+                } else if (event.error === 'network') {
+                    errorMsg = 'Erro de rede. Verifique sua conexão.';
+ }
+
+                Utils.showToast(errorMsg, 'error');
+ };
+
+ recognition.onend = () => {
+ // Reset button
+                voiceBtn.classList.remove('listening');
+                voiceBtn.innerHTML = '<i class="fas fa-microphone" aria-hidden="true"></i>';
+ voiceBtn.disabled = false;
+ };
+
+ // Start recognition
+ try {
+ recognition.start();
+ } catch (error) {
+                console.error('[Voice Input] Erro ao iniciar:', error);
+                voiceBtn.classList.remove('listening');
+                voiceBtn.innerHTML = '<i class="fas fa-microphone" aria-hidden="true"></i>';
+ voiceBtn.disabled = false;
+                Utils.showToast('Erro ao iniciar reconhecimento de voz.', 'error');
+ }
+ };
+
+ // Enter key on chatbot input
+        const chatInput = document.getElementById('chatbot-input');
+ if (chatInput) {
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+ sendChatMessage();
+ }
+ });
+ }
+
+ // ============================================================================
+ // TABLE RENDERER
+ // ============================================================================
+
+ window.TableRenderer = {
+ render(containerId, data, columns, options = {}) {
+ const container = document.getElementById(containerId);
+ if (!container) {
+ console.error(`[TableRenderer] Container não encontrado: ${containerId}`);
+ return;
+ }
+
+ // Show loading state
+ container.innerHTML = `
+                    <div class="loading-state text-center"  style="padding: var(--space-8)">
+                        <i class="fas fa-spinner fa-spin"  style="font-size: 2rem; color: var(--md-sys-color-primary)"></i>
+                        <p  style="margin-top: var(--space-3); color: var(--on-surface-variant)">Carregando dados...</p>
+ </div>
+ `;
+
+ if (!data || data.length === 0) {
+ container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-box-open empty-state-icon" aria-hidden="true"></i>
+                            <p class="empty-state-text">${options.emptyMessage || 'Nenhum dado disponível'}</p>
+ </div>
+ `;
+ return;
+ }
+
+                const tableClass = options.tableClassName || 'data-table';
+
+                let html = `<table class="${tableClass}">`;
+
+ // Header
+                html += '<thead><tr>';
+ columns.forEach(col => {
+                    html += `<th scope="col">${col.label}</th>`;
+ });
+                html += '</tr></thead>';
+
+ // Body
+                html += '<tbody>';
+ data.forEach(row => {
+                    html += '<tr>';
+ columns.forEach(col => {
+ let cellContent;
+ if (col.render) {
+ cellContent = col.render(row);
+ } else if (col.field) {
+                            cellContent = Utils.sanitizeHTML(row[col.field] || '');
+ } else {
+                            cellContent = '';
+ }
+
+                        const className = col.className || '';
+                        html += `<td data-label="${col.label}" class="${className}">${cellContent}</td>`;
+ });
+                    html += '</tr>';
+ });
+                html += '</tbody>';
+
+                html += '</table>';
+
+ container.innerHTML = html;
+ }
+ };
+
+ // ============================================================================
+ // LOGIN/AUTH UI
+ // ============================================================================
+
+ window.showLoginForm = function() {
+            const userDrawerContent = document.getElementById('user-drawer-content');
+ if (!userDrawerContent) return;
+
+ userDrawerContent.innerHTML = `
+                <div class="login-form-container">
+                    <div class="auth-header text-center">
+                        <h3 class="drawer-view-title">Login</h3>
+                        <p class="drawer-view-subtitle">Entre com suas credenciais</p>
+ </div>
+                    <form id="login-form-4" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label for="login-email" class="form-label">E-mail</label>
+                            <input type="email" class="form-control" id="login-email-1" required>
+ </div>
+                        <div class="form-group">
+                            <label for="login-password" class="form-label">Senha</label>
+                            <input type="password" class="form-control" id="login-password-4" required>
+ </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-sign-in-alt"></i> Entrar
+ </button>
+                        <button type="button" class="btn btn-text btn-block" onclick="showLoginView()">
+                            <i class="fas fa-arrow-left"></i> Voltar
+ </button>
+ </form>
+ </div>
+ `;
+ };
+
+ window.handleLogin = async function(event) {
+ event.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            LoadingManager.show('Autenticando...');
+
+ try {
+ // Simulated login - Replace with actual backend call
+ await new Promise(resolve => setTimeout(resolve, 1500));
+
+ LoadingManager.hide();
+                ToastManager.show('Login realizado com sucesso!', 'success');
+                closeDrawer('user-drawer');
+
+ // Update UI to show authenticated state
+ // ... implement authentication state management
+ } catch (error) {
+ LoadingManager.hide();
+                ToastManager.show('Erro ao fazer login: ' + error.message, 'error');
+ }
+ };
+
+ window.showLoginView = function() {
+            const userDrawerContent = document.getElementById('user-drawer-content');
+ if (!userDrawerContent) return;
+
+ userDrawerContent.innerHTML = `
+                <div class="login-view-container">
+                    <div class="auth-header text-center">
+                        <h3 class="drawer-view-title">Bem-vindo!</h3>
+                        <p class="drawer-view-subtitle">Acesse para gerenciar o transporte escolar.</p>
+ </div>
+                    <button class="btn btn-primary btn-block" onclick="showLoginForm()">
+                        <i class="fas fa-sign-in-alt"></i> Entrar
+ </button>
+                    <div class="divider"><span>OU</span></div>
+                    <div class="demo-users-section">
+ <h4>Acessar como (Demonstração):</h4>
+                        <div class="demo-users-list">
+                            <button class="demo-login-btn" onclick="alert('Login como Admin...')">
+                                <div class="demo-user-content">
+ <strong>Administrador</strong>
+ <span>Visão completa do sistema</span>
+ </div>
+                                <span class="demo-role-badge admin">Admin</span>
+ </button>
+                            <button class="demo-login-btn" onclick="alert('Login como Secretário...')">
+                                <div class="demo-user-content">
+ <strong>Secretário Escolar</strong>
+ <span>Gestão de alunos e frequência</span>
+ </div>
+                                <span class="demo-role-badge secretario">Escola</span>
+ </button>
+ </div>
+ </div>
+ </div>
+ `;
+ };
+
+ // ============================================================================
+ // REFRESH DASHBOARD
+ // ============================================================================
+
+ window.refreshDashboard = async function() {
+            LoadingManager.show('Atualizando dashboard...');
+ try {
+ // Simulated refresh - Replace with actual backend call
+ await new Promise(resolve => setTimeout(resolve, 1500));
+
+ // Update stats
+                document.getElementById('stat-alunos').textContent = Math.floor(Math.random() * 2000);
+                document.getElementById('stat-veiculos').textContent = Math.floor(Math.random() * 100);
+                document.getElementById('stat-rotas').textContent = Math.floor(Math.random() * 50);
+
+ LoadingManager.hide();
+                ToastManager.show('Dashboard atualizado!', 'success');
+ } catch (error) {
+ LoadingManager.hide();
+                ToastManager.show('Erro ao atualizar: ' + error.message, 'error');
+ }
+ };
+
+        console.log('[Components] Componentes UI inicializados');
+ });
+})();
+</script>
+
+
+
+<!--============================================================================-->

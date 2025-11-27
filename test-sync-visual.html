@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔄 Teste de Sincronização Backend/Frontend</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    
+    .subtitle {
+      text-align: center;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+    }
+    
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .test-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .test-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    
+    .test-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .test-card p {
+      opacity: 0.85;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    
+    .btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.02);
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .results {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      font-family: 'Courier New', monospace;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    
+    .results h2 {
+      margin-bottom: 1rem;
+    }
+    
+    .log-entry {
+      padding: 0.5rem;
+      margin: 0.25rem 0;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    
+    .log-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+    }
+    
+    .log-error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+    }
+    
+    .log-info {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+    }
+    
+    .log-warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fcd34d;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+    
+    .status-pending {
+      background: rgba(107, 114, 128, 0.3);
+      color: #d1d5db;
+    }
+    
+    .status-running {
+      background: rgba(59, 130, 246, 0.3);
+      color: #93c5fd;
+    }
+    
+    .status-success {
+      background: rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+    
+    .status-failed {
+      background: rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      margin: 0.5rem 0;
+    }
+    
+    .stat-label {
+      opacity: 0.8;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔄 Teste de Sincronização</h1>
+    <p class="subtitle">Valide a integração completa Backend/Frontend</p>
+    
+    <!-- Estatísticas -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Testes Executados</div>
+        <div class="stat-value" id="stat-total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Sucessos</div>
+        <div class="stat-value" id="stat-success" style="color: #6ee7b7;">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Falhas</div>
+        <div class="stat-value" id="stat-failed" style="color: #fca5a5;">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Taxa de Sucesso</div>
+        <div class="stat-value" id="stat-rate">0%</div>
+      </div>
+    </div>
+    
+    <!-- Testes -->
+    <div class="test-grid">
+      <!-- Teste 1: Verificar APISync -->
+      <div class="test-card">
+        <h3>🔍 Verificar APISync</h3>
+        <p>Valida se o cliente APISync está carregado e funcional</p>
+        <button class="btn" onclick="testAPISync()">
+          ▶️ Testar
+        </button>
+        <span id="status-apisync" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 2: Leitura (READ) -->
+      <div class="test-card">
+        <h3>📖 Leitura (READ)</h3>
+        <p>Testa leitura de registros da planilha Usuarios</p>
+        <button class="btn" onclick="testRead()">
+          ▶️ Testar
+        </button>
+        <span id="status-read" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 3: Criação (CREATE) -->
+      <div class="test-card">
+        <h3>➕ Criação (CREATE)</h3>
+        <p>Testa criação de novo registro</p>
+        <button class="btn" onclick="testCreate()">
+          ▶️ Testar
+        </button>
+        <span id="status-create" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 4: Atualização (UPDATE) -->
+      <div class="test-card">
+        <h3>✏️ Atualização (UPDATE)</h3>
+        <p>Testa atualização de registro existente</p>
+        <button class="btn" onclick="testUpdate()" id="btn-update" disabled>
+          ▶️ Testar
+        </button>
+        <span id="status-update" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 5: Exclusão (DELETE) -->
+      <div class="test-card">
+        <h3>🗑️ Exclusão (DELETE)</h3>
+        <p>Testa exclusão de registro</p>
+        <button class="btn" onclick="testDelete()" id="btn-delete" disabled>
+          ▶️ Testar
+        </button>
+        <span id="status-delete" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 6: Busca (SEARCH) -->
+      <div class="test-card">
+        <h3>🔎 Busca (SEARCH)</h3>
+        <p>Testa busca de registros com query</p>
+        <button class="btn" onclick="testSearch()">
+          ▶️ Testar
+        </button>
+        <span id="status-search" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 7: Executar Todos -->
+      <div class="test-card">
+        <h3>🚀 Executar Todos</h3>
+        <p>Executa todos os testes em sequência</p>
+        <button class="btn" onclick="runAllTests()">
+          ▶️ Testar Tudo
+        </button>
+        <span id="status-all" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 8: Limpar Logs -->
+      <div class="test-card">
+        <h3>🧹 Limpar</h3>
+        <p>Limpa logs e reseta estatísticas</p>
+        <button class="btn" onclick="clearLogs()">
+          🗑️ Limpar
+        </button>
+      </div>
+    </div>
+    
+    <!-- Resultados -->
+    <div class="results" id="results">
+      <h2>📝 Log de Testes</h2>
+      <p style="opacity: 0.7">Os resultados aparecerão aqui...</p>
+    </div>
+  </div>
+  
+  <script>
+    // ========================================================================
+    // VARIÁVEIS GLOBAIS
+    // ========================================================================
+    
+    let testId = null;
+    let stats = {
+      total: 0,
+      success: 0,
+      failed: 0
+    };
+    
+    // ========================================================================
+    // SISTEMA DE LOG
+    // ========================================================================
+    
+    function log(message, type = 'info') {
+      const results = document.getElementById('results');
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      results.appendChild(entry);
+      results.scrollTop = results.scrollHeight;
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+    
+    function updateStatus(testId, status) {
+      const badge = document.getElementById(`status-${testId}`);
+      if (badge) {
+        badge.className = `status-badge status-${status}`;
+        badge.textContent = status === 'running' ? 'Executando...' 
+          : status === 'success' ? 'Sucesso'
+          : status === 'failed' ? 'Falhou'
+          : 'Pendente';
+      }
+      
+      if (status === 'success') {
+        stats.success++;
+      } else if (status === 'failed') {
+        stats.failed++;
+      }
+      
+      if (status !== 'running' && status !== 'pending') {
+        stats.total++;
+      }
+      
+      updateStatsDisplay();
+    }
+    
+    function updateStatsDisplay() {
+      document.getElementById('stat-total').textContent = stats.total;
+      document.getElementById('stat-success').textContent = stats.success;
+      document.getElementById('stat-failed').textContent = stats.failed;
+      
+      const rate = stats.total > 0 
+        ? ((stats.success / stats.total) * 100).toFixed(1) 
+        : 0;
+      document.getElementById('stat-rate').textContent = rate + '%';
+    }
+    
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    // ========================================================================
+    // TESTES
+    // ========================================================================
+    
+    async function testAPISync() {
+      updateStatus('apisync', 'running');
+      log('🧪 Testando APISync...', 'info');
+      
+      try {
+        if (typeof APISync === 'undefined') {
+          throw new Error('APISync não está definido');
+        }
+        
+        log('✓ APISync está carregado', 'success');
+        log(`✓ Ambiente GAS: ${APISync.isGASEnvironment}`, 'info');
+        log(`✓ Timeout: ${APISync.timeout}ms`, 'info');
+        
+        const stats = APISync.getStats();
+        log(`✓ Stats: ${JSON.stringify(stats)}`, 'info');
+        
+        updateStatus('apisync', 'success');
+      } catch (error) {
+        log(`✗ Erro: ${error.message}`, 'error');
+        updateStatus('apisync', 'failed');
+      }
+    }
+    
+    async function testRead() {
+      updateStatus('read', 'running');
+      log('🧪 Testando leitura...', 'info');
+      
+      try {
+        const data = await APISync.read({ sheetName: 'Usuarios' });
+        
+        log(`✓ Leitura bem-sucedida`, 'success');
+        log(`✓ Total de registros: ${Array.isArray(data) ? data.length : 0}`, 'info');
+        
+        if (Array.isArray(data) && data.length > 0) {
+          log(`✓ Primeiro registro: ${JSON.stringify(data[0])}`, 'info');
+        }
+        
+        updateStatus('read', 'success');
+      } catch (error) {
+        log(`✗ Erro: ${error.message}`, 'error');
+        updateStatus('read', 'failed');
+      }
+    }
+    
+    async function testCreate() {
+      updateStatus('create', 'running');
+      log('🧪 Testando criação...', 'info');
+      
+      try {
+        const testData = {
+          nome: 'Teste Sincronização',
+          email: 'teste@sync.com',
+          status: 'Ativo',
+          timestamp: new Date().toISOString()
+        };
+        
+        const result = await APISync.create({
+          sheetName: 'Usuarios',
+          data: testData
+        });
+        
+        testId = result.id || result.ID;
+        
+        log(`✓ Registro criado com sucesso`, 'success');
+        log(`✓ ID: ${testId}`, 'info');
+        log(`✓ Dados: ${JSON.stringify(result)}`, 'info');
+        
+        // Habilita botões de update e delete
+        document.getElementById('btn-update').disabled = false;
+        document.getElementById('btn-delete').disabled = false;
+        
+        updateStatus('create', 'success');
+      } catch (error) {
+        log(`✗ Erro: ${error.message}`, 'error');
+        updateStatus('create', 'failed');
+      }
+    }
+    
+    async function testUpdate() {
+      if (!testId) {
+        log('⚠️ Execute o teste de criação primeiro', 'warning');
+        return;
+      }
+      
+      updateStatus('update', 'running');
+      log('🧪 Testando atualização...', 'info');
+      
+      try {
+        const updateData = {
+          nome: 'Teste Sincronização ATUALIZADO',
+          status: 'Inativo',
+          updated_at: new Date().toISOString()
+        };
+        
+        await APISync.update({
+          sheetName: 'Usuarios',
+          id: testId,
+          data: updateData
+        });
+        
+        log(`✓ Registro atualizado com sucesso`, 'success');
+        log(`✓ ID: ${testId}`, 'info');
+        
+        updateStatus('update', 'success');
+      } catch (error) {
+        log(`✗ Erro: ${error.message}`, 'error');
+        updateStatus('update', 'failed');
+      }
+    }
+    
+    async function testDelete() {
+      if (!testId) {
+        log('⚠️ Execute o teste de criação primeiro', 'warning');
+        return;
+      }
+      
+      updateStatus('delete', 'running');
+      log('🧪 Testando exclusão...', 'info');
+      
+      try {
+        await APISync.delete({
+          sheetName: 'Usuarios',
+          id: testId
+        });
+        
+        log(`✓ Registro deletado com sucesso`, 'success');
+        log(`✓ ID: ${testId}`, 'info');
+        
+        testId = null;
+        document.getElementById('btn-update').disabled = true;
+        document.getElementById('btn-delete').disabled = true;
+        
+        updateStatus('delete', 'success');
+      } catch (error) {
+        log(`✗ Erro: ${error.message}`, 'error');
+        updateStatus('delete', 'failed');
+      }
+    }
+    
+    async function testSearch() {
+      updateStatus('search', 'running');
+      log('🧪 Testando busca...', 'info');
+      
+      try {
+        const results = await APISync.search({
+          sheetName: 'Usuarios',
+          query: 'Teste',
+          options: { limit: 10 }
+        });
+        
+        log(`✓ Busca executada com sucesso`, 'success');
+        log(`✓ Resultados: ${Array.isArray(results) ? results.length : 0}`, 'info');
+        
+        updateStatus('search', 'success');
+      } catch (error) {
+        log(`✗ Erro: ${error.message}`, 'error');
+        updateStatus('search', 'failed');
+      }
+    }
+    
+    async function runAllTests() {
+      updateStatus('all', 'running');
+      log('🚀 Executando todos os testes...', 'info');
+      log('='.repeat(60), 'info');
+      
+      await testAPISync();
+      await sleep(500);
+      
+      await testRead();
+      await sleep(500);
+      
+      await testCreate();
+      await sleep(500);
+      
+      await testUpdate();
+      await sleep(500);
+      
+      await testSearch();
+      await sleep(500);
+      
+      await testDelete();
+      
+      log('='.repeat(60), 'info');
+      log('✅ Todos os testes concluídos!', 'success');
+      updateStatus('all', 'success');
+    }
+    
+    function clearLogs() {
+      const results = document.getElementById('results');
+      results.innerHTML = '<h2>📝 Log de Testes</h2><p style="opacity: 0.7">Os resultados aparecerão aqui...</p>';
+      
+      stats = { total: 0, success: 0, failed: 0 };
+      updateStatsDisplay();
+      
+      // Reseta status
+      ['apisync', 'read', 'create', 'update', 'delete', 'search', 'all'].forEach(id => {
+        updateStatus(id, 'pending');
+      });
+      
+      log('🧹 Logs limpos', 'info');
+    }
+    
+    // ========================================================================
+    // INICIALIZAÇÃO
+    // ========================================================================
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      log('🎉 Sistema de testes carregado!', 'success');
+      log('ℹ️ Clique nos botões para executar os testes', 'info');
+      
+      if (typeof APISync === 'undefined') {
+        log('⚠️ APISync não detectado. Certifique-se de estar executando via Google Apps Script', 'warning');
+      }
+    });
+  </script>
+</body>
+</html>

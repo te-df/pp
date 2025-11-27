@@ -1,0 +1,370 @@
+<!--============================================================================-->
+<!-- API SYNC - Sistema de Sincronização Backend/Frontend -->
+<!--============================================================================-->
+
+<script>
+/**
+ * ============================================================================
+ * API SYNC - SINCRONIZAÇÃO BACKEND/FRONTEND
+ * ============================================================================
+ * 
+ * Este módulo garante que todas as chamadas ao backend sigam o padrão
+ * correto e que as respostas sejam tratadas de forma consistente.
+ * 
+ * PADRÃO DE RESPOSTA DO BACKEND:
+ * {
+ *   success: boolean,
+ *   data?: any,
+ *   error?: string,
+ *   message?: string
+ * }
+ * 
+ * FUNÇÕES BACKEND DISPONÍVEIS:
+ * - readRecords(params)
+ * - createRecord(params)
+ * - updateRecord(params)
+ * - deleteRecord(params)
+ * - searchRecords(query, options, sheetName)
+ * - batchRecords(operations, sheetName)
+ * 
+ * @version 2.0.0
+ * @date 2024-11-25
+ * ============================================================================
+ */
+
+(function() {
+  'use strict';
+
+  /**
+   * Cliente API Sincronizado
+   * Substitui o API.run() com tratamento padronizado
+   */
+  const APISync = {
+    /**
+     * Timeout padrão para requisições
+     */
+    timeout: 30000,
+
+    /**
+     * Requisições pendentes
+     */
+    pendingRequests: new Map(),
+
+    /**
+     * Verifica se está em ambiente Google Apps Script
+     */
+    isGASEnvironment: typeof google !== 'undefined' && google.script?.run,
+
+    /**
+     * ========================================================================
+     * OPERAÇÕES CRUD PADRONIZADAS
+     * ========================================================================
+     */
+
+    /**
+     * Lê registros de uma planilha
+     * 
+     * @param {Object} params - Parâmetros
+     * @param {string} params.sheetName - Nome da planilha
+     * @param {string} [params.id] - ID específico (opcional)
+     * @param {Object} [params.filters] - Filtros (opcional)
+     * @returns {Promise<Array|Object>} Dados lidos
+     * 
+     * @example
+     * // Ler todos os registros
+     * const alunos = await APISync.read({ sheetName: 'Alunos' });
+     * 
+     * // Ler registro específico
+     * const aluno = await APISync.read({ sheetName: 'Alunos', id: 'ALU-001' });
+     * 
+     * // Ler com filtros
+     * const ativos = await APISync.read({ 
+     *   sheetName: 'Alunos', 
+     *   filters: { status: 'Ativo' } 
+     * });
+     */
+    async read(params) {
+      this._validateParams(params, ['sheetName']);
+      
+      try {
+        const response = await this._executeGAS('readRecords', params);
+        return this._extractData(response);
+      } catch (error) {
+        throw this._enhanceError(error, 'read', params);
+      }
+    },
+
+    /**
+     * Cria novo registro
+     * 
+     * @param {Object} params - Parâmetros
+     * @param {string} params.sheetName - Nome da planilha
+     * @param {Object} params.data - Dados do registro
+     * @returns {Promise<Object>} Registro criado
+     * 
+     * @example
+     * const novoAluno = await APISync.create({
+     *   sheetName: 'Alunos',
+     *   data: {
+     *     nome: 'João Silva',
+     *     idade: 15,
+     *     status: 'Ativo'
+     *   }
+     * });
+     */
+    async create(params) {
+      this._validateParams(params, ['sheetName', 'data']);
+      
+      try {
+        const response = await this._executeGAS('createRecord', params);
+        return this._extractData(response);
+      } catch (error) {
+        throw this._enhanceError(error, 'create', params);
+      }
+    },
+
+    /**
+     * Atualiza registro existente
+     * 
+     * @param {Object} params - Parâmetros
+     * @param {string} params.sheetName - Nome da planilha
+     * @param {string} params.id - ID do registro
+     * @param {Object} params.data - Dados atualizados
+     * @returns {Promise<Object>} Registro atualizado
+     * 
+     * @example
+     * const atualizado = await APISync.update({
+     *   sheetName: 'Alunos',
+     *   id: 'ALU-001',
+     *   data: { status: 'Inativo' }
+     * });
+     */
+    async update(params) {
+      this._validateParams(params, ['sheetName', 'id', 'data']);
+      
+      try {
+        const response = await this._executeGAS('updateRecord', params);
+        return this._extractData(response);
+      } catch (error) {
+        throw this._enhanceError(error, 'update', params);
+      }
+    },
+
+    /**
+     * Deleta registro
+     * 
+     * @param {Object} params - Parâmetros
+     * @param {string} params.sheetName - Nome da planilha
+     * @param {string} params.id - ID do registro
+     * @returns {Promise<Object>} Confirmação
+     * 
+     * @example
+     * await APISync.delete({
+     *   sheetName: 'Alunos',
+     *   id: 'ALU-001'
+     * });
+     */
+    async delete(params) {
+      this._validateParams(params, ['sheetName', 'id']);
+      
+      try {
+        const response = await this._executeGAS('deleteRecord', params);
+        return this._extractData(response);
+      } catch (error) {
+        throw this._enhanceError(error, 'delete', params);
+      }
+    },
+
+    /**
+     * Busca registros com query
+     * 
+     * @param {Object} params - Parâmetros
+     * @param {string} params.sheetName - Nome da planilha
+     * @param {string} params.query - Texto de busca
+     * @param {Object} [params.options] - Opções de busca
+     * @returns {Promise<Array>} Resultados
+     * 
+     * @example
+     * const resultados = await APISync.search({
+     *   sheetName: 'Alunos',
+     *   query: 'João',
+     *   options: { limit: 10 }
+     * });
+     */
+    async search(params) {
+      this._validateParams(params, ['sheetName', 'query']);
+      
+      try {
+        const response = await this._executeGAS('searchRecords', 
+          params.query, 
+          params.options || {}, 
+          params.sheetName
+        );
+        return this._extractData(response);
+      } catch (error) {
+        throw this._enhanceError(error, 'search', params);
+      }
+    },
+
+    /**
+     * Executa operações em lote
+     * 
+     * @param {Object} params - Parâmetros
+     * @param {string} params.sheetName - Nome da planilha
+     * @param {Array} params.operations - Lista de operações
+     * @returns {Promise<Object>} Resultado do lote
+     * 
+     * @example
+     * const resultado = await APISync.batch({
+     *   sheetName: 'Alunos',
+     *   operations: [
+     *     { action: 'create', data: {...} },
+     *     { action: 'update', id: 'ALU-001', data: {...} },
+     *     { action: 'delete', id: 'ALU-002' }
+     *   ]
+     * });
+     */
+    async batch(params) {
+      this._validateParams(params, ['sheetName', 'operations']);
+      
+      if (!Array.isArray(params.operations)) {
+        throw new Error('operations deve ser um array');
+      }
+      
+      try {
+        const response = await this._executeGAS('batchRecords', 
+          params.operations, 
+          params.sheetName
+        );
+        return this._extractData(response);
+      } catch (error) {
+        throw this._enhanceError(error, 'batch', params);
+      }
+    },
+
+    /**
+     * ========================================================================
+     * MÉTODOS INTERNOS
+     * ========================================================================
+     */
+
+    /**
+     * Executa função no Google Apps Script
+     * @private
+     */
+    _executeGAS(functionName, ...args) {
+      if (!this.isGASEnvironment) {
+        return Promise.reject(new Error(
+          'Ambiente Google Apps Script não detectado. ' +
+          'Este sistema deve ser executado via Google Apps Script.'
+        ));
+      }
+
+      return new Promise((resolve, reject) => {
+        const requestId = `${functionName}-${Date.now()}`;
+        this.pendingRequests.set(requestId, { 
+          functionName, 
+          args, 
+          timestamp: Date.now() 
+        });
+
+        const timeoutId = setTimeout(() => {
+          this.pendingRequests.delete(requestId);
+          reject(new Error(`Timeout: ${functionName} demorou mais de ${this.timeout/1000}s`));
+        }, this.timeout);
+
+        google.script.run
+          .withSuccessHandler((response) => {
+            clearTimeout(timeoutId);
+            this.pendingRequests.delete(requestId);
+            resolve(response);
+          })
+          .withFailureHandler((error) => {
+            clearTimeout(timeoutId);
+            this.pendingRequests.delete(requestId);
+            reject(new Error(error.message || error.toString()));
+          })
+          [functionName](...args);
+      });
+    },
+
+    /**
+     * Extrai dados da resposta do backend
+     * @private
+     */
+    _extractData(response) {
+      // Se a resposta já é um array ou objeto simples, retorna direto
+      if (Array.isArray(response)) {
+        return response;
+      }
+
+      // Se tem estrutura { success, data }
+      if (response && typeof response === 'object') {
+        if (response.success === false) {
+          throw new Error(response.error || response.message || 'Erro desconhecido');
+        }
+
+        // Retorna data se existir, senão retorna a resposta completa
+        return response.data !== undefined ? response.data : response;
+      }
+
+      // Fallback: retorna a resposta como está
+      return response;
+    },
+
+    /**
+     * Valida parâmetros obrigatórios
+     * @private
+     */
+    _validateParams(params, requiredFields) {
+      if (!params || typeof params !== 'object') {
+        throw new Error('Parâmetros inválidos');
+      }
+
+      for (const field of requiredFields) {
+        if (params[field] === undefined || params[field] === null) {
+          throw new Error(`Campo obrigatório ausente: ${field}`);
+        }
+      }
+    },
+
+    /**
+     * Melhora mensagem de erro
+     * @private
+     */
+    _enhanceError(error, operation, params) {
+      const enhancedError = new Error(
+        `[APISync.${operation}] ${error.message}`
+      );
+      enhancedError.operation = operation;
+      enhancedError.params = params;
+      enhancedError.originalError = error;
+      return enhancedError;
+    },
+
+    /**
+     * Obtém estatísticas de requisições
+     */
+    getStats() {
+      return {
+        pendingRequests: this.pendingRequests.size,
+        isGASEnvironment: this.isGASEnvironment,
+        timeout: this.timeout
+      };
+    }
+  };
+
+  // Expõe globalmente
+  window.APISync = APISync;
+
+  // Mantém compatibilidade com API.run() antigo
+  if (window.API) {
+    window.API.sync = APISync;
+  }
+
+  console.log('[APISync] Sistema de sincronização inicializado');
+
+})();
+</script>
+
+<!--============================================================================-->

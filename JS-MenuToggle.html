@@ -1,0 +1,58 @@
+<!--============================================================================-->
+
+<script>
+/* ============================================================================
+ MENU TOGGLE - Alterna entre ícones-apenas e ícones+títulos
+ ============================================================================ */
+
+(function(window) {
+    'use strict';
+
+ const MenuToggleManager = {
+ init() {
+            this.toggleButton = document.getElementById('menu-toggle-btn');
+            this.navContainer = document.getElementById('horizontal-nav');
+
+ if (!this.toggleButton || !this.navContainer) {
+                console.error('[MenuToggleManager] Elementos não encontrados');
+ return;
+ }
+
+ // Estado inicial: retraído (apenas ícones)
+ this.isExpanded = false;
+            this.navContainer.classList.add('collapsed');
+
+ // Event listener para o botão
+            this.toggleButton.addEventListener('click', () => this.toggle());
+
+            console.log('[MenuToggleManager] ✅ Gerenciador de menu toggle inicializado.');
+ },
+
+ toggle() {
+ this.isExpanded = !this.isExpanded;
+
+ if (this.isExpanded) {
+ // Mostrar ícones + títulos
+                this.navContainer.classList.remove('collapsed');
+                this.toggleButton.setAttribute('aria-expanded', 'true');
+                this.toggleButton.setAttribute('aria-label', 'Recolher menu de navegação');
+ } else {
+ // Mostrar apenas ícones
+                this.navContainer.classList.add('collapsed');
+                this.toggleButton.setAttribute('aria-expanded', 'false');
+                this.toggleButton.setAttribute('aria-label', 'Expandir menu de navegação');
+ }
+
+            console.log(`[MenuToggleManager] Menu ${this.isExpanded ? 'expandido' : 'recolhido'}`);
+ }
+ };
+
+    document.addEventListener('DOMContentLoaded', () => MenuToggleManager.init());
+ window.MenuToggleManager = MenuToggleManager;
+
+})(window);
+</script>
+
+
+
+<!--============================================================================-->

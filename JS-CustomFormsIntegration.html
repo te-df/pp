@@ -1,0 +1,100 @@
+<!--============================================================================-->
+
+<script>
+
+/**
+ * ============================================================================
+ * CUSTOM FORMS INTEGRATION - JAVASCRIPT
+ * ============================================================================
+ * Funções JavaScript para integração de formulários customizados
+ * Inclua este arquivo em suas páginas principais
+ * 
+ * Versão: 1.0
+ * Data: 2024-11-22
+ * ============================================================================
+ */
+
+/**
+ * Namespace global para funções de formulários customizados
+ */
+window.CustomFormsAPI = {
+  
+  /**
+   * Valida formulário customizado
+   * @param {string} formId - ID do formulário
+   * @return {Object} Resultado da validação
+   */
+  validateForm: function(formId) {
+    const form = document.getElementById(formId);
+    if (!form) {
+      return { valid: false, errors: ['Formulário não encontrado'] };
+    }
+    
+    const errors = [];
+    const requiredFields = form.querySelectorAll('[required]');
+    
+    requiredFields.forEach(field => {
+      if (!field.value || field.value.trim() === '') {
+        errors.push(`Campo obrigatório: ${field.name || field.id}`);
+      }
+    });
+    
+    return {
+      valid: errors.length === 0,
+      errors: errors
+    };
+  },
+  
+  /**
+   * Serializa dados do formulário
+   * @param {string} formId - ID do formulário
+   * @return {Object} Dados do formulário
+   */
+  serializeForm: function(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return {};
+    
+    const formData = new FormData(form);
+    const data = {};
+    
+    for (let [key, value] of formData.entries()) {
+      data[key] = value;
+    }
+    
+    return data;
+  },
+  
+  /**
+   * Limpa formulário
+   * @param {string} formId - ID do formulário
+   */
+  clearForm: function(formId) {
+    const form = document.getElementById(formId);
+    if (form) {
+      form.reset();
+    }
+  },
+  
+  /**
+   * Preenche formulário com dados
+   * @param {string} formId - ID do formulário
+   * @param {Object} data - Dados para preencher
+   */
+  populateForm: function(formId, data) {
+    const form = document.getElementById(formId);
+    if (!form || !data) return;
+    
+    Object.keys(data).forEach(key => {
+      const field = form.elements[key];
+      if (field) {
+        field.value = data[key] || '';
+      }
+    });
+  }
+};
+
+console.log('✅ Custom Forms Integration carregado');
+
+</script>
+
+<!--============================================================================-->

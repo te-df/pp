@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Toggle Dark/Light</title>
+    <style>
+        /* Importar CSS Variables */
+        :root {
+            --md-sys-color-primary: #1976d2;
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-surface: #ffffff;
+            --md-sys-color-on-surface: #1c1b1f;
+            --md-sys-color-surface-container: #f1f3f5;
+            --md-sys-color-surface-container-high: #e9ecef;
+            --md-sys-color-outline-variant: #cac4d0;
+        }
+
+        [data-theme="dark"] {
+            --md-sys-color-primary: #64b5f6;
+            --md-sys-color-on-primary: #0d47a1;
+            --md-sys-color-surface: #121212;
+            --md-sys-color-on-surface: #e8e8e8;
+            --md-sys-color-surface-container: #252525;
+            --md-sys-color-surface-container-high: #2c2c2c;
+            --md-sys-color-outline-variant: #424242;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .toggle-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
+        }
+
+        .toggle-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .card {
+            background: var(--md-sys-color-surface-container);
+            border: 1px solid var(--md-sys-color-outline-variant);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 6px;
+            margin-top: 12px;
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+
+        h1, h2 {
+            color: var(--md-sys-color-primary);
+            margin-bottom: 16px;
+        }
+
+        code {
+            background: var(--md-sys-color-surface-container-high);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <button class="toggle-btn" id="themeToggle">
+        🌓 Alternar Tema
+    </button>
+
+    <div class="container">
+        <h1>✅ Teste de Dark/Light Mode</h1>
+        
+        <div class="card">
+            <h2>Status do Sistema</h2>
+            <p>O sistema está usando CSS Variables dinâmicas que mudam com o tema.</p>
+            <div class="status-indicator" id="themeStatus">Modo Escuro Ativo</div>
+        </div>
+
+        <div class="card">
+            <h2>Componentes Testados</h2>
+            <ul>
+                <li>✅ Background: <code>var(--md-sys-color-surface)</code></li>
+                <li>✅ Texto: <code>var(--md-sys-color-on-surface)</code></li>
+                <li>✅ Cards: <code>var(--md-sys-color-surface-container)</code></li>
+                <li>✅ Primary: <code>var(--md-sys-color-primary)</code></li>
+                <li>✅ Bordas: <code>var(--md-sys-color-outline-variant)</code></li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>Como Funciona</h2>
+            <p>O toggle alterna o atributo <code>data-theme</code> no elemento <code>html</code>:</p>
+            <ul>
+                <li><strong>Light:</strong> <code>&lt;html&gt;</code> (sem atributo)</li>
+                <li><strong>Dark:</strong> <code>&lt;html data-theme="dark"&gt;</code></li>
+            </ul>
+            <p>Todas as cores são definidas usando CSS Variables que mudam automaticamente!</p>
+        </div>
+    </div>
+
+    <script>
+        // Inicializa tema (padrão: escuro)
+        const savedTheme = localStorage.getItem('test-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateStatus(savedTheme);
+
+        // Toggle
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('test-theme', newTheme);
+            updateStatus(newTheme);
+        });
+
+        function updateStatus(theme) {
+            const statusEl = document.getElementById('themeStatus');
+            const btnEl = document.getElementById('themeToggle');
+            
+            if (theme === 'dark') {
+                statusEl.textContent = '🌙 Modo Escuro Ativo';
+                btnEl.textContent = '☀️ Modo Claro';
+            } else {
+                statusEl.textContent = '☀️ Modo Claro Ativo';
+                btnEl.textContent = '🌙 Modo Escuro';
+            }
+        }
+    </script>
+</body>
+</html>

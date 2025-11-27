@@ -1,0 +1,320 @@
+<!--============================================================================-->
+
+<script>
+
+/* ============================================================================
+ CASCADING LOGIC & BUSINESS RULES
+ ============================================================================
+ Versão: 2.0 (Refatorado por Gemini Code Assist)
+ Implementa regras de negócio complexas:
+ - Acompanhantes ocupam 2 assentos
+ - Cascateamento entre Rotas → Alunos → Frequência
+ - Substituído MutationObserver por um sistema de eventos para desacoplamento.
+ - Controle de vagas em veículos
+ - Validações de capacidade
+ ============================================================================ */
+
+(function() {
+    'use strict';
+
+ /* * Gerenciador de Regras de Negócio e Cascateamento */
+ const BusinessRulesManager = {
+ VEHICLE_CAPACITY_CACHE: {},
+
+ // ========================================================================
+ // ACOMPANHANTES - LÓGICA DE 2 ASSENTOS
+ // ========================================================================
+
+ /* * Verifica se um passageiro necessita de acompanhante (ocupa 2 assentos).
+ * @param {Object} passenger - O objeto do passageiro.
+ * @returns {boolean} */
+ isCompanion(passenger) {
+ if (!passenger) return false;
+            return passenger.Tipo === 'Acompanhante' ||
+                   passenger.Acompanhante === 'Sim' ||
+                   passenger.Necessita_Acompanhante === 'Sim';
+ },
+
+ /* * Calcula ocupação real de assentos considerando acompanhantes
+ * @param {Array} passengers - Lista de passageiros
+ * @returns {number} Total de assentos ocupados */
+ calculateSeatsOccupied(passengers) {
+ if (!passengers || !Array.isArray(passengers)) return 0;
+ return passengers.reduce((total, passenger) => {
+ // Acompanhante = 2 assentos, Aluno normal = 1 assento
+ return total + (this.isCompanion(passenger) ? 2 : 1);
+ }, 0);
+ },
+
+ /* * Valida se há vagas suficientes no veículo
+ * @param {string} vehicleId - ID do veículo
+ * @param {Array} currentPassengers - Lista atual de passageiros
+ * @param {Object} newPassenger - Novo passageiro a adicionar
+ * @returns {Promise<Object>} {valid: boolean, message: string, available: number} */
+ async validateVehicleCapacity(vehicleId, currentPassengers, newPassenger = null) {
+ try {
+ // Usa cache para dados do veículo para evitar chamadas repetidas
+ if (!this.VEHICLE_CAPACITY_CACHE[vehicleId]) {
+                    const vehicles = await API.run('readRecords', {
+                        sheetName: 'Veiculos',
+ filters: { ID: vehicleId }
+ });
+ if (!vehicles || vehicles.length === 0) {
+                        return { valid: false, message: 'Veículo não encontrado', available: 0 };
+ }
+ this.VEHICLE_CAPACITY_CACHE[vehicleId] = vehicles[0];
+ }
+
+ const vehicle = this.VEHICLE_CAPACITY_CACHE[vehicleId];
+ const totalCapacity = parseInt(vehicle.Capacidade || 0);
+
+ // Busca dados do veículo
+
+ // Calcula ocupação atual
+ const currentOccupation = this.calculateSeatsOccupied(currentPassengers);
+
+ // Calcula quanto o novo passageiro vai ocupar
+ const newSeats = newPassenger ? (this.isCompanion(newPassenger) ? 2 : 1) : 0;
+
+ const availableSeats = totalCapacity - currentOccupation;
+ const valid = availableSeats >= newSeats;
+ const isNewCompanion = this.isCompanion(newPassenger);
+ return {
+ valid,
+ message: valid ?
+ `Vagas disponíveis: ${availableSeats} de ${totalCapacity}` :
+                        `Sem vagas suficientes. ${isNewCompanion ? 'Acompanhante precisa de 2 assentos' : 'Precisa de 1 assento'}, disponível: ${availableSeats}`,
+ available: availableSeats,
+ required: newSeats,
+ capacity: totalCapacity,
+ occupied: currentOccupation
+ };
+
+ } catch (error) {
+                console.error('[BusinessRules] Erro ao validar capacidade do veículo:', error);
+ return {
+ valid: false,
+                    message: 'Erro ao verificar capacidade do veículo',
+ available: 0
+ };
+ }
+ },
+
+ async validateAndDisplayCapacity(vehicleId, passengers) {
+ const validation = await this.validateVehicleCapacity(vehicleId, passengers);
+            const container = document.querySelector('#frequencia-section .card-body');
+ if (!container) return;
+
+            let capacityBadge = container.querySelector('.capacity-info-badge');
+ if (!capacityBadge) {
+                capacityBadge = document.createElement('div');
+                capacityBadge.className = 'capacity-info-badge';
+ container.insertBefore(capacityBadge, container.firstChild);
+ }
+
+ const occupiedSeats = validation.occupied;
+ const percentage = validation.capacity > 0 ? (occupiedSeats / validation.capacity) * 100 : 0;
+            const statusClass = percentage > 100 ? 'error' : percentage > 90 ? 'warning' : 'success';
+
+ capacityBadge.innerHTML = `
+                <div class="alert alert-${statusClass} mb-4" >
+                    <strong><i class="fas fa-bus"></i> Capacidade do Veículo:</strong>
+                    <div  class="flex gap-3 items-center" style="margin-top: var(--space-2)">
+ <span>Total: ${validation.capacity} assentos</span> •
+ <span>Ocupados: ${occupiedSeats}</span> •
+                        <span  class="font-semibold">Disponíveis: ${validation.available}</span>
+ </div>
+                    ${percentage > 100 ? '<p  class="font-bold" style="margin-top: var(--space-2)">⚠️ ATENÇÃO: Rota com mais alunos que a capacidade do veículo!</p>' : ''}
+ </div>`;
+
+ // DISPATCH: evento público para que o Menu atualize badges em tempo real
+ try {
+                const capacityEvent = new CustomEvent('capacityUpdated', {
+ detail: { vehicleId, capacity: validation.capacity, occupied: occupiedSeats, available: validation.available, percentage }
+ });
+ document.dispatchEvent(capacityEvent);
+ } catch (err) {
+                Logger.warn('[BusinessRules] Falha ao disparar capacityUpdated', err);
+ }
+ },
+
+ /* * Adiciona campo de acompanhante dinamicamente em formulários de alunos */
+ enhanceStudentForm() {
+            document.addEventListener('formRendered', (e) => {
+ const { form, sectionId } = e.detail;
+                if (sectionId !== 'alunos') return;
+
+                const necessidadesField = form.querySelector('[name="necessidades_especiais"]');
+                if (!necessidadesField || form.querySelector('[name="necessita_acompanhante"]')) return;
+
+                const formGroup = necessidadesField.closest('.form-group');
+ if (formGroup) {
+                    const companionField = document.createElement('div');
+                    companionField.className = 'form-group';
+ companionField.innerHTML = `
+                        <label class="form-label" for="form-necessita_acompanhante">
+                            Necessita Acompanhante <i class="fas fa-info-circle" data-tooltip="Acompanhante ocupará 2 assentos no veículo"></i>
+ </label>
+                        <select id="form-necessita_acompanhante" name="necessita_acompanhante" class="form-control">
+                            <option value="Não">Não</option>
+                            <option value="Sim">Sim (ocupará 2 assentos)</option>
+ </select>
+                        <small class="form-help-text"  style="color: var(--md-sys-color-warning)">
+ ⚠️ Acompanhante ocupa 2 assentos no transporte
+ </small>
+ `;
+                    formGroup.insertAdjacentElement('afterend', companionField);
+                    Logger.info('[BusinessRules] Campo de acompanhante adicionado dinamicamente.');
+ }
+ });
+ },
+
+ // ========================================================================
+ // CASCATEAMENTO ROTAS → ALUNOS
+ // ========================================================================
+
+ /* * Carrega alunos associados a uma rota
+ * @param {string} routeId - ID da rota
+ * @returns {Promise<Array>} Lista de alunos */
+ async getStudentsByRoute(routeId) {
+ if (!routeId) return [];
+
+ try {
+                LoadingManager.show('Carregando alunos da rota...');
+
+                const students = await API.run('readRecords', {
+                    sheetName: 'Alunos',
+ filters: {
+ Rota_ID: routeId,
+                        Status_Ativo: 'Ativo'
+ }
+ });
+
+ Logger.info(`[Cascading] Rota ${routeId}: ${students.length} alunos encontrados`);
+ return students || [];
+
+ } catch (error) {
+                console.error('[Cascading] Erro ao carregar alunos:', error);
+                ToastManager.show('Erro ao carregar alunos da rota', 'error');
+ return [];
+ } finally {
+ LoadingManager.hide();
+ }
+ },
+
+ /* * Atualiza seletores dependentes quando rota é alterada
+ * @param {string} routeId - ID da rota selecionada
+ * @param {string} targetSelectId - ID do select de destino */
+        async cascadeRouteToStudents(routeId, targetSelectId = 'aluno-select') {
+ const select = document.getElementById(targetSelectId);
+ if (!select) {
+ Logger.warn(`[Cascading] Select ${targetSelectId} não encontrado`);
+ return;
+ }
+
+ // Limpa opções
+            select.innerHTML = '<option value="">Carregando...</option>';
+ select.disabled = true;
+
+ if (!routeId) {
+                select.innerHTML = '<option value="">Selecione uma rota primeiro</option>';
+ return;
+ }
+
+ try {
+ const students = await this.getStudentsByRoute(routeId);
+
+ if (students.length === 0) {
+                    select.innerHTML = '<option value="">Nenhum aluno ativo nesta rota</option>';
+                    ToastManager.show('Rota sem alunos ativos', 'warning');
+ return;
+ }
+
+ // Popula select com alunos
+                select.innerHTML = '<option value="">Selecione um aluno...</option>';
+ students.forEach(student => {
+                    const option = document.createElement('option');
+ option.value = student.ID;
+
+ // Indica se tem acompanhante (usando a regra de negócio)
+                    const hasCompanion = student.Necessita_Acompanhante === 'Sim';
+                    const companionIcon = hasCompanion ? ' 👥 (2 assentos)' : '';
+
+ option.textContent = `${student.Nome_Completo}${companionIcon} - ${student.Escola}`;
+ option.dataset.hasCompanion = hasCompanion;
+ option.dataset.school = student.Escola;
+
+ select.appendChild(option);
+ });
+
+ select.disabled = false;
+                ToastManager.show(`${students.length} aluno(s) carregado(s)`, 'success', 1500);
+
+ } catch (error) {
+                select.innerHTML = '<option value="">Erro ao carregar alunos</option>';
+                console.error('[Cascading] Erro:', error);
+ }
+ },
+
+ /* * Configura cascateamento automático em formulários */
+ setupCascadingListeners() {
+            // Ouve o evento 'formRendered' disparado pelo CRUDManager ou outros componentes
+            document.addEventListener('formRendered', (e) => {
+ const { form } = e.detail;
+                const routeSelect = form.querySelector('[data-cascade-source="route"]');
+                const studentSelect = form.querySelector('[data-cascade-target="student"]');
+
+ if (!routeSelect || !studentSelect) return;
+
+                Logger.info('[Cascading] Listener de cascateamento configurado para o formulário.', { formId: form.id });
+
+                routeSelect.addEventListener('change', () => {
+ this.cascadeRouteToStudents(routeSelect.value, studentSelect.id);
+ });
+ });
+ },
+
+ // ========================================================================
+ // FREQUÊNCIA - INTEGRAÇÃO COMPLETA
+ // ========================================================================
+
+ /* * Enhances attendance manager with capacity validation */
+ enhanceAttendanceManager() {
+ // Ouve o evento disparado pelo AttendanceManager após carregar os alunos
+            document.addEventListener('attendanceListLoaded', (e) => {
+ const { students, vehicleId } = e.detail;
+ if (vehicleId && students) {
+                    Logger.info('[BusinessRules] Evento attendanceListLoaded capturado. Validando capacidade.', { vehicleId });
+ this.validateAndDisplayCapacity(vehicleId, students); // A validação agora é feita aqui
+ }
+ });
+ },
+
+ // ========================================================================
+ // INICIALIZAÇÃO
+ // ========================================================================
+
+ init() {
+            Logger.info('[BusinessRules] Inicializando regras de negócio...');
+
+ this.enhanceStudentForm();
+ this.setupCascadingListeners();
+ this.enhanceAttendanceManager();
+
+            Logger.info('[BusinessRules] ✅ Regras de negócio ativadas');
+ },
+
+ };
+
+ // Expor para o escopo global
+ window.BusinessRulesManager = BusinessRulesManager;
+
+    document.addEventListener('DOMContentLoaded', () => BusinessRulesManager.init());
+
+})();
+
+</script>
+
+
+
+<!--============================================================================-->

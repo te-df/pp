@@ -1,0 +1,578 @@
+<script>
+/**
+ * JS-StateManager.html
+ * Sistema de gerenciamento de estado global
+ * Versão: 1.0.0
+ * 
+ * Implementa padrão Observer para gerenciamento reativo de estado
+ */
+
+(function(window) {
+  'use strict';
+
+  // ============================================================================
+  // STATE MANAGER
+  // ============================================================================
+  
+  class StateManager {
+    constructor() {
+      this.state = {};
+      this.listeners = {};
+      this.history = [];
+      this.maxHistory = 50;
+      
+      console.log('🔄 StateManager inicializado');
+    }
+
+    /**
+     * Define valor no estado
+     * @param {string} key - Chave
+     * @param {any} value - Valor
+     * @param {boolean} silent - Não notificar listeners
+     */
+    set(key, value, silent = false) {
+      const oldValue = this.state[key];
+      
+      // Salva no histórico
+      if (oldValue !== value) {
+        this.history.push({
+          timestamp: Date.now(),
+          key: key,
+          oldValue: oldValue,
+          newValue: value
+        });
+        
+        // Limita histórico
+        if (this.history.length > this.maxHistory) {
+          this.history.shift();
+        }
+      }
+      
+      // Atualiza estado
+      this.state[key] = value;
+      
+      // Notifica listeners
+      if (!silent) {
+        this.notify(key, value, oldValue);
+      }
+      
+      // Persiste em localStorage (opcional)
+      this.persist(key, value);
+    }
+
+    /**
+     * Obtém valor do estado
+     * @param {string} key - Chave
+     * @param {any} defaultValue - Valor padrão
+     * @returns {any}
+     */
+    get(key, defaultValue = null) {
+      return this.state.hasOwnProperty(key) ? this.state[key] : defaultValue;
+    }
+
+    /**
+     * Remove valor do estado
+     * @param {string} key - Chave
+     */
+    remove(key) {
+      const oldValue = this.state[key];
+      delete this.state[key];
+      this.notify(key, undefined, oldValue);
+      localStorage.removeItem(`state_${key}`);
+    }
+
+    /**
+     * Limpa todo o estado
+     */
+    clear() {
+      const keys = Object.keys(this.state);
+      this.state = {};
+      keys.forEach(key => {
+        this.notify(key, undefined, this.state[key]);
+        localStorage.removeItem(`state_${key}`);
+      });
+    }
+
+    /**
+     * Registra listener para mudanças
+     * @param {string} key - Chave
+     * @param {Function} callback - Callback
+     * @returns {Function} Função para remover listener
+     */
+    subscribe(key, callback) {
+      if (!this.listeners[key]) {
+        this.listeners[key] = [];
+      }
+      
+      this.listeners[key].push(callback);
+      
+      // Retorna função para unsubscribe
+      return () => {
+        this.listeners[key] = this.listeners[key].filter(cb => cb !== callback);
+      };
+    }
+
+    /**
+     * Notifica listeners
+     * @param {string} key - Chave
+     * @param {any} newValue - Novo valor
+     * @param {any} oldValue - Valor anterior
+     */
+    notify(key, newValue, oldValue) {
+      if (this.listeners[key]) {
+        this.listeners[key].forEach(callback => {
+          try {
+            callback(newValue, oldValue, key);
+          } catch (error) {
+            console.error(`Erro no listener de ${key}:`, error);
+          }
+        });
+      }
+      
+      // Notifica listeners globais (*)
+      if (this.listeners['*']) {
+        this.listeners['*'].forEach(callback => {
+          try {
+            callback(key, newValue, oldValue);
+          } catch (error) {
+            console.error('Erro no listener global:', error);
+          }
+        });
+      }
+    }
+
+    /**
+     * Persiste estado em localStorage
+     * @param {string} key - Chave
+     * @param {any} value - Valor
+     */
+    persist(key, value) {
+      try {
+        localStorage.setItem(`state_${key}`, JSON.stringify(value));
+      } catch (e) {
+        console.warn(`Não foi possível persistir ${key}:`, e);
+      }
+    }
+
+    /**
+     * Restaura estado do localStorage
+     * @param {string} key - Chave
+     * @returns {boolean}
+     */
+    restore(key) {
+      try {
+        const stored = localStorage.getItem(`state_${key}`);
+        if (stored) {
+          this.state[key] = JSON.parse(stored);
+          return true;
+        }
+      } catch (e) {
+        console.warn(`Não foi possível restaurar ${key}:`, e);
+      }
+      return false;
+    }
+
+    /**
+     * Restaura todo o estado
+     */
+    restoreAll() {
+      const keys = Object.keys(localStorage)
+        .filter(k => k.startsWith('state_'))
+        .map(k => k.replace('state_', ''));
+      
+      keys.forEach(key => this.restore(key));
+      console.log(`✅ ${keys.length} estados restaurados`);
+    }
+
+    /**
+     * Obtém histórico
+     * @param {string} key - Chave (opcional)
+     * @returns {Array}
+     */
+    getHistory(key = null) {
+      if (key) {
+        return this.history.filter(h => h.key === key);
+      }
+      return this.history;
+    }
+
+    /**
+     * Desfaz última mudança
+     * @param {string} key - Chave
+     * @returns {boolean}
+     */
+    undo(key) {
+      const history = this.getHistory(key);
+      if (history.length === 0) return false;
+      
+      const last = history[history.length - 1];
+      this.set(key, last.oldValue, false);
+      
+      // Remove do histórico
+      const index = this.history.indexOf(last);
+      this.history.splice(index, 1);
+      
+      return true;
+    }
+
+    /**
+     * Debug: imprime estado
+     */
+    debug() {
+      console.group('🔍 Estado Atual');
+      console.table(this.state);
+      console.log('Listeners:', this.listeners);
+      console.log('Histórico:', this.history);
+      console.groupEnd();
+    }
+  }
+
+  // ============================================================================
+  // INSTÂNCIA GLOBAL
+  // ============================================================================
+  
+  window.StateManager = new StateManager();
+  window.State = window.StateManager; // Alias
+
+  // ============================================================================
+  // HELPERS
+  // ============================================================================
+  
+  /**
+   * Hook para componentes React-like
+   * @param {string} key - Chave do estado
+   * @param {any} initialValue - Valor inicial
+   * @returns {Array} [value, setValue]
+   */
+  window.useState = function(key, initialValue) {
+    // Inicializa se não existir
+    if (!State.get(key)) {
+      State.set(key, initialValue, true);
+    }
+    
+    const value = State.get(key);
+    const setValue = (newValue) => State.set(key, newValue);
+    
+    return [value, setValue];
+  };
+
+  /**
+   * Hook para efeitos
+   * @param {string} key - Chave do estado
+   * @param {Function} callback - Callback
+   * @returns {Function} Cleanup function
+   */
+  window.useEffect = function(key, callback) {
+    return State.subscribe(key, callback);
+  };
+
+  // ============================================================================
+  // ESTADOS PRÉ-DEFINIDOS
+  // ============================================================================
+  
+  // Restaura estados salvos
+  document.addEventListener('DOMContentLoaded', function() {
+    State.restoreAll();
+    
+    // Define estados padrão se não existirem
+    const defaults = {
+      'user': null,
+      'theme': 'light',
+      'language': 'pt-BR',
+      'notifications': [],
+      'loading': false,
+      'currentPage': 'home',
+      'sidebarOpen': false,
+      'selectedItems': [],
+      'filters': {},
+      'searchQuery': ''
+    };
+    
+    Object.entries(defaults).forEach(([key, value]) => {
+      if (!State.get(key)) {
+        State.set(key, value, true);
+      }
+    });
+    
+    console.log('✅ Estados padrão inicializados');
+  });
+
+  // ============================================================================
+  // COMPUTED PROPERTIES
+  // ============================================================================
+  
+  /**
+   * Propriedades computadas (derivadas do estado)
+   */
+  window.Computed = {
+    /**
+     * Usuário está logado?
+     * @returns {boolean}
+     */
+    isLoggedIn: function() {
+      return !!State.get('user');
+    },
+
+    /**
+     * Obtém nome do usuário
+     * @returns {string}
+     */
+    userName: function() {
+      const user = State.get('user');
+      return user ? user.name || user.username : 'Visitante';
+    },
+
+    /**
+     * Obtém role do usuário
+     * @returns {string}
+     */
+    userRole: function() {
+      const user = State.get('user');
+      return user ? user.role : 'guest';
+    },
+
+    /**
+     * Tem notificações não lidas?
+     * @returns {boolean}
+     */
+    hasUnreadNotifications: function() {
+      const notifications = State.get('notifications', []);
+      return notifications.some(n => !n.read);
+    },
+
+    /**
+     * Conta notificações não lidas
+     * @returns {number}
+     */
+    unreadCount: function() {
+      const notifications = State.get('notifications', []);
+      return notifications.filter(n => !n.read).length;
+    },
+
+    /**
+     * Tem itens selecionados?
+     * @returns {boolean}
+     */
+    hasSelection: function() {
+      const selected = State.get('selectedItems', []);
+      return selected.length > 0;
+    },
+
+    /**
+     * Conta itens selecionados
+     * @returns {number}
+     */
+    selectionCount: function() {
+      const selected = State.get('selectedItems', []);
+      return selected.length;
+    }
+  };
+
+  // ============================================================================
+  // ACTIONS
+  // ============================================================================
+  
+  /**
+   * Actions (funções que modificam o estado)
+   */
+  window.Actions = {
+    /**
+     * Login
+     * @param {Object} user - Dados do usuário
+     */
+    login: function(user) {
+      State.set('user', user);
+      CF.Notification.success(`Bem-vindo, ${user.name}!`);
+    },
+
+    /**
+     * Logout
+     */
+    logout: function() {
+      State.set('user', null);
+      State.set('selectedItems', []);
+      CF.Notification.info('Você saiu do sistema');
+    },
+
+    /**
+     * Alterna tema
+     */
+    toggleTheme: function() {
+      const current = State.get('theme');
+      const newTheme = current === 'light' ? 'dark' : 'light';
+      State.set('theme', newTheme);
+      document.documentElement.setAttribute('data-theme', newTheme);
+    },
+
+    /**
+     * Adiciona notificação
+     * @param {Object} notification - Notificação
+     */
+    addNotification: function(notification) {
+      const notifications = State.get('notifications', []);
+      notifications.unshift({
+        id: Date.now(),
+        read: false,
+        timestamp: new Date(),
+        ...notification
+      });
+      State.set('notifications', notifications);
+    },
+
+    /**
+     * Marca notificação como lida
+     * @param {number} id - ID da notificação
+     */
+    markAsRead: function(id) {
+      const notifications = State.get('notifications', []);
+      const notification = notifications.find(n => n.id === id);
+      if (notification) {
+        notification.read = true;
+        State.set('notifications', notifications);
+      }
+    },
+
+    /**
+     * Limpa notificações
+     */
+    clearNotifications: function() {
+      State.set('notifications', []);
+    },
+
+    /**
+     * Define loading
+     * @param {boolean} loading - Loading
+     */
+    setLoading: function(loading) {
+      State.set('loading', loading);
+      if (loading) {
+        CF.Loading.show();
+      } else {
+        CF.Loading.hide();
+      }
+    },
+
+    /**
+     * Navega para página
+     * @param {string} page - Página
+     */
+    navigateTo: function(page) {
+      State.set('currentPage', page);
+    },
+
+    /**
+     * Alterna sidebar
+     */
+    toggleSidebar: function() {
+      const current = State.get('sidebarOpen');
+      State.set('sidebarOpen', !current);
+    },
+
+    /**
+     * Seleciona item
+     * @param {any} item - Item
+     */
+    selectItem: function(item) {
+      const selected = State.get('selectedItems', []);
+      if (!selected.includes(item)) {
+        selected.push(item);
+        State.set('selectedItems', selected);
+      }
+    },
+
+    /**
+     * Desseleciona item
+     * @param {any} item - Item
+     */
+    deselectItem: function(item) {
+      const selected = State.get('selectedItems', []);
+      const index = selected.indexOf(item);
+      if (index > -1) {
+        selected.splice(index, 1);
+        State.set('selectedItems', selected);
+      }
+    },
+
+    /**
+     * Limpa seleção
+     */
+    clearSelection: function() {
+      State.set('selectedItems', []);
+    },
+
+    /**
+     * Define filtros
+     * @param {Object} filters - Filtros
+     */
+    setFilters: function(filters) {
+      State.set('filters', filters);
+    },
+
+    /**
+     * Define busca
+     * @param {string} query - Query
+     */
+    setSearch: function(query) {
+      State.set('searchQuery', query);
+    }
+  };
+
+  // ============================================================================
+  // WATCHERS
+  // ============================================================================
+  
+  // Watch tema
+  State.subscribe('theme', function(newTheme) {
+    document.documentElement.setAttribute('data-theme', newTheme);
+    console.log(`🎨 Tema alterado para: ${newTheme}`);
+  });
+
+  // Watch loading
+  State.subscribe('loading', function(loading) {
+    if (loading) {
+      document.body.classList.add('loading');
+    } else {
+      document.body.classList.remove('loading');
+    }
+  });
+
+  // Watch sidebar
+  State.subscribe('sidebarOpen', function(open) {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+      if (open) {
+        sidebar.classList.add('open');
+      } else {
+        sidebar.classList.remove('open');
+      }
+    }
+  });
+
+  // Watch user (login/logout)
+  State.subscribe('user', function(user, oldUser) {
+    if (user && !oldUser) {
+      console.log('👤 Usuário logado:', user);
+      // Trigger evento customizado
+      document.dispatchEvent(new CustomEvent('user:login', { detail: user }));
+    } else if (!user && oldUser) {
+      console.log('👋 Usuário deslogado');
+      document.dispatchEvent(new CustomEvent('user:logout'));
+    }
+  });
+
+  console.log('✅ StateManager carregado');
+
+})(window);
+</script>
+
+<style>
+/* Loading state */
+body.loading {
+  cursor: wait;
+  pointer-events: none;
+}
+
+body.loading * {
+  cursor: wait !important;
+}
+</style>

@@ -1,0 +1,1471 @@
+<!--============================================================================-->
+
+<script>
+
+    /* ============================================================================
+     BUSINESS LOGIC - Attendance, CRUD, Section-specific logic
+     ============================================================================
+     Versão: 2.0 (Refatorado por Gemini Code Assist)
+     - Refatorado para usar um despachante de eventos data-driven.
+     - Integração com SheetMappingManager para reduzir duplicação.
+     ============================================================================ */
+
+    (function () {
+        'use strict';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // ============================================================================
+            // ATTENDANCE MANAGER (Frequência)
+            // ============================================================================
+
+            const AttendanceManager = {
+                studentsData: [],
+                currentRouteId: null,
+
+                init() {
+                    const frequenciaSection = document.getElementById('frequencia-section');
+                    if (!frequenciaSection) return;
+                    this.vehicleSelect = document.getElementById('veiculo_id');
+
+                    // Listeners para os botões de ação da seção de frequência (usando delegação de eventos)
+                    frequenciaSection.addEventListener('click', (e) => {
+                        if (e.target.id === 'submit-frequency-btn') this.saveAttendance();
+                        if (e.target.closest('#mark-all-present')) this.markAllAs('Presente');
+                        if (e.target.closest('#mark-all-absent')) this.markAllAs('Ausente');
+                    });
+
+                    // Listener para o seletor de rotas
+                    const routeSelect = document.getElementById('frequencia-rota');
+                    if (routeSelect) {
+                        routeSelect.addEventListener('change', (e) => this.loadVehiclesForRoute(e.target.value));
+                        routeSelect.addEventListener('change', (e) => this.loadStudentsForRoute(e.target.value));
+                    }
+
+                    // Carrega dados quando a seção se torna visível
+                    document.addEventListener('sectionChanged', (e) => { // Este evento é disparado pelo JS-Navigation.html
+                        if (e.detail.section === 'frequencia') {
+                            this.loadInitialData(); // Carrega as rotas no seletor
+                        }
+                    });
+                },
+
+                async loadInitialData() {
+                    const routeSelect = document.getElementById('frequencia-rota');
+                    if (!routeSelect || routeSelect.options.length > 1) return; // Já carregado
+
+                    if (!window.API) { ToastManager.show('API não inicializada.', 'error'); return; }
+                    LoadingManager.show('Carregando rotas...');
+                    try {
+                        const routes = await API.run('readRecords', { sheetName: 'Rotas' });
+                        routeSelect.innerHTML = '<option value="">Selecione a rota...</option>'; // Limpa e adiciona placeholder
+                        (routes || []).forEach(route => routeSelect.add(new Option(`${route.Codigo} - ${route.Nome_Rota}`, route.ID, false, false)));
+                    } catch (error) {
+                        console.error('[Attendance] Erro ao carregar rotas:', error);
+                        ToastManager.show('Falha ao carregar rotas.', 'error');
+                    } finally {
+                        LoadingManager.hide();
+                    }
+                },
+
+                async loadVehiclesForRoute(routeId) {
+                    if (!this.vehicleSelect) return;
+                    this.vehicleSelect.innerHTML = '<option value="">Carregando veículos...</option>';
+                    this.vehicleSelect.disabled = true;
+
+                    if (!routeId) {
+                        this.vehicleSelect.innerHTML = '<option value="">Selecione uma rota primeiro</option>';
+                        return;
+                    }
+
+                    LoadingManager.show('Carregando veículos...');
+                    try {
+                        const routeData = await API.run('readRecords', { sheetName: 'Rotas', filters: { ID: routeId } });
+                        if (!routeData || routeData.length === 0) throw new Error('Rota não encontrada.');
+
+                        const empresa = routeData[0].Empresa; // Assumindo que a rota tem um campo 'Empresa'
+                        const vehicles = await API.run('readRecords', {
+                            sheetName: 'Veiculos',
+                            filters: { Empresa: empresa, Status: 'Operacional' }
+                        });
+
+                        this.vehicleSelect.innerHTML = '<option value="">Selecione um veículo...</option>';
+                        (vehicles || []).forEach(vehicle => this.vehicleSelect.add(new Option(`${vehicle.Placa} - ${vehicle.Modelo}`, vehicle.ID)));
+                        this.vehicleSelect.disabled = false;
+                    } catch (error) {
+                        console.error('[Attendance] Erro ao carregar veículos:', error);
+                        this.vehicleSelect.innerHTML = '<option value="">Erro ao carregar</option>';
+                        ToastManager.show('Falha ao carregar veículos da rota.', 'error');
+                    } finally {
+                        LoadingManager.hide();
+                    }
+                },
+
+                async loadStudentsForRoute(routeId) {
+                    const studentsListContainer = document.getElementById('students-attendance-list');
+                    if (!routeId) {
+                        this.studentsData = [];
+                        this.renderStudentList();
+                        studentsListContainer.innerHTML = `
+                        <div class="student-attendance-placeholder">
+                            <i class="fas fa-users"></i>
+ <p>Selecione uma rota para carregar a lista de alunos.</p>
+ </div>`;
+                        return;
+                    }
+                    this.currentRouteId = routeId;
+                    LoadingManager.show(`Carregando alunos da rota...`);
+                    try {
+                        // A chamada à API agora filtra os alunos pela rota e status
+                        this.studentsData = await API.run('readRecords', {
+                            sheetName: 'Alunos',
+                            filters: { 'Rota_ID': routeId, 'Status_Ativo': 'Ativo' }
+                        });
+                        this.renderStudentList();
+
+                        // Validação de capacidade após carregar alunos
+                        const vehicleId = this.vehicleSelect.value;
+                        if (vehicleId) BusinessRulesManager.validateAndDisplayCapacity(vehicleId, this.studentsData);
+
+                        ToastManager.show(`${this.studentsData.length} alunos carregados.`, 'success');
+                    } catch (error) {
+                        console.error(`[Attendance] Erro ao carregar alunos da rota ${routeId}:`, error);
+                        ToastManager.show('Falha ao carregar alunos da rota.', 'error');
+                        studentsListContainer.innerHTML = `
+                        <div class="student-attendance-placeholder">
+                            <i class="fas fa-exclamation-triangle"></i>
+ <p>Erro ao carregar alunos. Tente novamente.</p>
+ </div>`;
+                    } finally {
+                        LoadingManager.hide();
+                    }
+                },
+
+                renderStudentList() {
+                    const container = document.getElementById('students-attendance-list');
+                    if (!container) return;
+
+                    if (this.studentsData.length === 0) {
+                        container.innerHTML = `
+                        <div class="student-attendance-placeholder">
+                            <i class="fas fa-user-slash"></i>
+ <p>Nenhum aluno ativo encontrado para esta rota.</p>
+ </div>`;
+                        return;
+                    }
+
+                    container.innerHTML = this.studentsData.map(student => `
+                    <div class="student-attendance-item">
+                        <div class="student-info">
+                            <div class="student-avatar">${student.Nome_Completo.charAt(0)}</div>
+                            <div class="student-details">
+                                <div class="student-name">${student.Nome_Completo}</div>
+                                <div class="student-school">${student.Escola}</div>
+ </div>
+ </div>
+                        <div class="attendance-controls">
+                            <label class="attendance-radio present">
+                                <input type="radio" name="status-${student.ID}" value="Presente" checked onchange="AttendanceManager.updateCount()">
+ <span>P</span>
+ </label>
+                            <label class="attendance-radio absent">
+                                <input type="radio" name="status-${student.ID}" value="Ausente" onchange="AttendanceManager.updateCount()">
+ <span>A</span>
+ </label>
+ </div>
+ </div>
+                `).join('');
+                },
+
+                markAllAs(status) {
+                    const radios = document.querySelectorAll(`.attendance-radio input[value="${status}"]`);
+                    radios.forEach(radio => radio.checked = true);
+                    this.updateCount(); // Corrigido
+                    ToastManager.show(`Todos os alunos marcados como '${status}'`, 'success', 800);
+                },
+
+                updateCount() {
+                    const presentCount = document.querySelectorAll('input[value="Presente"]:checked').length;
+                    const absentCount = document.querySelectorAll('input[value="Ausente"]:checked').length;
+                    const presentEl = document.getElementById('present-count');
+                    const absentEl = document.getElementById('absent-count');
+                    if (presentEl) presentEl.textContent = presentCount;
+                    if (absentEl) absentEl.textContent = absentCount;
+                },
+
+                async saveAttendance() {
+                    const form = document.getElementById('daily-attendance-form');
+                    if (!form.checkValidity()) {
+                        ToastManager.show('⚠ Preencha todos os campos obrigatórios da viagem', 'warning');
+                        form.reportValidity();
+                        return;
+                    }
+
+                    const attendanceRecords = [];
+                    this.studentsData.forEach(student => {
+                        const statusInput = document.querySelector(`input[name="status-${student.ID}"]:checked`);
+                        if (statusInput) {
+                            attendanceRecords.push({
+                                Aluno_ID: student.ID,
+                                Nome_Aluno: student.Nome_Completo,
+                                Status_Presenca: statusInput.value
+                            });
+                        }
+                    });
+
+                    if (attendanceRecords.length === 0) {
+                        ToastManager.show('⚠ Marque a presença de pelo menos um aluno', 'warning');
+                        return;
+                    }
+
+                    const formData = new FormData(form);
+                    const tripData = Object.fromEntries(formData.entries());
+                    tripData.attendance = attendanceRecords;
+
+                    // Obtém botão de submit para loading state
+                    const submitButton = document.getElementById('submit-frequency-btn');
+
+                    try {
+                        if (submitButton) LoadingManager.showButtonLoading(submitButton);
+                        LoadingManager.show('Salvando frequência...');
+
+                        const result = await API.run('saveAttendance', tripData);
+                        ToastManager.show(`✓ ${result.message || 'Frequência salva com sucesso!'}`, 'success');
+                        form.reset();
+                        this.studentsData = [];
+                        this.renderStudentList();
+                    } catch (error) {
+                        console.error('[Attendance] Erro ao salvar:', error);
+                        ToastManager.show(`✗ Erro: ${error.message}`, 'error');
+                    } finally {
+                        if (submitButton) LoadingManager.hideButtonLoading(submitButton);
+                        LoadingManager.hide();
+                    }
+                }
+            };
+
+            // Expose globally
+            window.AttendanceManager = AttendanceManager;
+            AttendanceManager.init();
+
+            // ============================================================================
+            // DASHBOARD MANAGER
+            // ============================================================================
+            const DashboardManager = {
+                charts: {},
+                isInitialized: false,
+
+                init(container) {
+                    if (this.isInitialized) return;
+                    console.log('[DashboardManager] Inicializando Dashboard.');
+                    this.render(container);
+                    setTimeout(() => this.renderCharts(), 100);
+                    this.isInitialized = true;
+                },
+
+                destroyCharts() {
+                    Object.values(this.charts).forEach(chart => {
+                        if (chart && typeof chart.destroy === 'function') {
+                            chart.destroy();
+                        }
+                    });
+                    this.charts = {};
+                },
+
+                renderCharts() {
+                    this.destroyCharts();
+
+                    // --- Gráfico de Frequência Semanal (Linha) ---
+                    const attendanceCtx = document.getElementById('attendance-chart')?.getContext('2d');
+                    if (attendanceCtx) {
+                        this.charts.attendanceChart = new Chart(attendanceCtx, {
+                            type: 'line',
+                            data: {
+                                labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+                                datasets: [{
+                                    label: 'Presentes',
+                                    data: [1200, 1220, 1210, 1230, 1180, 850],
+                                    borderColor: 'var(--md-sys-color-primary)',
+                                    backgroundColor: 'rgba(100, 181, 246, 0.2)',
+                                    tension: 0.4,
+                                    fill: true,
+                                }, {
+                                    label: 'Ausentes',
+                                    data: [50, 45, 55, 40, 60, 30],
+                                    borderColor: 'var(--md-sys-color-error)',
+                                    backgroundColor: 'rgba(239, 83, 80, 0.2)',
+                                    tension: 0.4,
+                                    fill: true,
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: { color: 'var(--color-text-secondary)' },
+                                        grid: { color: 'var(--md-sys-color-outline-variant)' }
+                                    },
+                                    x: {
+                                        ticks: { color: 'var(--color-text-secondary)' },
+                                        grid: { display: false }
+                                    }
+                                },
+                                plugins: {
+                                    legend: {
+                                        labels: { color: 'var(--color-text-secondary)' }
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    // --- Gráfico de Status da Frota (Rosca) ---
+                    const fleetStatusCtx = document.getElementById('fleet-status-chart')?.getContext('2d');
+                    if (fleetStatusCtx) {
+                        this.charts.fleetStatusChart = new Chart(fleetStatusCtx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['Operacional', 'Manutenção', 'Inativo'],
+                                datasets: [{
+                                    label: 'Status da Frota',
+                                    data: [38, 3, 4],
+                                    backgroundColor: [
+                                        'var(--md-sys-color-success)',
+                                        'var(--md-sys-color-warning)',
+                                        'var(--md-sys-color-error)'
+                                    ],
+                                    borderColor: 'var(--md-sys-color-surface-container)',
+                                    borderWidth: 4,
+                                    hoverOffset: 8
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                cutout: '70%',
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        labels: { color: 'var(--color-text-secondary)', padding: 20 }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                },
+
+                render(container) {
+                    container.innerHTML = `
+            <div class="page-header section-header-standardized">
+                <h1 class="page-title section-title-standardized"  style="margin-top: 0; margin-left: 0">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </h1>
+                <p class="page-subtitle">Visão geral do sistema de transporte escolar</p>
+            </div>
+            <div class="compliance-banner">
+                <div class="neural-background"></div>
+                <div class="compliance-content section-content-standardized">
+                    <i class="fas fa-brain compliance-icon"></i>
+                    <div class="compliance-text">
+                        <h3>Sistema Neural de Conformidade Ativo</h3>
+                        <p>IA monitorando continuamente GCOTE, LGPD e Portarias SEEDF em tempo real</p>
+                    </div>
+                </div>
+            </div>
+            <div class="w-full cards-grid">
+                <div class="card metric-card primary">
+                    <div class="card-body">
+                        <div class="stat-header">
+                            <span class="stat-title">Alunos Ativos</span>
+                            <div class="stat-icon primary"><i class="fas fa-graduation-cap"></i></div>
+                        </div>
+                        <div class="stat-value">1,247</div>
+                        <div class="stat-change positive"><i class="fas fa-arrow-up"></i><span>+3.2% este mês</span></div>
+                    </div>
+                </div>
+                <div class="card metric-card success">
+                    <div class="card-body">
+                        <div class="stat-header">
+                            <span class="stat-title">Rotas Ativas</span>
+                            <div class="stat-icon success"><i class="fas fa-route"></i></div>
+                        </div>
+                        <div class="stat-value">23</div>
+                        <div class="stat-change positive"><i class="fas fa-arrow-up"></i><span>+2 novas rotas</span></div>
+                    </div>
+                </div>
+                <div class="card metric-card warning">
+                    <div class="card-body">
+                        <div class="stat-header">
+                            <span class="stat-title">Veículos</span>
+                            <div class="stat-icon warning"><i class="fas fa-bus"></i></div>
+                        </div>
+                        <div class="stat-value">45</div>
+                        <div class="stat-change neutral"><i class="fas fa-minus"></i><span>2 em manutenção</span></div>
+                    </div>
+                </div>
+                <div class="card metric-card error">
+                    <div class="card-body">
+                        <div class="stat-header">
+                            <span class="stat-title">Incidentes</span>
+                            <div class="stat-icon error"><i class="fas fa-exclamation-triangle"></i></div>
+                        </div>
+                        <div class="stat-value">3</div>
+                        <div class="stat-change negative"><i class="fas fa-arrow-down"></i><span>-2 resolvidos</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="w-full cards-grid"  style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-top: var(--space-6)">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title"><i class="fas fa-chart-line"></i> Frequência Semanal</h3></div>
+                    <div class="card-body"><canvas id="attendance-chart"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title"><i class="fas fa-chart-pie"></i> Status da Frota</h3></div>
+                    <div class="card-body"><canvas id="fleet-status-chart"></canvas></div>
+                </div>
+            </div>
+        `;
+                }
+            };
+
+            // ============================================================================
+            // MAP MANAGER
+            // ============================================================================
+            const MapManager = {
+                map: null,
+                isInitialized: false,
+
+                init(container) {
+                    if (this.isInitialized) return;
+                    console.log('[MapManager] Inicializando Mapa.');
+                    this.render(container);
+                    // Adia a renderização para garantir que o DOM e a lib estejam prontos
+                    setTimeout(() => this.renderMap(), 100);
+                    this.isInitialized = true;
+                },
+
+                render(container) {
+                    container.innerHTML = `
+                    <div class="page-header section-header-standardized">
+                        <h2 class="page-title"><i class="fas fa-map-marked-alt"></i> Monitoramento em Tempo Real</h2>
+                        <p class="page-subtitle">Acompanhe a localização dos veículos e pontos de parada em tempo real.</p>
+ </div>
+
+                    <div class="w-full stats-grid">
+                        <div class="card metric-card primary"><div class="card-body"><div class="stat-header"><div class="stat-title">Rotas Ativas</div><div class="stat-icon primary"><i class="fas fa-route"></i></div></div><div class="stat-value">5</div></div></div>
+                        <div class="card metric-card success"><div class="card-body"><div class="stat-header"><div class="stat-title">Veículos em Operação</div><div class="stat-icon success"><i class="fas fa-bus"></i></div></div><div class="stat-value">5</div></div></div>
+                        <div class="card metric-card warning"><div class="card-body"><div class="stat-header"><div class="stat-title">Atrasos</div><div class="stat-icon warning"><i class="fas fa-clock"></i></div></div><div class="stat-value">3</div></div></div>
+                        <div class="card metric-card error"><div class="card-body"><div class="stat-header"><div class="stat-title">Incidentes</div><div class="stat-icon error"><i class="fas fa-exclamation-triangle"></i></div></div><div class="stat-value">1</div></div></div>
+ </div>
+
+                    <div class="card"  style="margin-top: var(--space-6)">
+                        <div class="card-header">
+                            <h3 class="card-title section-title-standardized"><i class="fas fa-map"></i> Mapa Interativo</h3>
+                            <div class="crud-actions">
+                                <button class="btn btn-sm btn-secondary"><i class="fas fa-layer-group"></i> Camadas</button>
+                                <button class="btn btn-sm btn-primary" onclick="MapManager.centerMap()"><i class="fas fa-crosshairs"></i> Centralizar</button>
+ </div>
+ </div>
+                        <div class="card-body"  style="padding:0; height: 60vh">
+                            <div id="map-canvas"  style="height: 100%; width: 100%"></div>
+ </div>
+ </div>
+
+                    <div class="card"  style="margin-top: var(--space-6)">
+                        <div class="card-header">
+                            <h3 class="card-title section-title-standardized"><i class="fas fa-map-pin"></i> Pontos de Parada por Rota</h3>
+ </div>
+                        <div class="card-body">
+                            <div id="map-table-container"></div>
+ </div>
+ </div>
+ `;
+                },
+
+                renderMap() {
+                    if (this.map) {
+                        this.map.remove();
+                    }
+
+                    const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+                    const tileUrl = isDarkMode
+                        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+                    this.map = L.map('map-canvas').setView([-15.7942, -47.8825], 11); // Brasília
+
+                    L.tileLayer(tileUrl, {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                    }).addTo(this.map);
+
+                    // Marcadores de Veículos (Simulado)
+                    const vehicleIcon = L.divIcon({
+                        html: '<i class="fas fa-bus"  style="color: var(--md-sys-color-primary); font-size: 24px; text-shadow: 0 0 3px #fff"></i>',
+                        className: 'map-vehicle-icon',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 24]
+                    });
+                    L.marker([-15.7801, -47.9292], { icon: vehicleIcon }).addTo(this.map).bindPopup("<b>Veículo 101</b><br>Rota 01 - 45km/h");
+                    L.marker([-15.8345, -47.9452], { icon: vehicleIcon }).addTo(this.map).bindPopup("<b>Veículo 102</b><br>Rota 02 - 52km/h");
+
+                    // Marcadores de Pontos de Parada (Simulado)
+                    const stopIcon = L.divIcon({
+                        html: '<i class="fas fa-map-pin"  style="color: var(--md-sys-color-error); font-size: 20px"></i>',
+                        className: 'map-stop-icon',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 20]
+                    });
+                    L.marker([-15.7998, -47.8645], { icon: stopIcon }).addTo(this.map).bindPopup("<b>Ponto 01</b><br>Embarque/Desembarque");
+                    L.marker([-15.8123, -47.8789], { icon: stopIcon }).addTo(this.map).bindPopup("<b>Ponto 02</b><br>Embarque");
+
+                    this.renderTable();
+                },
+
+                centerMap() {
+                    if (this.map) {
+                        this.map.setView([-15.7942, -47.8825], 11);
+                    }
+                },
+
+                async renderTable() {
+                    try {
+                        // Carrega pontos reais da planilha Mapa
+                        let pontos = [];
+                        if (window.DataLoader) {
+                            pontos = await DataLoader.load('Mapa', {}, false);
+                        }
+
+                        const columns = [
+                            { label: 'ID', field: 'ID' },
+                            { label: 'Nome do Ponto', field: 'Nome_Ponto' },
+                            { label: 'Tipo', field: 'Tipo' },
+                            { label: 'Rota', field: 'Rota_ID' },
+                            { label: 'Ordem', field: 'Ordem_Parada' },
+                            {
+                                label: 'Ações',
+                                render: (row) => `<div class="table-actions">
+                        <button aria-label="Editar" class="btn-icon btn-sm" onclick="MapManager.editPoint('${row.ID}')" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                        <button aria-label="Excluir" class="btn-icon btn-sm btn-error" onclick="MapManager.deletePoint('${row.ID}')" title="Excluir"><i class="fas fa-trash"></i></button>
+                    </div>`
+                            }
+                        ];
+
+                        TableRenderer.render('map-table-container', pontos, columns, {
+                            emptyMessage: 'Nenhum ponto de parada encontrado.'
+                        });
+
+                        if (window.ToastManager && pontos.length > 0) {
+                            ToastManager.show(`${pontos.length} pontos carregados`, 'success', 2000);
+                        }
+                    } catch (error) {
+                        console.error('[MapManager] Erro ao carregar pontos:', error);
+                        if (window.ToastManager) {
+                            ToastManager.show('Erro ao carregar pontos do mapa', 'error', 3000);
+                        }
+                    }
+                },
+
+                editPoint(pointId) {
+                    console.log('[MapManager] Editar ponto:', pointId);
+                    ToastManager.show('Funcionalidade de edição em desenvolvimento', 'info', 2000);
+                },
+
+                deletePoint(pointId) {
+                    console.log('[MapManager] Excluir ponto:', pointId);
+                    if (confirm('Deseja realmente excluir este ponto?')) {
+                        ToastManager.show('Funcionalidade de exclusão em desenvolvimento', 'info', 2000);
+                    }
+                }
+            };
+
+            // ============================================================================
+            // KANBAN MANAGER
+            // ============================================================================
+            const KanbanManager = {
+                isInitialized: false,
+                data: [],
+                columns: ['Pendente', 'Em Andamento', 'Concluído'],
+
+                init(container) {
+                    if (this.isInitialized) return;
+                    console.log('[KanbanManager] Inicializando Kanban.');
+                    this.render(container);
+                    this.loadAndRenderCards();
+                    this.isInitialized = true;
+                },
+
+                render(container) {
+                    container.innerHTML = `
+                    <div class="page-header">
+                        <h2 class="page-title"><i class="fas fa-columns"></i> Quadro Kanban de Processos</h2>
+                        <p class="page-subtitle">Gerencie o fluxo de trabalho dos processos SEI de forma visual e interativa.</p>
+ </div>
+                    <div class="kanban-board" id="kanban-board">
+ ${this.columns.map(col => `
+                            <div class="kanban-column" data-column-status="${col}">
+                                <div class="kanban-column-header">
+ <h4>${col}</h4>
+                                    <span class="badge" id="count-${col.replace(/\s+/g, '')}">0</span>
+ </div>
+                                <div class="kanban-cards">
+ /* Cards will be rendered here */
+ </div>
+ </div>
+                        `).join('')}
+ </div>
+ `;
+                    this.setupDragAndDrop();
+                },
+
+                loadAndRenderCards() {
+                    // Reutiliza os dados já carregados pelo CRUDManager
+                    const crudInstance = CRUDManagerUniversal.instances['kanban'];
+                    if (crudInstance && crudInstance.data) {
+                        this.data = crudInstance.data;
+                        this.renderCards();
+                    } else {
+                        console.warn('[KanbanManager] Dados do CRUD para Kanban não encontrados. O quadro pode estar vazio.');
+                    }
+                },
+
+                renderCards() {
+                    this.columns.forEach(col => {
+                        const columnEl = document.querySelector(`.kanban-column[data-column-status="${col}"] .kanban-cards`);
+                        const countEl = document.getElementById(`count-${col.replace(/\s+/g, '')}`);
+                        if (!columnEl || !countEl) return;
+
+                        const cardsForColumn = this.data.filter(item => item.status === col);
+                        columnEl.innerHTML = cardsForColumn.map(item => `
+                        <div class="kanban-card" draggable="true" data-card-id="${item.ID}">
+ <h5>${item.numero_sei}</h5>
+ <p>${item.assunto}</p>
+                            <div class="card-meta">
+                                <span class="card-priority ${item.prioridade || 'low'}">${item.prioridade || 'Baixa'}</span>
+                                <span class="card-date"><i class="fas fa-user"></i> ${item.responsavel}</span>
+ </div>
+ </div>
+                    `).join('');
+                        countEl.textContent = cardsForColumn.length;
+                    });
+                },
+
+                setupDragAndDrop() {
+                    const board = document.getElementById('kanban-board');
+                    if (!board) return;
+
+                    let draggedCard = null;
+
+                    board.addEventListener('dragstart', e => {
+                        if (e.target.classList.contains('kanban-card')) {
+                            draggedCard = e.target;
+                            setTimeout(() => {
+                                e.target.classList.add('is-dragging');
+                            }, 0);
+                        }
+                    });
+
+                    board.addEventListener('dragend', e => {
+                        if (draggedCard) {
+                            draggedCard.classList.remove('is-dragging');
+                            draggedCard = null;
+                        }
+                    });
+
+                    board.addEventListener('dragover', e => {
+                        e.preventDefault();
+                        const column = e.target.closest('.kanban-column');
+                        if (column) {
+                            // Lógica para posicionar placeholder (opcional, mais avançado)
+                            column.classList.add('is-over');
+                        }
+                    });
+
+                    board.addEventListener('dragleave', e => {
+                        const column = e.target.closest('.kanban-column');
+                        if (column) {
+                            column.classList.remove('is-over');
+                        }
+                    });
+
+                    board.addEventListener('drop', e => {
+                        e.preventDefault();
+                        const column = e.target.closest('.kanban-column');
+                        if (column && draggedCard) {
+                            column.classList.remove('is-over');
+                            const newStatus = column.dataset.columnStatus;
+                            const cardId = draggedCard.dataset.cardId;
+
+                            // Update data model
+                            const cardData = this.data.find(item => String(item.ID) === cardId);
+                            if (cardData && cardData.status !== newStatus) {
+                                cardData.status = newStatus;
+                                console.log(`[Kanban] Card ${cardId} movido para ${newStatus}`);
+
+                                // Opcional: Chamar API para salvar a mudança no backend
+                                // API.run('updateRecord', { sheetName: 'Processos', id: cardId, data: { status: newStatus } });
+
+                                ToastManager.show(`Processo ${cardData.numero_sei} movido para "${newStatus}".`, 'success');
+                            }
+
+                            // Re-render a UI
+                            this.renderCards();
+                        }
+                    });
+                }
+            };
+
+            // ============================================================================
+            // HANDLERS CUSTOMIZADOS PARA SEÇÕES ESPECIAIS
+            // ============================================================================
+
+            /* * Mapeamento de seções que requerem lógica customizada (não-CRUD).
+            * Todas as outras seções serão configuradas automaticamente via SheetMappingManager.
+            * Versão: 3.0 - Data-Driven Architecture */
+            const CUSTOM_SECTION_HANDLERS = {
+                // 1. FREQUÊNCIA - Já tem implementação customizada em AttendanceManager
+
+                'eventos': {
+                    title: 'Eventos',
+                    searchPlaceholder: 'Buscar eventos...',
+                    columns: [
+                        { label: 'Título', field: 'titulo' },
+                        { label: 'Data', field: 'data' },
+                        { label: 'Tipo', field: 'tipo' },
+                        {
+                            label: 'Status',
+                            render: (row) => `<span class="status-badge ${row.status?.toLowerCase()}">${row.status}</span>`
+                        }
+                    ],
+                    fields: [
+                        { name: 'titulo', label: 'Título do Evento', type: 'text', required: true },
+                        { name: 'descricao', label: 'Descrição', type: 'textarea', rows: 3, required: true },
+                        { name: 'data', label: 'Data', type: 'date', required: true },
+                        { name: 'hora_inicio', label: 'Hora Início', type: 'time', required: true },
+                        { name: 'hora_fim', label: 'Hora Fim', type: 'time' },
+                        {
+                            name: 'tipo',
+                            label: 'Tipo de Evento',
+                            type: 'select',
+                            options: ['Passeio', 'Atividade Extracurricular', 'Reunião', 'Manutenção', 'Outro'],
+                            required: true
+                        },
+                        {
+                            name: 'status',
+                            label: 'Status',
+                            type: 'select',
+                            options: [
+                                { value: 'active', label: 'Ativo' },
+                                { value: 'inactive', label: 'Cancelado' }
+                            ],
+                            required: true
+                        }
+                    ]
+                },
+
+                'pessoal': {
+                    title: 'Gestão de Pessoal',
+                    formUrl: 'Form-Pessoal', // Carrega formulário customizado dinamicamente
+                    searchPlaceholder: 'Buscar funcionários...',
+                    columns: [
+                        { label: 'Nome', field: 'Nome_Completo' },
+                        { label: 'Cargo', field: 'Cargo' },
+                        { label: 'CPF', field: 'CPF' },
+                        { label: 'Telefone', field: 'Telefone' },
+                        {
+                            label: 'Status',
+                            render: (row) => `<span class="status-badge ${row.Status_Contrato?.toLowerCase()}">${row.Status_Contrato}</span>`
+                        }
+                    ]
+                    // fields removido - formulário será carregado via formUrl
+                },
+
+                'alunos': {
+                    title: 'Alunos',
+                    formUrl: 'Form-Alunos', // Carrega formulário customizado dinamicamente
+                    searchPlaceholder: 'Buscar alunos...',
+                    columns: [
+                        { label: 'Nome', field: 'Nome_Completo' },
+                        { label: 'RA', field: 'RA_Aluno' },
+                        { label: 'Escola', field: 'Escola' },
+                        { label: 'Rota', field: 'ID_Rota' },
+                        {
+                            label: 'Status',
+                            render: (row) => `<span class="status-badge ${row.Status_Ativo?.toLowerCase()}">${row.Status_Ativo}</span>`
+                        }
+                    ]
+                    // fields removido - formulário será carregado via formUrl
+                },
+
+                'rotas': {
+                    title: 'Rotas',
+                    formUrl: 'Form-Rotas', // Carrega formulário customizado dinamicamente
+                    searchPlaceholder: 'Buscar rotas...',
+                    columns: [
+                        { label: 'Nome da Rota', field: 'Nome_Rota' },
+                        { label: 'Código', field: 'Codigo' },
+                        { label: 'Veículo', field: 'Veiculo_ID' },
+                        { label: 'Motorista', field: 'Motorista_ID' },
+                        {
+                            label: 'Status',
+                            render: (row) => `<span class="status-badge ${row.Status?.toLowerCase()}">${row.Status}</span>`
+                        }
+                    ]
+                    // fields removido - formulário será carregado via formUrl
+                },
+
+                'veiculos': {
+                    title: 'Veículos',
+                    formUrl: 'Form-Veiculos', // Carrega formulário customizado dinamicamente
+                    searchPlaceholder: 'Buscar veículos...',
+                    columns: [
+                        { label: 'Placa', field: 'Placa' },
+                        { label: 'Modelo', field: 'Modelo' },
+                        { label: 'Capacidade', field: 'Capacidade_Total' },
+                        { label: 'Marca', field: 'Marca' },
+                        {
+                            label: 'Status',
+                            render: (row) => `<span class="status-badge ${row.Status?.toLowerCase()}">${row.Status}</span>`
+                        }
+                    ]
+                    // fields removido - formulário será carregado via formUrl
+                },
+
+                'predictive-maintenance': {
+                    title: 'Manutenção Preditiva',
+                    searchPlaceholder: 'Buscar manutenções...',
+                    columns: [
+                        { label: 'Veículo', field: 'veiculo' },
+                        { label: 'Tipo', field: 'tipo' },
+                        { label: 'Data Prevista', field: 'data_prevista' },
+                        {
+                            label: 'Prioridade',
+                            render: (row) => `<span class="status-badge ${row.prioridade?.toLowerCase()}">${row.prioridade}</span>`
+                        }
+                    ],
+                    fields: [
+                        { name: 'veiculo', label: 'Veículo/Placa', type: 'text', required: true },
+                        {
+                            name: 'tipo',
+                            label: 'Tipo de Manutenção',
+                            type: 'select',
+                            options: ['Preventiva', 'Corretiva', 'Preditiva'],
+                            required: true
+                        },
+                        { name: 'descricao', label: 'Descrição do Serviço', type: 'textarea', rows: 3, required: true, placeholder: 'Ex: Troca de óleo e filtros, verificação de freios...' },
+                        { name: 'data_prevista', label: 'Data Prevista', type: 'date', required: true },
+                        { name: 'km_previsto', label: 'KM Previsto', type: 'number' },
+                        { name: 'fornecedor', label: 'Fornecedor/Oficina', type: 'text' },
+                        { name: 'custo_estimado', label: 'Custo Estimado (R$)', type: 'number', step: '0.01' },
+                        {
+                            name: 'prioridade',
+                            label: 'Prioridade',
+                            type: 'select',
+                            options: [
+                                { value: 'error', label: 'Alta' },
+                                { value: 'warning', label: 'Média' },
+                                { value: 'info', label: 'Baixa' }
+                            ],
+                            required: true
+                        },
+                        { name: 'observacoes', label: 'Observações', type: 'textarea', rows: 2 }
+                    ]
+                },
+
+                'gamification': {
+                    title: 'Sistema de Gamificação',
+                    searchPlaceholder: 'Buscar conquistas...',
+                    columns: [
+                        { label: 'Aluno', field: 'aluno' },
+                        { label: 'Pontos', field: 'pontos' },
+                        { label: 'Nível', field: 'nivel' },
+                        { label: 'Conquistas', field: 'conquistas' }
+                    ],
+                    fields: [
+                        { name: 'aluno', label: 'Aluno', type: 'text', required: true },
+                        { name: 'pontos', label: 'Pontos Acumulados', type: 'number', min: '0', default: '0' },
+                        { name: 'nivel', label: 'Nível Atual', type: 'number', min: '1', default: '1' },
+                        { name: 'conquistas', label: 'Conquistas Desbloqueadas', type: 'textarea', rows: 3 },
+                        { name: 'ultima_atualizacao', label: 'Última Atualização', type: 'date' }
+                    ]
+                },
+
+                // E assim por diante para as 24 seções...
+                'kanban_example': { // Exemplo para Kanban (renomeado)
+                    title: 'Processos SEI',
+                    searchPlaceholder: 'Buscar processos...',
+                    columns: [
+                        { label: 'Número SEI', field: 'numero_sei' },
+                        { label: 'Assunto', field: 'assunto' },
+                        { label: 'Responsável', field: 'responsavel' },
+                        {
+                            label: 'Status',
+                            render: (row) => `<span class="status-badge ${row.status?.toLowerCase()}">${row.status}</span>`
+                        }
+                    ],
+                    fields: [
+                        { name: 'numero_sei', label: 'Número do Processo SEI', type: 'text', required: true, placeholder: 'Ex: 00080-00123456/2024-00' },
+                        { name: 'assunto', label: 'Assunto', type: 'text', required: true },
+                        { name: 'descricao', label: 'Descrição', type: 'textarea', rows: 3 },
+                        { name: 'responsavel', label: 'Responsável', type: 'text', required: true },
+                        { name: 'data_abertura', label: 'Data de Abertura', type: 'date', required: true },
+                        { name: 'prazo', label: 'Prazo', type: 'date' },
+                        {
+                            name: 'status',
+                            label: 'Status',
+                            type: 'select',
+                            options: [
+                                { value: 'info', label: 'Pendente' },
+                                { value: 'warning', label: 'Em Andamento' },
+                                { value: 'active', label: 'Concluído' }
+                            ],
+                            required: true
+                        }
+                    ]
+                },
+
+                'compliance-validation': {
+                    title: 'Validação de Conformidade',
+                    searchPlaceholder: 'Buscar validações...',
+                    columns: [
+                        { label: 'Categoria', field: 'Categoria' },
+                        { label: 'Item', field: 'Item_Verificacao' },
+                        { label: 'Data', field: 'Data_Verificacao' },
+                        {
+                            label: 'Status',
+                            render: (row) => `<span class="status-badge ${row.Status?.toLowerCase()}">${row.Status}</span>`
+                        }
+                    ],
+                    fields: [
+                        { name: 'Categoria', label: 'Categoria', type: 'text', required: true },
+                        { name: 'Item_Verificacao', label: 'Item de Verificação', type: 'text', required: true, helpText: 'Descreva o item específico que está sendo validado.' },
+                        { name: 'Data_Verificacao', label: 'Data de Verificação', type: 'date', required: true },
+                        { name: 'Responsavel', label: 'Responsável', type: 'text', required: true },
+                        { name: 'Observacoes', label: 'Observações', type: 'textarea', rows: 3 },
+                        { name: 'Acao_Corretiva', label: 'Ação Corretiva', type: 'textarea', rows: 2 },
+                        { name: 'Prazo_Correcao', label: 'Prazo para Correção', type: 'date' },
+                        {
+                            name: 'Status',
+                            label: 'Status',
+                            type: 'select',
+                            options: ['Conforme', 'Não Conforme', 'Em Análise'],
+                            required: true
+                        }
+                    ]
+                },
+
+                'tracking': {
+                    title: 'Rastreamento',
+                    searchPlaceholder: 'Buscar rastreamentos...',
+                    columns: [
+                        { label: 'Veículo', field: 'Veiculo_ID' },
+                        { label: 'Timestamp', field: 'Timestamp' },
+                        { label: 'Velocidade', field: 'Velocidade' },
+                        { label: 'Status', field: 'Status_Motor' }
+                    ],
+                    fields: [
+                        { name: 'Veiculo_ID', label: 'ID do Veículo', type: 'text', required: true },
+                        { name: 'Latitude', label: 'Latitude', type: 'text', required: true },
+                        { name: 'Longitude', label: 'Longitude', type: 'text', required: true },
+                        { name: 'Velocidade', label: 'Velocidade (km/h)', type: 'number', min: '0' },
+                        { name: 'Status_Motor', label: 'Status Motor', type: 'select', options: ['Ligado', 'Desligado'], required: true },
+                        { name: 'Combustivel_Nivel', label: 'Combustível (%)', type: 'number', min: '0', max: '100' },
+                        { name: 'Rota_Ativa', label: 'Rota Ativa', type: 'text' }
+                    ]
+                },
+
+                'utilizacao-frota': {
+                    title: 'Utilização da Frota',
+                    searchPlaceholder: 'Buscar registros...',
+                    columns: [
+                        { label: 'Data', field: 'Data' },
+                        { label: 'Veículo', field: 'Veiculo_ID' },
+                        { label: 'KM', field: 'KM_Rodados' },
+                        { label: 'Alunos', field: 'Alunos_Transportados' }
+                    ],
+                    fields: [
+                        { name: 'Data', label: 'Data', type: 'date', required: true },
+                        { name: 'Veiculo_ID', label: 'ID Veículo', type: 'text', required: true },
+                        { name: 'KM_Inicial', label: 'KM Inicial', type: 'number', required: true },
+                        { name: 'KM_Final', label: 'KM Final', type: 'number', required: true },
+                        { name: 'Horas_Operacao', label: 'Horas', type: 'number' },
+                        { name: 'Alunos_Transportados', label: 'Alunos', type: 'number', min: '0' },
+                        { name: 'Observacoes', label: 'Observações', type: 'textarea', rows: 2 }
+                    ]
+                },
+
+                'faturamentos': {
+                    title: 'Faturamentos',
+                    searchPlaceholder: 'Buscar faturamentos...',
+                    columns: [
+                        { label: 'Mês', field: 'Mes_Referencia' },
+                        { label: 'Aluno', field: 'Aluno_ID' },
+                        { label: 'Valor', field: 'Valor_Mensalidade' },
+                        { label: 'Status', field: 'Status_Pagamento' }
+                    ],
+                    fields: [
+                        { name: 'Mes_Referencia', label: 'Mês Referência', type: 'month', required: true, helpText: 'Selecione o mês e ano de referência da fatura.' },
+                        { name: 'Aluno_ID', label: 'ID Aluno', type: 'text', required: true },
+                        { name: 'Valor_Mensalidade', label: 'Valor (R$)', type: 'number', step: '0.01', required: true },
+                        { name: 'Data_Vencimento', label: 'Vencimento', type: 'date', required: true },
+                        { name: 'Data_Pagamento', label: 'Pagamento', type: 'date' },
+                        { name: 'Status_Pagamento', label: 'Status', type: 'select', options: ['Pendente', 'Pago', 'Atrasado'], required: true },
+                        { name: 'Forma_Pagamento', label: 'Forma', type: 'select', options: ['Boleto', 'PIX', 'Transferência'] }
+                    ]
+                },
+
+                'atestos': {
+                    title: 'Atestos',
+                    searchPlaceholder: 'Buscar atestos...',
+                    columns: [
+                        { label: 'Aluno', field: 'Aluno_ID' },
+                        { label: 'Tipo', field: 'Tipo_Confirmacao' },
+                        { label: 'Data', field: 'Data_Inicio' },
+                        { label: 'Status', field: 'Status' }
+                    ],
+                    fields: [
+                        { name: 'Aluno_ID', label: 'ID Aluno', type: 'text', required: true },
+                        { name: 'Tipo_Confirmacao', label: 'Tipo', type: 'select', options: ['Atestado Médico', 'Justificativa', 'Ausência Autorizada'], required: true },
+                        { name: 'Data_Inicio', label: 'Data Início', type: 'date', required: true, helpText: 'Data de início da validade do atesto/justificativa.' },
+                        { name: 'Data_Fim', label: 'Data Fim', type: 'date', required: true },
+                        { name: 'Motivo', label: 'Motivo', type: 'textarea', rows: 3, required: true },
+                        { name: 'Unidade_Ensino', label: 'Unidade', type: 'text' },
+                        { name: 'Status', label: 'Status', type: 'select', options: ['Pendente', 'Aprovado', 'Rejeitado'], required: true }
+                    ]
+                },
+
+                'relatorios': {
+                    title: 'Relatórios',
+                    searchPlaceholder: 'Buscar relatórios...',
+                    columns: [
+                        { label: 'Nome', field: 'Nome' },
+                        { label: 'Tipo', field: 'Tipo_Relatorio' },
+                        { label: 'Data', field: 'Data_Geracao' },
+                        { label: 'Status', field: 'Status' }
+                    ],
+                    fields: [
+                        { name: 'Tipo_Relatorio', label: 'Tipo', type: 'select', options: ['Frequência', 'Frota', 'Financeiro', 'Operacional'], required: true },
+                        { name: 'Nome', label: 'Nome', type: 'text', required: true, placeholder: 'Ex: Relatório Mensal de Frequência - Out/24' },
+                        { name: 'Data_Geracao', label: 'Data', type: 'date', required: true },
+                        { name: 'Usuario_Solicitante', label: 'Solicitante', type: 'text', required: true },
+                        { name: 'Status', label: 'Status', type: 'select', options: ['Processando', 'Concluído', 'Erro'], required: true },
+                        { name: 'Formato_Arquivo', label: 'Formato', type: 'select', options: ['PDF', 'Excel', 'CSV'] }
+                    ]
+                },
+
+                'ai-reports': {
+                    title: 'Relatórios IA',
+                    searchPlaceholder: 'Buscar análises...',
+                    columns: [
+                        { label: 'Tipo', field: 'Tipo_Analise' },
+                        { label: 'Algoritmo', field: 'Algoritmo_Usado' },
+                        { label: 'Data', field: 'Data_Processamento' },
+                        { label: 'Confiança', field: 'Confianca_Score' }
+                    ],
+                    fields: [
+                        { name: 'Tipo_Analise', label: 'Tipo', type: 'select', options: ['Preditiva', 'Descritiva', 'Prescritiva'], required: true },
+                        { name: 'Algoritmo_Usado', label: 'Algoritmo', type: 'select', options: ['Machine Learning', 'Deep Learning', 'Regressão'], required: true },
+                        { name: 'Resultado', label: 'Resultado', type: 'textarea', rows: 4, required: true, helpText: 'Resumo dos insights gerados pela IA.' },
+                        { name: 'Confianca_Score', label: 'Confiança (%)', type: 'number', min: '0', max: '100', required: true },
+                        { name: 'Recomendacoes', label: 'Recomendações', type: 'textarea', rows: 3 },
+                        { name: 'Status', label: 'Status', type: 'select', options: ['Processando', 'Concluído', 'Erro'], required: true }
+                    ]
+                },
+
+                'engagement': {
+                    title: 'Engajamento',
+                    searchPlaceholder: 'Buscar interações...',
+                    columns: [
+                        { label: 'Usuário', field: 'Usuario_ID' },
+                        { label: 'Tipo', field: 'Tipo_Usuario' },
+                        { label: 'Ação', field: 'Acao' },
+                        { label: 'Seção', field: 'Secao_Sistema' }
+                    ],
+                    fields: [
+                        { name: 'Usuario_ID', label: 'ID Usuário', type: 'text', required: true },
+                        { name: 'Tipo_Usuario', label: 'Tipo', type: 'select', options: ['Admin', 'Secretário', 'Monitor', 'Responsável'], required: true },
+                        { name: 'Acao', label: 'Ação', type: 'text', required: true },
+                        { name: 'Secao_Sistema', label: 'Seção', type: 'text', required: true },
+                        { name: 'Dispositivo', label: 'Dispositivo', type: 'select', options: ['Desktop', 'Mobile', 'Tablet'] },
+                        { name: 'Satisfacao_Score', label: 'Satisfação (1-5)', type: 'number', min: '1', max: '5' },
+                        { name: 'Feedback', label: 'Feedback', type: 'textarea', rows: 3 }
+                    ]
+                },
+
+                'incidentes': {
+                    title: 'Incidentes',
+                    searchPlaceholder: 'Buscar incidentes...',
+                    columns: [
+                        { label: 'Tipo', field: 'Tipo_Incidente' },
+                        { label: 'Severidade', field: 'Severidade' },
+                        { label: 'Data', field: 'Data_Ocorrencia' },
+                        { label: 'Status', field: 'Status' }
+                    ],
+                    fields: [
+                        { name: 'Tipo_Incidente', label: 'Tipo', type: 'select', options: ['Acidente', 'Pane Mecânica', 'Atraso', 'Comportamento', 'Outro'], required: true },
+                        { name: 'Severidade', label: 'Severidade', type: 'select', options: ['Crítica', 'Alta', 'Média', 'Baixa'], required: true },
+                        { name: 'Data_Ocorrencia', label: 'Data', type: 'date', required: true },
+                        { name: 'Veiculo_ID', label: 'ID Veículo', type: 'text' },
+                        { name: 'Rota_ID', label: 'ID Rota', type: 'text' },
+                        { name: 'Motorista_ID', label: 'ID Motorista', type: 'text' },
+                        { name: 'Descricao', label: 'Descrição', type: 'textarea', rows: 4, required: true },
+                        { name: 'Acao_Tomada', label: 'Ação Tomada', type: 'textarea', rows: 3 },
+                        { name: 'Status', label: 'Status', type: 'select', options: ['Aberto', 'Em Análise', 'Resolvido', 'Fechado'], required: true }
+                    ]
+                },
+
+                'whatsapp': {
+                    title: 'WhatsApp',
+                    searchPlaceholder: 'Buscar mensagens...',
+                    columns: [
+                        { label: 'Destinatário', field: 'Destinatario' },
+                        { label: 'Tipo', field: 'Tipo_Mensagem' },
+                        { label: 'Data', field: 'Data_Envio' },
+                        { label: 'Status', field: 'Status_Envio' }
+                    ],
+                    fields: [
+                        { name: 'Destinatario', label: 'Destinatário', type: 'tel', required: true, placeholder: '+5561999999999' },
+                        { name: 'Tipo_Mensagem', label: 'Tipo', type: 'select', options: ['Texto', 'Imagem', 'Documento', 'Template'], required: true, helpText: 'Templates são mensagens pré-aprovadas.' },
+                        { name: 'Conteudo', label: 'Conteúdo', type: 'textarea', rows: 4, required: true },
+                        { name: 'Status_Envio', label: 'Status', type: 'select', options: ['Pendente', 'Enviado', 'Entregue', 'Lido', 'Erro'], required: true },
+                        { name: 'Data_Envio', label: 'Data Envio', type: 'date' },
+                        { name: 'Campanha', label: 'Campanha', type: 'text' },
+                        { name: 'Rota_ID', label: 'ID Rota', type: 'text' }
+                    ]
+                },
+
+                'mcp-server': {
+                    title: 'MCP Server',
+                    searchPlaceholder: 'Buscar conexões...',
+                    columns: [
+                        { label: 'Tipo', field: 'Tipo_Conexao' },
+                        { label: 'Endpoint', field: 'Endpoint' },
+                        { label: 'Status', field: 'Status' },
+                        { label: 'Última Sync', field: 'Ultima_Sincronizacao' }
+                    ],
+                    fields: [
+                        { name: 'Tipo_Conexao', label: 'Tipo', type: 'select', options: ['API', 'WebSocket', 'Database', 'File'], required: true },
+                        { name: 'Endpoint', label: 'Endpoint', type: 'text', required: true, placeholder: 'Ex: https://api.example.com/data' },
+                        { name: 'Status', label: 'Status', type: 'select', options: ['Conectado', 'Desconectado', 'Erro'], required: true },
+                        { name: 'Ultima_Sincronizacao', label: 'Última Sync', type: 'datetime-local' },
+                        { name: 'Dados_Sincronizados', label: 'Dados Sync', type: 'number', min: '0' },
+                        { name: 'Latencia_MS', label: 'Latência (ms)', type: 'number', min: '0' },
+                        { name: 'Taxa_Sucesso', label: 'Taxa Sucesso (%)', type: 'number', min: '0', max: '100' },
+                        { name: 'Configuracao', label: 'Configuração', type: 'textarea', rows: 3 }
+                    ]
+                },
+
+                'automacoes': {
+                    title: 'Automações',
+                    searchPlaceholder: 'Buscar automações...',
+                    columns: [
+                        { label: 'Nome', field: 'Nome_Automacao' },
+                        { label: 'Tipo', field: 'Tipo' },
+                        { label: 'Trigger', field: 'Trigger' },
+                        { label: 'Status', field: 'Status' }
+                    ],
+                    fields: [
+                        { name: 'Nome_Automacao', label: 'Nome', type: 'text', required: true },
+                        { name: 'Tipo', label: 'Tipo', type: 'select', options: ['Agendada', 'Evento', 'Condicional', 'Manual'], required: true },
+                        { name: 'Trigger', label: 'Gatilho', type: 'text', required: true, helpText: 'Ex: "Diariamente às 23h", "Ao criar novo aluno".' },
+                        { name: 'Condicoes', label: 'Condições', type: 'textarea', rows: 3 },
+                        { name: 'Acoes', label: 'Ações', type: 'textarea', rows: 3, required: true },
+                        { name: 'Status', label: 'Status', type: 'select', options: ['Ativa', 'Inativa', 'Pausada'], required: true },
+                        { name: 'Frequencia_Execucao', label: 'Frequência', type: 'select', options: ['Única', 'Diária', 'Semanal', 'Mensal'] },
+                        { name: 'Ultima_Execucao', label: 'Última Execução', type: 'datetime-local' },
+                        { name: 'Proxima_Execucao', label: 'Próxima Execução', type: 'datetime-local' },
+                        { name: 'Responsavel', label: 'Responsável', type: 'text' }
+                    ]
+                },
+
+                'configuracoes': {
+                    title: 'Configurações',
+                    searchPlaceholder: 'Buscar configurações...',
+                    columns: [
+                        { label: 'Categoria', field: 'Categoria' },
+                        { label: 'Chave', field: 'Chave' },
+                        { label: 'Valor', field: 'Valor' },
+                        { label: 'Última Alteração', field: 'Data_Alteracao' }
+                    ],
+                    fields: [
+                        { name: 'Categoria', label: 'Categoria', type: 'select', options: ['Sistema', 'Interface', 'Segurança', 'Integração', 'Notificação'], required: true },
+                        { name: 'Chave', label: 'Chave', type: 'text', required: true, placeholder: 'Ex: system.theme.default' },
+                        { name: 'Valor', label: 'Valor', type: 'text', required: true },
+                        { name: 'Tipo_Dados', label: 'Tipo de Dados', type: 'select', options: ['String', 'Number', 'Boolean', 'JSON', 'Array'] },
+                        { name: 'Descricao', label: 'Descrição', type: 'textarea', rows: 2 },
+                        { name: 'Usuario_Alteracao', label: 'Usuário', type: 'text' },
+                        { name: 'Data_Alteracao', label: 'Data Alteração', type: 'date' },
+                        { name: 'Valor_Anterior', label: 'Valor Anterior', type: 'text' },
+                        { name: 'Observacoes', label: 'Observações', type: 'textarea', rows: 2 },
+                        { name: 'Requer_Reinicio', label: 'Requer Reinício', type: 'checkbox', checkboxLabel: 'Sim, requer reinicialização do sistema' }
+                    ]
+                },
+
+                'configuracoes': (container) => {
+                    // Renderiza painel de automação e configurações
+                    container.innerHTML = `
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-robot"></i> Automação e Manutenção</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-clock"></i> Triggers Automáticos</h6>
+                            <p class="text-muted small">Gerencie as tarefas agendadas do sistema (limpeza, backups, relatórios).</p>
+                            <div id="trigger-status-container" class="mb-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Carregando...</span>
+                                </div> Carregando status...
+                            </div>
+                            <div class="btn-group w-100">
+                                <button class="btn btn-success" onclick="setupTriggers()">
+                                    <i class="fas fa-play"></i> Ativar Automação
+                                </button>
+                                <button class="btn btn-danger" onclick="removeTriggers()">
+                                    <i class="fas fa-stop"></i> Desativar Tudo
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-cogs"></i> Ações Manuais</h6>
+                            <p class="text-muted small">Execute tarefas de manutenção sob demanda.</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary" onclick="runWeeklyReport()">
+                                    <i class="fas fa-file-alt"></i> Gerar Relatório Semanal
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="runMonthlyBackup()">
+                                    <i class="fas fa-save"></i> Executar Backup Mensal
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Informações do Sistema</h5>
+                </div>
+                <div class="card-body">
+                    <div id="system-info-container">
+                        <!-- Info do sistema será carregada aqui -->
+                    </div>
+                </div>
+            </div>
+        `;
+
+                    // Carrega status dos triggers
+                    loadTriggerStatus();
+                }
+            };
+
+            // Funções de controle de automação
+            async function loadTriggerStatus() {
+                const container = document.getElementById('trigger-status-container');
+                if (!container) return;
+
+                try {
+                    const response = await window.API.run('handleTriggerList', 'GET');
+                    if (response.success && response.data.length > 0) {
+                        let html = '<ul class="list-group list-group-flush mb-2">';
+                        response.data.forEach(t => {
+                            html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${t.function}
+                    <span class="badge bg-info rounded-pill">${t.type}</span>
+                </li>`;
+                        });
+                        html += '</ul>';
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = '<div class="alert alert-warning">Nenhum trigger ativo. A automação está desligada.</div>';
+                    }
+                } catch (error) {
+                    container.innerHTML = `<div class="alert alert-danger">Erro ao carregar status: ${error.message}</div>`;
+                }
+            }
+
+            async function setupTriggers() {
+                if (!confirm('Deseja ativar todas as automações do sistema?')) return;
+
+                window.ToastManager.show('Configurando triggers...', 'info');
+                try {
+                    const response = await window.API.run('handleTriggerSetup', 'POST');
+                    if (response.success) {
+                        window.ToastManager.show('Automação ativada com sucesso!', 'success');
+                        loadTriggerStatus();
+                    } else {
+                        window.ToastManager.show('Erro ao ativar automação', 'error');
+                    }
+                } catch (error) {
+                    window.ToastManager.show(`Erro: ${error.message}`, 'error');
+                }
+            }
+
+            async function removeTriggers() {
+                if (!confirm('ATENÇÃO: Isso irá desativar todas as tarefas automáticas (backups, relatórios, limpeza). Continuar?')) return;
+
+                window.ToastManager.show('Removendo triggers...', 'warning');
+                try {
+                    const response = await window.API.run('handleTriggerRemove', 'POST');
+                    if (response.success) {
+                        window.ToastManager.show('Automação desativada.', 'success');
+                        loadTriggerStatus();
+                    }
+                } catch (error) {
+                    window.ToastManager.show(`Erro: ${error.message}`, 'error');
+                }
+            }
+
+            async function runWeeklyReport() {
+                window.ToastManager.show('Gerando relatório...', 'info');
+                try {
+                    const response = await window.API.run('handleWeeklyReport', 'POST');
+                    if (response.success) {
+                        window.ToastManager.show('Relatório enviado por e-mail!', 'success');
+                    }
+                } catch (error) {
+                    window.ToastManager.show(`Erro: ${error.message}`, 'error');
+                }
+            }
+
+            async function runMonthlyBackup() {
+                window.ToastManager.show('Iniciando backup...', 'info');
+                try {
+                    const response = await window.API.run('handleMonthlyBackup', 'POST');
+                    if (response.success) {
+                        window.ToastManager.show('Backup realizado com sucesso!', 'success');
+                    }
+                } catch (error) {
+                    window.ToastManager.show(`Erro: ${error.message}`, 'error');
+                }
+            }
+
+            /* * ============================================================================
+            * UI OVERRIDES & CUSTOMIZATIONS
+            * ============================================================================
+            * Centraliza as customizações de UI que podem ser diferentes da configuração
+            * padrão vinda do backend. Isso é útil para adaptar formulários e colunas
+            * para necessidades específicas do frontend sem alterar o backend.
+            *
+            * Este conceito é similar à correção necessária no teste `UX.mainSheets.fullCRUD`,
+            * onde cada planilha precisa de um conjunto de campos específico. */
+            const UI_OVERRIDES = {
+                'alunos': {
+                    // Exemplo: Se quiséssemos um formulário diferente do padrão
+                    // formUrl: 'Form-Alunos-Simplificado'
+                },
+                'veiculos': {
+                    // Exemplo: Se a coluna 'Placa' no backend se chama 'ID_Veiculo'
+                    // mas queremos mostrar 'Placa' na UI.
+                    columns: [
+                        { label: 'Placa', field: 'Placa' },
+                        { label: 'Modelo', field: 'Modelo' },
+                        { label: 'Status', field: 'Status', render: (row) => `<span class="status-badge ${row.Status?.toLowerCase()}">${row.Status}</span>` }
+                    ]
+                },
+                'rotas': {
+                    // Exemplo: Adicionar um campo de ajuda específico do frontend
+                    // fields: [ ... campos com helpText customizado ... ]
+                }
+            };
+
+            // ============================================================================
+            // AUTO-INICIALIZAÇÃO
+            // ============================================================================
+
+            /* * Despachante de eventos 100% DATA-DRIVEN - Versão 3.0
+            * Decide o que fazer quando uma seção é alterada consultando o SheetMappingManager */
+            const sectionChangeDispatcher = async (e) => {
+                const { section: sectionId } = e.detail;
+
+                if (!window.SheetMappingManager || !window.CRUDManagerUniversal) {
+                    console.warn('[Dispatcher] Módulos essenciais (SheetMappingManager, CRUDManagerUniversal) não carregados.');
+                    return;
+                }
+
+                console.log(`[Dispatcher] 📍 Processando seção: ${sectionId}`);
+
+                // 1. Verifica se a seção tem um handler customizado
+                if (CUSTOM_SECTION_HANDLERS[sectionId]) {
+                    const handler = CUSTOM_SECTION_HANDLERS[sectionId];
+                    if (typeof handler === 'function') {
+                        console.log(`[Dispatcher] ⚙️ Executando handler customizado para: ${sectionId}`);
+                        const customContainer = document.querySelector(`#${sectionId}-section`);
+                        if (customContainer) {
+                            handler(customContainer);
+                        } else {
+                            console.error(`[Dispatcher] ❌ Container #${sectionId}-section não encontrado.`);
+                        }
+                    }
+                    return; // Handler customizado processado
+                }
+
+                // 2. Obtém metadados da seção do SheetMappingManager
+                const metadata = SheetMappingManager.getSectionMetadata(sectionId);
+                if (!metadata) {
+                    console.log(`[Dispatcher] ⚠️ Metadados não encontrados para: ${sectionId}`);
+                    return;
+                }
+
+                // 3. Verifica se a seção tem tabs (múltiplas planilhas)
+                if (metadata.tabs && metadata.tabs.length > 1) {
+                    console.log(`[Dispatcher] 📑 Seção com ${metadata.tabs.length} tabs - TabManager cuidará da inicialização`);
+                    // O TabManager (em JS-TabManager.html) cuidará da renderização
+                    return;
+                }
+
+                // 4. Obtém configuração da tabela do backend
+                const sheetName = metadata.sheetName || metadata.sheets[0];
+                const tableConfig = SheetMappingManager.getTableConfig(sheetName);
+
+                if (!tableConfig) {
+                    console.error(`[Dispatcher] ❌ Configuração de tabela não encontrada para '${sheetName}'`);
+                    return;
+                }
+
+                // 5. Verifica se há container CRUD
+                const container = document.querySelector(`#${sectionId}-crud-container`);
+                if (!container) {
+                    console.log(`[Dispatcher] ℹ️ Container CRUD não encontrado para ${sectionId} - pode ser seção customizada`);
+                    return;
+                }
+
+                // 6. Verifica se já foi inicializado
+                if (CRUDManagerUniversal.instances[sectionId]) {
+                    console.log(`[Dispatcher] ✓ CRUD para ${sectionId} já inicializado`);
+                    return;
+                }
+
+                // 7. Inicializa CRUD com configuração do backend
+                console.log(`[Dispatcher] 🚀 Inicializando CRUD data-driven para: ${sectionId}`);
+
+                // Merge com overrides de UI se existirem
+                const uiOverride = UI_OVERRIDES[sectionId] || {};
+
+                CRUDManagerUniversal.init({
+                    sectionId: sectionId,
+                    sheetName: sheetName,
+                    title: metadata.displayName || tableConfig.title,
+                    searchPlaceholder: `Buscar em ${metadata.displayName}...`,
+                    columns: uiOverride.columns || tableConfig.columns,
+                    fields: uiOverride.fields || tableConfig.fields,
+                    formUrl: metadata.formUrl || uiOverride.formUrl,
+                    hasCustomUI: metadata.hasCustomUI || false
+                });
+
+                console.log(`[Dispatcher] ✅ ${sectionId} inicializado com sucesso`);
+            };
+
+            document.addEventListener('sectionChanged', sectionChangeDispatcher);
+            console.log('[BusinessLogic] ✅ Despachante data-driven v3.0 configurado');
+
+            console.log('[BusinessLogic] Lógica de negócios inicializada');
+        });
+    })();
+
+</script>
+
+
+
+<!--============================================================================-->

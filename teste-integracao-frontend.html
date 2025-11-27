@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste de Integração Frontend</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-card {
+      background: white;
+      padding: 20px;
+      margin: 10px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .btn:hover { background: #45a049; }
+    .btn-danger { background: #f44336; }
+    .btn-danger:hover { background: #da190b; }
+    .result {
+      background: #f9f9f9;
+      padding: 10px;
+      margin-top: 10px;
+      border-left: 4px solid #4CAF50;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    .result.error {
+      border-left-color: #f44336;
+      background: #ffebee;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Teste de Integração Frontend-Backend</h1>
+  
+  <div class="test-card">
+    <h2>1. Teste de Leitura (readRecords)</h2>
+    <p>Testa se consegue ler dados da planilha Alunos</p>
+    <button class="btn" onclick="testRead()">▶️ Executar Teste</button>
+    <div id="result-read" class="result" style="display:none;"></div>
+  </div>
+  
+  <div class="test-card">
+    <h2>2. Teste de Criação (createRecord)</h2>
+    <p>Testa se consegue criar um novo registro</p>
+    <button class="btn" onclick="testCreate()">▶️ Executar Teste</button>
+    <div id="result-create" class="result" style="display:none;"></div>
+  </div>
+  
+  <div class="test-card">
+    <h2>3. Teste de Atualização (updateRecord)</h2>
+    <p>Testa se consegue atualizar um registro existente</p>
+    <button class="btn" onclick="testUpdate()">▶️ Executar Teste</button>
+    <div id="result-update" class="result" style="display:none;"></div>
+  </div>
+  
+  <div class="test-card">
+    <h2>4. Teste de Exclusão (deleteRecord)</h2>
+    <p>Testa se consegue excluir um registro</p>
+    <button class="btn btn-danger" onclick="testDelete()">▶️ Executar Teste</button>
+    <div id="result-delete" class="result" style="display:none;"></div>
+  </div>
+  
+  <div class="test-card">
+    <h2>5. Teste de Erro (Validação)</h2>
+    <p>Testa se erros do backend são tratados corretamente</p>
+    <button class="btn" onclick="testError()">▶️ Executar Teste</button>
+    <div id="result-error" class="result" style="display:none;"></div>
+  </div>
+  
+  <div class="test-card">
+    <h2>6. Executar Todos os Testes</h2>
+    <button class="btn" onclick="runAllTests()">▶️ Executar Todos</button>
+  </div>
+
+  <script>
+    // Simula o API client (em produção, virá do JS-Core.html)
+    const API = {
+      run(action, payload) {
+        console.log(`[API] ${action}`, payload);
+        
+        // Verifica se está no ambiente Google Apps Script
+        if (typeof google === 'undefined' || !google.script || !google.script.run) {
+          return Promise.reject(new Error('Ambiente Google Apps Script não detectado. Execute via Web App.'));
+        }
+        
+        return new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler((response) => {
+              console.log(`[API Response] ${action}:`, response);
+              
+              // Verifica se é erro
+              if (response && response.success === false) {
+                reject(new Error(response.error || 'Erro desconhecido'));
+              } else {
+                resolve(response);
+              }
+            })
+            .withFailureHandler((error) => {
+              console.error(`[API Error] ${action}:`, error);
+              reject(error);
+            })
+            [action](payload);
+        });
+      }
+    };
+    
+    // Funções de teste
+    async function testRead() {
+      const resultDiv = document.getElementById('result-read');
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = 'Executando...';
+      resultDiv.className = 'result';
+      
+      try {
+        const response = await API.run('readRecords', { sheetName: 'Alunos' });
+        
+        let result = '✅ SUCESSO\n\n';
+        result += `success: ${response.success}\n`;
+        result += `count: ${response.count || (response.data ? response.data.length : 0)}\n`;
+        result += `data: ${response.data ? 'Array com ' + response.data.length + ' itens' : 'N/A'}\n\n`;
+        result += 'Primeiros 3 registros:\n';
+        result += JSON.stringify(response.data?.slice(0, 3), null, 2);
+        
+        resultDiv.textContent = result;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.textContent = `❌ ERRO\n\n${error.message}`;
+      }
+    }
+    
+    async function testCreate() {
+      const resultDiv = document.getElementById('result-create');
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = 'Executando...';
+      resultDiv.className = 'result';
+      
+      try {
+        const testData = {
+          Nome_Completo: 'Teste Integração ' + Date.now(),
+          RA: 'TEST-' + Date.now(),
+          Escola: 'Escola Teste',
+          Status_Ativo: 'Ativo'
+        };
+        
+        const response = await API.run('createRecord', { 
+          sheetName: 'Alunos', 
+          data: testData 
+        });
+        
+        let result = '✅ SUCESSO\n\n';
+        result += `success: ${response.success}\n`;
+        result += `id: ${response.id || response.data?.ID}\n`;
+        result += `message: ${response.message}\n\n`;
+        result += 'Dados criados:\n';
+        result += JSON.stringify(response.data, null, 2);
+        
+        resultDiv.textContent = result;
+        
+        // Salva ID para próximos testes
+        window.testRecordId = response.id || response.data?.ID;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.textContent = `❌ ERRO\n\n${error.message}`;
+      }
+    }
+    
+    async function testUpdate() {
+      const resultDiv = document.getElementById('result-update');
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = 'Executando...';
+      resultDiv.className = 'result';
+      
+      if (!window.testRecordId) {
+        resultDiv.className = 'result error';
+        resultDiv.textContent = '❌ Execute o teste de criação primeiro para obter um ID';
+        return;
+      }
+      
+      try {
+        const response = await API.run('updateRecord', { 
+          sheetName: 'Alunos', 
+          id: window.testRecordId,
+          data: { Nome_Completo: 'Teste ATUALIZADO ' + Date.now() }
+        });
+        
+        let result = '✅ SUCESSO\n\n';
+        result += `success: ${response.success}\n`;
+        result += `message: ${response.message}\n\n`;
+        result += 'Dados atualizados:\n';
+        result += JSON.stringify(response.data, null, 2);
+        
+        resultDiv.textContent = result;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.textContent = `❌ ERRO\n\n${error.message}`;
+      }
+    }
+    
+    async function testDelete() {
+      const resultDiv = document.getElementById('result-delete');
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = 'Executando...';
+      resultDiv.className = 'result';
+      
+      if (!window.testRecordId) {
+        resultDiv.className = 'result error';
+        resultDiv.textContent = '❌ Execute o teste de criação primeiro para obter um ID';
+        return;
+      }
+      
+      if (!confirm('Tem certeza que deseja excluir o registro de teste?')) {
+        resultDiv.textContent = 'Cancelado pelo usuário';
+        return;
+      }
+      
+      try {
+        const response = await API.run('deleteRecord', { 
+          sheetName: 'Alunos', 
+          id: window.testRecordId
+        });
+        
+        let result = '✅ SUCESSO\n\n';
+        result += `success: ${response.success}\n`;
+        result += `message: ${response.message}\n`;
+        
+        resultDiv.textContent = result;
+        window.testRecordId = null;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.textContent = `❌ ERRO\n\n${error.message}`;
+      }
+    }
+    
+    async function testError() {
+      const resultDiv = document.getElementById('result-error');
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = 'Executando...';
+      resultDiv.className = 'result';
+      
+      try {
+        // Tenta criar registro sem dados obrigatórios
+        const response = await API.run('createRecord', { 
+          sheetName: 'Alunos', 
+          data: {} // Dados inválidos
+        });
+        
+        resultDiv.className = 'result error';
+        resultDiv.textContent = '❌ FALHOU\n\nDeveria ter retornado erro, mas retornou sucesso!';
+      } catch (error) {
+        // Esperado: deve cair aqui
+        let result = '✅ SUCESSO (erro tratado corretamente)\n\n';
+        result += `Erro capturado: ${error.message}\n\n`;
+        result += 'Isso é o comportamento esperado!';
+        
+        resultDiv.textContent = result;
+      }
+    }
+    
+    async function runAllTests() {
+      console.log('🧪 Executando todos os testes...');
+      
+      await testRead();
+      await new Promise(r => setTimeout(r, 1000));
+      
+      await testCreate();
+      await new Promise(r => setTimeout(r, 1000));
+      
+      await testUpdate();
+      await new Promise(r => setTimeout(r, 1000));
+      
+      await testError();
+      await new Promise(r => setTimeout(r, 1000));
+      
+      await testDelete();
+      
+      console.log('✅ Todos os testes concluídos!');
+      alert('✅ Todos os testes concluídos! Verifique os resultados na página.');
+    }
+  </script>
+</body>
+</html>

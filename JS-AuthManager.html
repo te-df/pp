@@ -1,0 +1,329 @@
+<!--============================================================================-->
+
+<script>
+
+/* ============================================================================
+ AUTH MANAGER - Gerenciamento de Autenticação e Sessão
+ Controla login, logout, permissões e sessão do usuário
+ ============================================================================ */
+(function() {
+    'use strict';
+
+ const AuthManager = {
+ currentUser: null,
+        sessionKey: 'sigte_session',
+
+ // Usuários de demo (substitua por chamada ao backend em produção)
+ demoUsers: {
+            'monitor01': {
+                username: 'monitor01',
+                password: 'monitor123', // Em produção, use hash
+                role: 'MONITOR',
+                nome: 'Silva Monitor',
+                permissions: ['frequencia:read', 'frequencia:write', 'rotas:read']
+ },
+            'secretario01': {
+                username: 'secretario01',
+                password: 'secret123',
+                role: 'SECRETARIO',
+                nome: 'Ana Secretária',
+                permissions: ['eventos:read', 'eventos:write', 'reposicao:write', 'relatorios:read']
+ },
+            'admin': {
+                username: 'admin',
+                password: 'Admin@2026', // <-- ALTERE AQUI PARA UMA SENHA FORTE
+                role: 'ADMIN',
+                nome: 'Administrador',
+                permissions: ['*'] // Todas as permissões
+ }
+ },
+
+ init() {
+            console.log('[AuthManager] Inicializando...');
+ this.loadSession();
+ this.setupEventListeners();
+ this.updateUI();
+ },
+
+ /* * Realiza login do usuário */
+ async login(username, password) {
+ try {
+                Logger.info('[Auth] Tentativa de login:', username);
+
+ // Em produção, chamar API
+                // const response = await API.run('authenticateUser', { username, password });
+
+ // Demo: validação local
+ const user = this.demoUsers[username];
+
+ if (!user) {
+                    throw new Error('Usuário não encontrado');
+ }
+
+ if (user.password !== password) {
+                    throw new Error('Senha incorreta');
+ }
+
+ // Criar sessão
+ this.currentUser = {
+ username: user.username,
+ nome: user.nome,
+ role: user.role,
+ permissions: user.permissions,
+ loginTime: new Date().toISOString()
+ };
+
+ // Salvar sessão
+ this.saveSession();
+
+                Logger.info('[Auth] Login bem-sucedido:', this.currentUser.nome);
+                ToastManager.show(`Bem-vindo(a), ${this.currentUser.nome}!`, 'success');
+
+ // Atualizar UI
+ this.updateUI();
+
+ // Redirecionar para dashboard apropriado
+ this.redirectToDashboard();
+
+ return { success: true, user: this.currentUser };
+
+ } catch (error) {
+                Logger.error('[Auth] Erro no login:', error);
+                ToastManager.show(error.message || 'Erro ao fazer login', 'error');
+ return { success: false, error: error.message };
+ }
+ },
+
+ /* * Realiza logout do usuário */
+ logout() {
+            Logger.info('[Auth] Fazendo logout:', this.currentUser?.username);
+
+ this.currentUser = null;
+ this.clearSession();
+ this.updateUI();
+
+            ToastManager.show('Você saiu do sistema', 'info');
+
+ // Redirecionar para login
+ this.showLoginScreen();
+ },
+
+ /* * Verifica se usuário está logado */
+ isLoggedIn() {
+ return this.currentUser !== null;
+ },
+
+ /* * Verifica se usuário tem permissão */
+ hasPermission(permission) {
+ if (!this.currentUser) return false;
+
+ // Admin tem todas as permissões
+            if (this.currentUser.permissions.includes('*')) return true;
+
+ return this.currentUser.permissions.includes(permission);
+ },
+
+ /* * Obtém usuário atual */
+ getCurrentUser() {
+ return this.currentUser;
+ },
+
+ /* * Salva sessão no localStorage */
+ saveSession() {
+ if (this.currentUser) {
+ localStorage.setItem(this.sessionKey, JSON.stringify(this.currentUser));
+ }
+ },
+
+ /* * Carrega sessão do localStorage */
+ loadSession() {
+ try {
+ const sessionData = localStorage.getItem(this.sessionKey);
+ if (sessionData) {
+ this.currentUser = JSON.parse(sessionData);
+                    Logger.info('[Auth] Sessão restaurada:', this.currentUser.username);
+ }
+ } catch (error) {
+                Logger.error('[Auth] Erro ao carregar sessão:', error);
+ this.clearSession();
+ }
+ },
+
+ /* * Limpa sessão */
+ clearSession() {
+ localStorage.removeItem(this.sessionKey);
+ },
+
+ /* * Atualiza UI com base no estado de autenticação */
+ updateUI() {
+            const authBtn = document.getElementById('auth-btn');
+            const userName = document.getElementById('user-name-display');
+
+ if (this.isLoggedIn()) {
+ // Usuário logado - BOTÃO VIRA LOGOUT
+ if (authBtn) {
+                    authBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
+ authBtn.title = `Sair (${this.currentUser.nome})`;
+                    authBtn.classList.add('logged-in');
+                    authBtn.style.color = 'var(--error, var(--md-sys-color-error))'; // Vermelho para logout
+ }
+ if (userName) {
+ userName.textContent = this.currentUser.nome;
+ }
+
+ // Mostrar/ocultar seções baseado em permissões
+ this.applyPermissions();
+
+ // Disparar evento para outros componentes
+                document.dispatchEvent(new CustomEvent('auth-changed', {
+ detail: { loggedIn: true, user: this.currentUser }
+ }));
+
+ } else {
+ // Usuário não logado - BOTÃO VIRA LOGIN
+ if (authBtn) {
+                    authBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i>';
+                    authBtn.title = 'Fazer Login';
+                    authBtn.classList.remove('logged-in');
+                    authBtn.style.color = ''; // Voltar cor padrão
+ }
+ if (userName) {
+                    userName.textContent = 'Visitante';
+ }
+
+ // Disparar evento para outros componentes
+                document.dispatchEvent(new CustomEvent('auth-changed', {
+ detail: { loggedIn: false }
+ }));
+ }
+ },
+
+ /* * Aplica permissões na UI */
+ applyPermissions() {
+ // Esconder seções sem permissão
+            const navButtons = document.querySelectorAll('.nav-btn');
+ navButtons.forEach(btn => {
+ const section = btn.dataset.section;
+ const permission = `${section}:read`;
+
+                if (!this.hasPermission(permission) && !this.hasPermission('*')) {
+                    btn.style.display = 'none';
+ } else {
+                    btn.style.display = '';
+ }
+ });
+ },
+
+ /* * Redireciona para dashboard apropriado */
+ redirectToDashboard() {
+ if (!this.currentUser) return;
+
+ const dashboards = {
+                'MONITOR': 'frequencia-section',
+                'SECRETARIO': 'eventos-section',
+                'ADMIN': 'dashboard-section'
+ };
+
+            const targetSection = dashboards[this.currentUser.role] || 'dashboard-section';
+
+ // Navegar para seção apropriada
+            if (typeof NavigationManager !== 'undefined') {
+ NavigationManager.navigateToSection(targetSection);
+ }
+ },
+
+ /* * Mostra tela de login */
+ showLoginScreen() {
+            if (typeof DrawerManager !== 'undefined') {
+                DrawerManager.openDrawer('user-drawer');
+ }
+ },
+
+ /* * Configura event listeners */
+ setupEventListeners() {
+ // Listener para formulário de login
+            document.addEventListener('submit', (e) => {
+                if (e.target.id === 'login-form') {
+ e.preventDefault();
+ this.handleLoginSubmit(e.target);
+ }
+ });
+
+ // Listener para logout
+            document.addEventListener('click', (e) => {
+                if (e.target.closest('#logout-btn, .logout-btn')) {
+ e.preventDefault();
+ this.logout();
+ }
+
+ // NOVO: Comportamento alternado do botão auth-btn
+                if (e.target.closest('#auth-btn')) {
+                    const btn = e.target.closest('#auth-btn');
+
+ if (this.isLoggedIn()) {
+ // Se logado, fazer logout direto
+ e.preventDefault();
+ e.stopPropagation();
+
+ // Confirmar logout
+ if (confirm(`Deseja sair da conta de ${this.currentUser.nome}?`)) {
+ this.logout();
+
+ // Fechar drawer se estiver aberto
+                            if (typeof closeDrawer !== 'undefined') {
+                                closeDrawer('user-drawer');
+ }
+ }
+ }
+ // Se não logado, deixar o DrawerManager abrir o drawer normalmente
+ }
+ });
+ },
+
+ /* * Processa submissão do formulário de login */
+ async handleLoginSubmit(form) {
+            const username = form.querySelector('#login-username')?.value;
+            const password = form.querySelector('#login-password')?.value;
+
+ if (!username || !password) {
+                ToastManager.show('Preencha usuário e senha', 'warning');
+ return;
+ }
+
+            LoadingManager.show('Autenticando...');
+
+ const result = await this.login(username, password);
+
+ LoadingManager.hide();
+
+ if (result.success) {
+ // Fechar drawer de login
+                if (typeof DrawerManager !== 'undefined') {
+                    DrawerManager.closeDrawer('user-drawer');
+ }
+
+ // Limpar formulário
+ form.reset();
+ }
+ }
+ };
+
+ // Expor globalmente
+ window.AuthManager = AuthManager;
+
+ // Inicializar quando DOM estiver pronto
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => AuthManager.init());
+ } else {
+ AuthManager.init();
+ }
+
+    console.log('[AuthManager] Script carregado');
+
+})();
+
+</script>
+
+
+
+<!--============================================================================-->

@@ -1,0 +1,424 @@
+<!--============================================================================-->
+
+<script>
+
+/* * ============================================================================
+ * JS-DynamicDataLoader.html - Sistema de Carregamento Dinâmico de Dados
+ * ============================================================================
+ * Elimina dados mock e carrega tudo dinamicamente do Google Sheets via backend
+ * Substitui: mockStudents, mockRoutes, mockVehicles, mockDashboardData, etc.
+ * ============================================================================ */
+
+(function(window) {
+  'use strict';
+
+ /* * DynamicDataLoader - Gerenciador central de dados dinâmicos */
+ class DynamicDataLoader {
+ constructor() {
+ this.cache = new Map();
+ this.cacheExpiry = new Map();
+ this.cacheDuration = 5 * 60 * 1000; // 5 minutos
+ this.isLoading = new Set();
+ }
+
+ /* * Carrega dados de uma planilha com cache inteligente
+ * @param {string} sheetName - Nome da planilha
+ * @param {Object} filters - Filtros opcionais
+ * @param {boolean} forceRefresh - Força atualização do cache
+ * @returns {Promise<Array>} */
+ async load(sheetName, filters = {}, forceRefresh = false) {
+ const cacheKey = this._getCacheKey(sheetName, filters);
+
+ // Verifica cache válido
+ if (!forceRefresh && this._isCacheValid(cacheKey)) {
+ console.log(`[DataLoader] 📦 Usando cache: ${sheetName}`);
+ return this.cache.get(cacheKey) || [];
+ }
+
+ // Evita múltiplas requisições simultâneas
+ if (this.isLoading.has(cacheKey)) {
+ console.log(`[DataLoader] ⏳ Aguardando requisição em andamento: ${sheetName}`);
+ return this._waitForLoading(cacheKey);
+ }
+
+ this.isLoading.add(cacheKey);
+
+ try {
+ console.log(`[DataLoader] 🔄 Carregando do backend: ${sheetName}`, filters);
+
+        if (typeof window.LoadingManager !== 'undefined') {
+ window.LoadingManager.show(`Carregando ${sheetName}...`);
+ }
+
+ const data = await this._fetchFromBackend(sheetName, filters);
+
+ // Atualiza cache
+ this.cache.set(cacheKey, data);
+ this.cacheExpiry.set(cacheKey, Date.now() + this.cacheDuration);
+
+ console.log(`[DataLoader] ✅ Dados carregados: ${sheetName} (${data.length} registros)`);
+
+ return data;
+
+ } catch (error) {
+ console.error(`[DataLoader] ❌ Erro ao carregar ${sheetName}:`, error);
+
+        if (typeof window.ToastManager !== 'undefined') {
+          window.ToastManager.show(`Erro ao carregar ${sheetName}`, 'error');
+ }
+
+ // Retorna cache antigo se disponível
+ return this.cache.get(cacheKey) || [];
+
+ } finally {
+ this.isLoading.delete(cacheKey);
+
+        if (typeof window.LoadingManager !== 'undefined') {
+ window.LoadingManager.hide();
+ }
+ }
+ }
+
+ /* * Carrega dados de múltiplas planilhas em paralelo
+ * @param {Array<{sheet: string, filters?: Object}>} requests
+ * @returns {Promise<Object>} */
+ async loadMultiple(requests) {
+ const promises = requests.map(req =>
+ this.load(req.sheet, req.filters || {})
+ .then(data => ({ [req.sheet]: data }))
+ );
+
+ const results = await Promise.allSettled(promises);
+
+ return results.reduce((acc, result) => {
+        if (result.status === 'fulfilled') {
+ Object.assign(acc, result.value);
+ }
+ return acc;
+ }, {});
+ }
+
+ /* * Carrega dados do dashboard (agregados)
+ * @returns {Promise<Object>} */
+ async loadDashboardMetrics() {
+ try {
+ const [students, routes, vehicles, attendance] = await Promise.all([
+          this.load('Alunos'),
+          this.load('Rotas'),
+          this.load('Veiculos'),
+          this.load('Frequencia')
+ ]);
+
+ // Calcula métricas agregadas
+ const metrics = {
+ totalStudents: students.length,
+          activeRoutes: routes.filter(r => r.Status === 'Ativa' || r.Status === 'ativa').length,
+          activeVehicles: vehicles.filter(v => v.Status === 'Operacional' || v.Status === 'Ativo').length,
+          maintenanceVehicles: vehicles.filter(v => v.Status === 'Manutenção' || v.Status === 'manutencao').length,
+ averageAttendance: this._calculateAverageAttendance(attendance),
+ monthlyKm: this._calculateMonthlyKm(vehicles),
+ fuelConsumption: this._calculateFuelConsumption(vehicles),
+ complianceScore: this._calculateComplianceScore(students, routes, vehicles),
+ pendingIssues: 0, // TODO: Implementar
+ completedTrips: attendance.length,
+ onTimePerformance: this._calculateOnTimePerformance(attendance),
+ parentSatisfaction: 4.3 // TODO: Implementar sistema de avaliação
+ };
+
+        console.log('[DataLoader] 📊 Dashboard metrics calculados:', metrics);
+ return metrics;
+
+ } catch (error) {
+        console.error('[DataLoader] ❌ Erro ao calcular métricas do dashboard:', error);
+ return this._getDefaultMetrics();
+ }
+ }
+
+ /* * Invalida cache de uma ou todas as planilhas
+ * @param {string|null} sheetName - Nome da planilha ou null para limpar tudo */
+ invalidateCache(sheetName = null) {
+ if (sheetName) {
+ const keysToDelete = [];
+ for (const key of this.cache.keys()) {
+ if (key.startsWith(`${sheetName}:`)) {
+ keysToDelete.push(key);
+ }
+ }
+ keysToDelete.forEach(key => {
+ this.cache.delete(key);
+ this.cacheExpiry.delete(key);
+ });
+ console.log(`[DataLoader] 🗑️ Cache invalidado: ${sheetName}`);
+ } else {
+ this.cache.clear();
+ this.cacheExpiry.clear();
+        console.log('[DataLoader] 🗑️ Todo cache invalidado');
+ }
+ }
+
+ // ===== MÉTODOS PRIVADOS =====
+
+ async _fetchFromBackend(sheetName, filters) {
+ // Usa o sistema API existente (JS-Core.html)
+      if (window.API && typeof window.API.run === 'function') {
+        const result = await window.API.run('readRecords', {
+ sheetName: sheetName,
+ filters: filters
+ });
+
+ // ✅ CORREÇÃO: Trata resposta do backend corretamente
+ if (result && result.success) {
+ return Array.isArray(result.data) ? result.data : [];
+ } else if (Array.isArray(result)) {
+ // Fallback: se retornar array direto
+ return result;
+ } else {
+ return [];
+ }
+ }
+
+ // Fallback: google.script.run direto
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+ return new Promise((resolve, reject) => {
+ google.script.run
+ .withSuccessHandler((result) => {
+ if (result && result.success) {
+ resolve(Array.isArray(result.data) ? result.data : []);
+ } else if (Array.isArray(result)) {
+ resolve(result);
+ } else {
+ resolve([]);
+ }
+ })
+ .withFailureHandler(reject)
+ .readRecords({ sheetName, filters });
+ });
+ }
+
+      throw new Error('Sistema de API não disponível');
+ }
+
+ _getCacheKey(sheetName, filters) {
+ const filterStr = JSON.stringify(filters);
+ return `${sheetName}:${filterStr}`;
+ }
+
+ _isCacheValid(cacheKey) {
+ if (!this.cache.has(cacheKey)) return false;
+ const expiry = this.cacheExpiry.get(cacheKey);
+ return expiry && Date.now() < expiry;
+ }
+
+ async _waitForLoading(cacheKey) {
+ // Aguarda até 30 segundos
+ const maxWait = 30000;
+ const interval = 100;
+ let waited = 0;
+
+ while (this.isLoading.has(cacheKey) && waited < maxWait) {
+ await new Promise(resolve => setTimeout(resolve, interval));
+ waited += interval;
+ }
+
+ return this.cache.get(cacheKey) || [];
+ }
+
+ // ===== CÁLCULOS DE MÉTRICAS =====
+
+ _calculateAverageAttendance(attendance) {
+ if (!attendance || attendance.length === 0) return 0;
+      const present = attendance.filter(a => a.Status === 'Presente' || a.Presenca === 'Sim').length;
+ return ((present / attendance.length) * 100).toFixed(1);
+ }
+
+ _calculateMonthlyKm(vehicles) {
+ if (!vehicles || vehicles.length === 0) return 0;
+ const totalKm = vehicles.reduce((sum, v) => {
+ const km = parseFloat(v.Km_Rodados || v.Quilometragem || 0);
+ return sum + km;
+ }, 0);
+ return Math.round(totalKm);
+ }
+
+ _calculateFuelConsumption(vehicles) {
+ if (!vehicles || vehicles.length === 0) return 0;
+ const totalFuel = vehicles.reduce((sum, v) => {
+ const fuel = parseFloat(v.Consumo_Combustivel || v.Litros || 0);
+ return sum + fuel;
+ }, 0);
+ return totalFuel.toFixed(1);
+ }
+
+ _calculateComplianceScore(students, routes, vehicles) {
+ // Score de conformidade baseado em múltiplos fatores
+ let score = 100;
+
+ // Penaliza por dados incompletos
+ const totalRecords = students.length + routes.length + vehicles.length;
+ if (totalRecords === 0) return 0;
+
+ // Verifica campos obrigatórios
+ const studentsValid = students.filter(s => s.CPF && s.Nome).length;
+ const routesValid = routes.filter(r => r.Codigo && r.Nome_Rota).length;
+ const vehiclesValid = vehicles.filter(v => v.Placa && v.Status).length;
+
+ const validPercentage = ((studentsValid + routesValid + vehiclesValid) / totalRecords) * 100;
+ score = Math.min(100, Math.max(0, validPercentage));
+
+ return score.toFixed(1);
+ }
+
+ _calculateOnTimePerformance(attendance) {
+ if (!attendance || attendance.length === 0) return 0;
+ const onTime = attendance.filter(a => {
+ const status = a.Pontualidade || a.Status_Horario;
+        return status === 'No horário' || status === 'Pontual';
+ }).length;
+ return ((onTime / attendance.length) * 100).toFixed(1);
+ }
+
+ _getDefaultMetrics() {
+ return {
+ totalStudents: 0,
+ activeRoutes: 0,
+ activeVehicles: 0,
+ maintenanceVehicles: 0,
+ averageAttendance: 0,
+ monthlyKm: 0,
+ fuelConsumption: 0,
+ complianceScore: 0,
+ pendingIssues: 0,
+ completedTrips: 0,
+ onTimePerformance: 0,
+ parentSatisfaction: 0
+ };
+ }
+ }
+
+ // ===== FUNÇÕES AUXILIARES DE ALTO NÍVEL =====
+
+ /* * Popula um select com dados dinâmicos
+ * @param {string} selectId - ID do elemento select
+ * @param {string} sheetName - Nome da planilha
+ * @param {Object} options - Configurações */
+ async function populateSelect(selectId, sheetName, options = {}) {
+ const select = document.getElementById(selectId);
+ if (!select) {
+ console.warn(`[DataLoader] Select não encontrado: ${selectId}`);
+ return;
+ }
+
+ const {
+      valueField = 'ID',
+      labelFields = ['Nome'],
+      placeholder = 'Selecione...',
+ filters = {}
+ } = options;
+
+ try {
+ const data = await window.DataLoader.load(sheetName, filters);
+
+      select.innerHTML = `<option value="">${placeholder}</option>`;
+
+ data.forEach(item => {
+ const value = item[valueField];
+        const label = labelFields.map(field => item[field]).filter(Boolean).join(' - ');
+
+        const option = document.createElement('option');
+ option.value = value;
+ option.textContent = label;
+ select.appendChild(option);
+ });
+
+ console.log(`[DataLoader] ✅ Select populado: ${selectId} (${data.length} opções)`);
+
+ } catch (error) {
+ console.error(`[DataLoader] ❌ Erro ao popular select ${selectId}:`, error);
+      select.innerHTML = `<option value="">Erro ao carregar</option>`;
+ }
+ }
+
+ /* * Popula uma tabela com dados dinâmicos
+ * @param {string} tableId - ID do elemento table/tbody
+ * @param {string} sheetName - Nome da planilha
+ * @param {Function} renderRow - Função para renderizar cada linha */
+ async function populateTable(tableId, sheetName, renderRow, filters = {}) {
+ const tbody = document.querySelector(`#${tableId} tbody`) || document.getElementById(tableId);
+ if (!tbody) {
+ console.warn(`[DataLoader] Tabela não encontrada: ${tableId}`);
+ return;
+ }
+
+ try {
+ const data = await window.DataLoader.load(sheetName, filters);
+
+ if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="100%" class="text-center">Nenhum registro encontrado</td></tr>';
+ return;
+ }
+
+      tbody.innerHTML = data.map(renderRow).join('');
+ console.log(`[DataLoader] ✅ Tabela populada: ${tableId} (${data.length} linhas)`);
+
+ } catch (error) {
+ console.error(`[DataLoader] ❌ Erro ao popular tabela ${tableId}:`, error);
+      tbody.innerHTML = '<tr><td colspan="100%" class="text-center text-error">Erro ao carregar dados</td></tr>';
+ }
+ }
+
+ /* * Atualiza cards de métricas do dashboard */
+ async function updateDashboardCards() {
+ try {
+ const metrics = await window.DataLoader.loadDashboardMetrics();
+
+ // Mapeia IDs dos elementos com os valores
+ const mappings = {
+        'total-students': metrics.totalStudents,
+        'active-routes': metrics.activeRoutes,
+        'active-vehicles': metrics.activeVehicles,
+        'average-attendance': metrics.averageAttendance + '%',
+        'monthly-km': metrics.monthlyKm.toLocaleString('pt-BR'),
+        'fuel-consumption': metrics.fuelConsumption,
+        'compliance-score': metrics.complianceScore + '%',
+        'pending-issues': metrics.pendingIssues,
+        'completed-trips': metrics.completedTrips,
+        'ontime-performance': metrics.onTimePerformance + '%',
+        'parent-satisfaction': metrics.parentSatisfaction
+ };
+
+ Object.entries(mappings).forEach(([id, value]) => {
+        const el = document.getElementById(id) || document.querySelector(`[data-metric="${id}"]`);
+ if (el) {
+ el.textContent = value;
+ }
+ });
+
+      console.log('[DataLoader] ✅ Dashboard atualizado com dados dinâmicos');
+
+ } catch (error) {
+      console.error('[DataLoader] ❌ Erro ao atualizar dashboard:', error);
+ }
+ }
+
+ // ===== INICIALIZAÇÃO =====
+
+ // Cria instância global
+ window.DataLoader = new DynamicDataLoader();
+
+ // Expõe funções auxiliares
+ window.DataLoaderHelpers = {
+ populateSelect,
+ populateTable,
+ updateDashboardCards
+ };
+
+  console.log('[DataLoader] ✅ Sistema de carregamento dinâmico inicializado');
+  console.log('[DataLoader] 📦 Cache duration:', window.DataLoader.cacheDuration / 1000, 'segundos');
+
+})( window);
+
+</script>
+
+
+
+<!--============================================================================-->

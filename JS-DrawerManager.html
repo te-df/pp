@@ -1,0 +1,122 @@
+<!--
+============================================================================
+  DRAWER MANAGER - v4.0
+============================================================================
+  * Gerenciador central para todos os drawers da aplicação.
+  * Controla abertura, fechamento, backdrops e foco.
+  * Substitui implementações antigas e conflitantes.
+============================================================================
+-->
+<script>
+(function() {
+    'use strict';
+
+    console.log('[DrawerManager] 🚀 Inicializando...');
+
+    const DrawerManager = {
+        lastFocusedElement: null,
+
+        open(drawerId, triggerElement) {
+            const drawer = document.getElementById(drawerId);
+            if (!drawer) {
+                console.error(`[DrawerManager] ❌ Drawer não encontrado: #${drawerId}`);
+                return;
+            }
+
+            console.log(`[DrawerManager] ✅ Abrindo: ${drawerId}`);
+
+            // Fechar outros drawers abertos para evitar sobreposição
+            this.closeAll(drawerId);
+
+            // Salvar o elemento que tinha o foco
+            this.lastFocusedElement = triggerElement || document.activeElement;
+
+            // Ativar backdrop
+            const backdrop = this.getBackdrop(drawerId);
+            if (backdrop) {
+                backdrop.classList.add('active');
+            }
+
+            // Ativar drawer
+            drawer.classList.add('active');
+            drawer.setAttribute('aria-hidden', 'false');
+
+            // Focar no primeiro elemento focável dentro do drawer
+            const firstFocusable = drawer.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (firstFocusable) {
+                setTimeout(() => firstFocusable.focus(), 100);
+            }
+
+            // Adicionar listener para a tecla ESC
+            document.addEventListener('keydown', this.handleEscKey);
+        },
+
+        close(drawerId) {
+            const drawer = document.getElementById(drawerId);
+            if (!drawer || !drawer.classList.contains('active')) return;
+
+            console.log(`[DrawerManager] 🔒 Fechando: ${drawerId}`);
+
+            const backdrop = this.getBackdrop(drawerId);
+            if (backdrop) {
+                backdrop.classList.remove('active');
+            }
+
+            drawer.classList.remove('active');
+            drawer.setAttribute('aria-hidden', 'true');
+
+            // Devolver o foco para o elemento original
+            if (this.lastFocusedElement && typeof this.lastFocusedElement.focus === 'function') {
+                this.lastFocusedElement.focus();
+            }
+            this.lastFocusedElement = null;
+
+            document.removeEventListener('keydown', this.handleEscKey);
+        },
+
+        closeAll(exceptDrawerId = null) {
+            document.querySelectorAll('.app-drawer.active').forEach(drawer => {
+                if (drawer.id !== exceptDrawerId) {
+                    this.close(drawer.id);
+                }
+            });
+        },
+
+        getBackdrop(drawerId) {
+            return document.getElementById(drawerId + '-backdrop');
+        },
+
+        handleEscKey(event) {
+            if (event.key === 'Escape') {
+                const activeDrawer = document.querySelector('.app-drawer.active');
+                if (activeDrawer) {
+                    DrawerManager.close(activeDrawer.id);
+                }
+            }
+        },
+
+        init() {
+            document.body.addEventListener('click', (e) => {
+                const trigger = e.target.closest('[data-drawer-target]');
+                if (trigger) {
+                    e.preventDefault();
+                    this.open(trigger.dataset.drawerTarget, trigger);
+                } else if (e.target.classList.contains('drawer-backdrop')) {
+                    this.close(e.target.id.replace('-backdrop', ''));
+                } else if (e.target.closest('[data-drawer-close]')) {
+                    const drawer = e.target.closest('.app-drawer');
+                    if (drawer) this.close(drawer.id);
+                }
+            });
+            console.log('[DrawerManager] ✅ Event listeners configurados!');
+        }
+    };
+
+    // Bind para garantir o 'this' correto no event listener
+    DrawerManager.handleEscKey = DrawerManager.handleEscKey.bind(DrawerManager);
+
+    // Expor globalmente e inicializar
+    window.DrawerManager = DrawerManager;
+    DrawerManager.init();
+})();
+</script>

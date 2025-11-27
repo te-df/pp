@@ -1,0 +1,221 @@
+// ====================================================================
+// SERVICE WORKER - PWA COMPLETO - OTIMIZADO PARA LIGHTHOUSE
+// ====================================================================
+
+const CACHE_VERSION = 'v3.0.0';
+const CACHE_NAME = `sigte-cache-${CACHE_VERSION}`;
+const RUNTIME_CACHE = `sigte-runtime-${CACHE_VERSION}`;
+const IMAGE_CACHE = `sigte-images-${CACHE_VERSION}`;
+
+const APP_SHELL_URL = './';
+
+// Cache de recursos essenciais (App Shell)
+const PRECACHE_URLS = [
+ APP_SHELL_URL,
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'
+];
+
+// Recursos pesados carregados sob demanda
+const RUNTIME_URLS = [
+  'https://cdn.jsdelivr.net/npm/chart.js',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+];
+
+// Tamanho máximo dos caches
+const MAX_RUNTIME_CACHE_SIZE = 50;
+const MAX_IMAGE_CACHE_SIZE = 30;
+
+// ====================================================================
+// INSTALL EVENT - Pré-cache de recursos essenciais
+// ====================================================================
+self.addEventListener('install', (event) => {
+  console.log('[SW] 🚀 Instalando Service Worker versão:', CACHE_VERSION);
+
+ event.waitUntil(
+ caches.open(CACHE_NAME)
+ .then((cache) => {
+        console.log('[SW] 📦 Pré-cacheando recursos essenciais...');
+ return cache.addAll(PRECACHE_URLS);
+ })
+ .then(() => {
+        console.log('[SW] ✅ Pré-cache concluído com sucesso!');
+ // Skip waiting para ativar imediatamente
+ return self.skipWaiting();
+ })
+ .catch((error) => {
+        console.error('[SW] ❌ Erro no pré-cache:', error);
+ })
+ );
+});
+
+// ====================================================================
+// FETCH EVENT - Estratégias inteligentes de cache
+// ====================================================================
+self.addEventListener('fetch', (event) => {
+ const { request } = event;
+ const url = new URL(request.url);
+
+ // Ignorar requisições não-GET
+  if (request.method !== 'GET') return;
+
+ // Ignorar requisições de APIs do Google Apps Script
+  if (url.pathname.includes('/exec') || url.searchParams.has('run')) {
+ return; // Não cachear chamadas de API
+ }
+
+ // Estratégia 1: CACHE FIRST para CSS, JS, Fonts (recursos estáticos)
+ if (
+    request.destination === 'style' ||
+    request.destination === 'script' ||
+    request.destination === 'font'
+ ) {
+ event.respondWith(cacheFirst(request));
+ return;
+ }
+
+ // Estratégia 2: CACHE FIRST para imagens com limite de cache
+  if (request.destination === 'image') {
+ event.respondWith(cacheFirstWithLimit(request, IMAGE_CACHE, MAX_IMAGE_CACHE_SIZE));
+ return;
+ }
+
+ // Estratégia 3: NETWORK FIRST para HTML (conteúdo dinâmico)
+  if (request.destination === 'document' || request.headers.get('accept')?.includes('text/html')) {
+ event.respondWith(networkFirst(request));
+ return;
+ }
+
+ // Estratégia 4: STALE WHILE REVALIDATE para outros recursos
+ event.respondWith(staleWhileRevalidate(request));
+});
+
+// ====================================================================
+// ESTRATÉGIAS DE CACHE
+// ====================================================================
+
+// Cache First - Prioriza cache, fallback para rede
+async function cacheFirst(request) {
+ const cached = await caches.match(request);
+ if (cached) {
+ return cached;
+ }
+
+ try {
+ const response = await fetch(request);
+ if (response.ok) {
+ const cache = await caches.open(RUNTIME_CACHE);
+ cache.put(request, response.clone());
+ }
+ return response;
+ } catch (error) {
+    console.error('[SW] Fetch falhou:', error);
+    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+ }
+}
+
+// Cache First com limite de tamanho
+async function cacheFirstWithLimit(request, cacheName, maxItems) {
+ const cached = await caches.match(request);
+ if (cached) return cached;
+
+ try {
+ const response = await fetch(request);
+ if (response.ok) {
+ const cache = await caches.open(cacheName);
+ cache.put(request, response.clone());
+
+ // Limitar tamanho do cache
+ const keys = await cache.keys();
+ if (keys.length > maxItems) {
+ await cache.delete(keys[0]); // Remove o mais antigo
+ }
+ }
+ return response;
+ } catch (error) {
+    return cached || new Response('Offline', { status: 503 });
+ }
+}
+
+// Network First - Prioriza rede, fallback para cache
+async function networkFirst(request) {
+ try {
+ const response = await fetch(request);
+ if (response.ok) {
+ const cache = await caches.open(CACHE_NAME);
+ cache.put(request, response.clone());
+ }
+ return response;
+ } catch (error) {
+ const cached = await caches.match(request);
+ if (cached) {
+ return cached;
+ }
+ // Fallback para App Shell
+ return caches.match(APP_SHELL_URL);
+ }
+}
+
+// Stale While Revalidate - Retorna cache e atualiza em background
+async function staleWhileRevalidate(request) {
+ const cache = await caches.open(RUNTIME_CACHE);
+ const cached = await cache.match(request);
+
+ const fetchPromise = fetch(request).then((response) => {
+ if (response.ok) {
+ cache.put(request, response.clone());
+ }
+ return response;
+ });
+
+ return cached || fetchPromise;
+}
+
+// ====================================================================
+// ACTIVATE EVENT - Limpeza de caches antigos
+// ====================================================================
+self.addEventListener('activate', (event) => {
+  console.log('[SW] 🔄 Ativando Service Worker versão:', CACHE_VERSION);
+
+ const currentCaches = [CACHE_NAME, RUNTIME_CACHE, IMAGE_CACHE];
+
+ event.waitUntil(
+ caches.keys()
+ .then((cacheNames) => {
+ return Promise.all(
+ cacheNames.map((cacheName) => {
+ if (!currentCaches.includes(cacheName)) {
+              console.log('[SW] 🗑️ Deletando cache antigo:', cacheName);
+ return caches.delete(cacheName);
+ }
+ })
+ );
+ })
+ .then(() => {
+        console.log('[SW] ✅ Service Worker ativado e assumindo controle');
+ // Assumir controle de todos os clientes imediatamente
+ return self.clients.claim();
+ })
+ );
+});
+
+// ====================================================================
+// MESSAGE EVENT - Comunicação com a aplicação
+// ====================================================================
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+ self.skipWaiting();
+ }
+
+  if (event.data && event.data.type === 'CACHE_CLEAR') {
+ event.waitUntil(
+ caches.keys().then((cacheNames) => {
+ return Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+ })
+ );
+ }
+});
+
+console.log('[SW] 📋 Service Worker registrado - Versão:', CACHE_VERSION);

@@ -1,0 +1,334 @@
+<script>
+  /**
+   * JS-JobMonitor - Monitoramento de Jobs Assíncronos
+   * Gerencia polling e notificações de status de jobs
+   */
+
+  (function () {
+    'use strict';
+
+    // ============================================================================
+    // CONFIGURAÇÃO
+    // ============================================================================
+
+    const JOB_CONFIG = {
+      POLLING_INTERVAL: 3000, // 3 segundos
+      TIMEOUT: 300000, // 5 minutos
+      MAX_RETRIES: 3
+    };
+
+    const JOB_STATUS = {
+      PENDING: 'PENDING',
+      CLAIMED: 'CLAIMED',
+      RUNNING: 'RUNNING',
+      COMPLETED: 'COMPLETED',
+      FAILED: 'FAILED'
+    };
+
+    const STATUS_COLORS = {
+      PENDING: '#FFC107',    // Amarelo
+      CLAIMED: '#FF9800',    // Laranja
+      RUNNING: '#2196F3',    // Azul
+      COMPLETED: '#4CAF50',  // Verde
+      FAILED: '#F44336'      // Vermelho
+    };
+
+    const STATUS_LABELS = {
+      PENDING: 'Aguardando',
+      CLAIMED: 'Reivindicado',
+      RUNNING: 'Processando',
+      COMPLETED: 'Concluído',
+      FAILED: 'Falhou'
+    };
+
+    // ============================================================================
+    // GERENCIADOR DE JOBS
+    // ============================================================================
+
+    window.JobMonitor = {
+      activeJobs: new Map(),
+
+      /**
+       * Controla o indicador global de atividade
+       */
+      toggleGlobalIndicator: function (show) {
+        const indicator = document.getElementById('global-activity-indicator');
+        if (!indicator) return;
+
+        if (show) {
+          indicator.classList.remove('hidden');
+        } else {
+          // Só esconde se não houver jobs ativos
+          if (this.activeJobs.size === 0) {
+            indicator.classList.add('hidden');
+          }
+        }
+      },
+
+      /**
+       * Inicia um novo job
+       */
+      startJob: function (jobName, payload, callbacks) {
+        const jobData = {
+          jobName: jobName,
+          payload: payload || {},
+          callbacks: callbacks || {},
+          startTime: Date.now(),
+          retries: 0
+        };
+
+        // Mostra notificação inicial
+        this.showJobNotification(null, JOB_STATUS.PENDING, jobName);
+
+        // Ativa indicador global
+        this.toggleGlobalIndicator(true);
+
+        // Enfileira o job
+        google.script.run
+          .withSuccessHandler((response) => {
+            if (response.success) {
+              const jobId = response.data.jobId;
+              jobData.jobId = jobId;
+              this.activeJobs.set(jobId, jobData);
+
+              // Inicia polling
+              this.startPolling(jobId);
+            } else {
+              this.handleJobError(null, response.error, callbacks.onError);
+            }
+          })
+          .withFailureHandler((error) => {
+            this.handleJobError(null, error, callbacks.onError);
+          })
+          .handleRequest('/api/job/start', 'POST', {
+            jobName: jobName,
+            payload: payload
+          });
+      },
+
+      /**
+       * Inicia polling de um job
+       */
+      startPolling: function (jobId) {
+        const jobData = this.activeJobs.get(jobId);
+        if (!jobData) return;
+
+        const pollInterval = setInterval(() => {
+          // Verifica timeout
+          if (Date.now() - jobData.startTime > JOB_CONFIG.TIMEOUT) {
+            clearInterval(pollInterval);
+            this.handleJobTimeout(jobId);
+            return;
+          }
+
+          // Consulta status
+          google.script.run
+            .withSuccessHandler((response) => {
+              if (response.success) {
+                this.handleJobStatus(jobId, response.data, pollInterval);
+              }
+            })
+            .withFailureHandler((error) => {
+              jobData.retries++;
+              if (jobData.retries >= JOB_CONFIG.MAX_RETRIES) {
+                clearInterval(pollInterval);
+                this.handleJobError(jobId, error, jobData.callbacks.onError);
+              }
+            })
+            .checkJobStatus(jobId);
+
+        }, JOB_CONFIG.POLLING_INTERVAL);
+
+        jobData.pollInterval = pollInterval;
+      },
+
+      /**
+       * Processa status do job
+       */
+      handleJobStatus: function (jobId, status, pollInterval) {
+        const jobData = this.activeJobs.get(jobId);
+        if (!jobData) return;
+
+        // Atualiza notificação (apenas se mudou o status ou a cada X polls para feedback visual)
+        // Para evitar spam, podemos verificar se o status mudou
+        if (jobData.lastStatus !== status.status) {
+          this.showJobNotification(jobId, status.status, jobData.jobName);
+          jobData.lastStatus = status.status;
+        }
+
+        // Verifica se finalizou
+        if (status.status === JOB_STATUS.COMPLETED) {
+          clearInterval(pollInterval);
+          this.handleJobSuccess(jobId, status);
+        } else if (status.status === JOB_STATUS.FAILED) {
+          clearInterval(pollInterval);
+          this.handleJobFailure(jobId, status);
+        }
+      },
+
+      /**
+       * Trata sucesso do job
+       */
+      handleJobSuccess: function (jobId, status) {
+        const jobData = this.activeJobs.get(jobId);
+        if (!jobData) return;
+
+        // Callback de sucesso
+        if (jobData.callbacks.onSuccess) {
+          jobData.callbacks.onSuccess(status.result);
+        }
+
+        // Remove da lista de ativos
+        this.activeJobs.delete(jobId);
+        this.toggleGlobalIndicator(false);
+
+        // Notificação de sucesso
+        this.showSuccessNotification(jobData.jobName, status.result);
+      },
+
+      /**
+       * Trata falha do job
+       */
+      handleJobFailure: function (jobId, status) {
+        const jobData = this.activeJobs.get(jobId);
+        if (!jobData) return;
+
+        // Callback de erro
+        if (jobData.callbacks.onError) {
+          jobData.callbacks.onError({
+            errorCode: status.errorCode,
+            errorMessage: status.errorMessage
+          });
+        }
+
+        // Remove da lista de ativos
+        this.activeJobs.delete(jobId);
+        this.toggleGlobalIndicator(false);
+
+        // Notificação de erro
+        this.showErrorNotification(
+          jobData.jobName,
+          status.errorCode,
+          status.errorMessage
+        );
+      },
+
+      /**
+       * Trata timeout do job
+       */
+      handleJobTimeout: function (jobId) {
+        const jobData = this.activeJobs.get(jobId);
+        if (!jobData) return;
+
+        if (jobData.callbacks.onError) {
+          jobData.callbacks.onError({
+            errorCode: 'TIMEOUT',
+            errorMessage: 'Job excedeu o tempo limite de 5 minutos'
+          });
+        }
+
+        this.activeJobs.delete(jobId);
+        this.toggleGlobalIndicator(false);
+        this.showErrorNotification(jobData.jobName, 'TIMEOUT', 'Tempo limite excedido');
+      },
+
+      /**
+       * Trata erro genérico
+       */
+      handleJobError: function (jobId, error, callback) {
+        if (callback) {
+          callback({ errorCode: 'ERROR', errorMessage: error });
+        }
+
+        if (jobId) {
+          this.activeJobs.delete(jobId);
+        }
+
+        this.toggleGlobalIndicator(false);
+
+        this.showErrorNotification('Job', 'ERROR', error);
+      },
+
+      /**
+       * Mostra notificação de status
+       */
+      showJobNotification: function (jobId, status, jobName) {
+        const color = STATUS_COLORS[status] || '#757575';
+        const label = STATUS_LABELS[status] || status;
+
+        if (window.NotificationManager) {
+          // Usa a cor como tipo (NotificationManager foi atualizado para aceitar cores hex)
+          window.NotificationManager.show(
+            `${jobName}: ${label}`,
+            color,
+            status === JOB_STATUS.COMPLETED || status === JOB_STATUS.FAILED ? 5000 : 3000
+          );
+        }
+      },
+
+      /**
+       * Mostra notificação de sucesso
+       */
+      showSuccessNotification: function (jobName, result) {
+        if (window.NotificationManager) {
+          window.NotificationManager.success(`${jobName} concluído com sucesso!`);
+        }
+      },
+
+      /**
+       * Mostra notificação de erro
+       */
+      showErrorNotification: function (jobName, errorCode, errorMessage) {
+        if (window.NotificationManager) {
+          window.NotificationManager.error(
+            `${jobName} falhou: ${errorMessage}`,
+            { duration: 10000 }
+          );
+        }
+      },
+
+      /**
+       * Cancela todos os jobs ativos
+       */
+      cancelAllJobs: function () {
+        this.activeJobs.forEach((jobData, jobId) => {
+          if (jobData.pollInterval) {
+            clearInterval(jobData.pollInterval);
+          }
+        });
+        this.activeJobs.clear();
+        this.toggleGlobalIndicator(false);
+      }
+    };
+
+    // ============================================================================
+    // FUNÇÕES AUXILIARES GLOBAIS
+    // ============================================================================
+
+    /**
+     * Inicia polling de job (compatibilidade)
+     */
+    window.startJobPolling = function (jobId, jobName, successCallback, errorCallback) {
+      const jobData = {
+        jobId: jobId,
+        jobName: jobName,
+        callbacks: {
+          onSuccess: successCallback,
+          onError: errorCallback
+        },
+        startTime: Date.now(),
+        retries: 0
+      };
+
+      JobMonitor.activeJobs.set(jobId, jobData);
+      JobMonitor.startPolling(jobId);
+    };
+
+    // ============================================================================
+    // INICIALIZAÇÃO
+    // ============================================================================
+
+    console.log('✓ JobMonitor carregado');
+
+  })();
+</script>

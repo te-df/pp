@@ -1,0 +1,372 @@
+<script>
+/**
+ * JS-Utils.html
+ * Funções utilitárias globais do sistema TE-DF-PP
+ * 
+ * @version 1.0.0
+ * @date 2025-10-23
+ * @dependencies Nenhuma (deve ser carregado PRIMEIRO)
+ */
+
+(function() {
+  'use strict';
+
+  window.Utils = {
+    /**
+     * Formata data para padrão brasileiro (DD/MM/YYYY)
+     * @param {string|Date} dateString - Data a ser formatada
+     * @returns {string} Data formatada ou string vazia
+     */
+    formatDate(dateString) {
+      if (!dateString) return '';
+      try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '';
+        
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        
+        return `${day}/${month}/${year}`;
+      } catch (e) {
+        console.error('[Utils] Erro ao formatar data:', e);
+        return '';
+      }
+    },
+
+    /**
+     * Formata data/hora para padrão brasileiro (DD/MM/YYYY HH:mm)
+     * @param {string|Date} dateString - Data/hora a ser formatada
+     * @returns {string} Data/hora formatada
+     */
+    formatDateTime(dateString) {
+      if (!dateString) return '';
+      try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '';
+        
+        const dateStr = this.formatDate(date);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        
+        return `${dateStr} ${hours}:${minutes}`;
+      } catch (e) {
+        console.error('[Utils] Erro ao formatar data/hora:', e);
+        return '';
+      }
+    },
+
+    /**
+     * Formata moeda para padrão brasileiro (R$ 1.234,56)
+     * @param {number} value - Valor numérico
+     * @returns {string} Valor formatado em moeda
+     */
+    formatCurrency(value) {
+      if (value === null || value === undefined || isNaN(value)) return 'R$ 0,00';
+      
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(value);
+    },
+
+    /**
+     * Formata número com separadores (1.234,56)
+     * @param {number} value - Valor numérico
+     * @param {number} decimals - Casas decimais (padrão: 2)
+     * @returns {string} Número formatado
+     */
+    formatNumber(value, decimals = 2) {
+      if (value === null || value === undefined || isNaN(value)) return '0';
+      
+      return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      }).format(value);
+    },
+
+    /**
+     * Debounce - Limita execução de função
+     * @param {Function} func - Função a ser executada
+     * @param {number} wait - Tempo de espera em ms (padrão: 300)
+     * @returns {Function} Função debounced
+     */
+    debounce(func, wait = 300) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    },
+
+    /**
+     * Throttle - Garante execução máxima a cada intervalo
+     * @param {Function} func - Função a ser executada
+     * @param {number} limit - Intervalo mínimo em ms (padrão: 1000)
+     * @returns {Function} Função throttled
+     */
+    throttle(func, limit = 1000) {
+      let inThrottle;
+      return function(...args) {
+        if (!inThrottle) {
+          func.apply(this, args);
+          inThrottle = true;
+          setTimeout(() => inThrottle = false, limit);
+        }
+      };
+    },
+
+    /**
+     * Valida CPF brasileiro
+     * @param {string} cpf - CPF a ser validado
+     * @returns {boolean} True se válido
+     */
+    validateCPF(cpf) {
+      if (!cpf) return false;
+      
+      // Remove caracteres não numéricos
+      cpf = cpf.replace(/[^\d]/g, '');
+      
+      // Verifica tamanho
+      if (cpf.length !== 11) return false;
+      
+      // Verifica se todos os dígitos são iguais
+      if (/^(\d)\1{10}$/.test(cpf)) return false;
+      
+      // Valida primeiro dígito verificador
+      let sum = 0;
+      for (let i = 0; i < 9; i++) {
+        sum += parseInt(cpf.charAt(i)) * (10 - i);
+      }
+      let digit = 11 - (sum % 11);
+      if (digit >= 10) digit = 0;
+      if (digit !== parseInt(cpf.charAt(9))) return false;
+      
+      // Valida segundo dígito verificador
+      sum = 0;
+      for (let i = 0; i < 10; i++) {
+        sum += parseInt(cpf.charAt(i)) * (11 - i);
+      }
+      digit = 11 - (sum % 11);
+      if (digit >= 10) digit = 0;
+      if (digit !== parseInt(cpf.charAt(10))) return false;
+      
+      return true;
+    },
+
+    /**
+     * Valida e-mail
+     * @param {string} email - E-mail a ser validado
+     * @returns {boolean} True se válido
+     */
+    validateEmail(email) {
+      if (!email) return false;
+      const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return regex.test(email);
+    },
+
+    /**
+     * Valida telefone brasileiro (celular ou fixo)
+     * @param {string} phone - Telefone a ser validado
+     * @returns {boolean} True se válido
+     */
+    validatePhone(phone) {
+      if (!phone) return false;
+      
+      // Remove caracteres não numéricos
+      phone = phone.replace(/[^\d]/g, '');
+      
+      // Celular: (11) 98888-8888 = 11 dígitos
+      // Fixo: (11) 3888-8888 = 10 dígitos
+      return phone.length === 10 || phone.length === 11;
+    },
+
+    /**
+     * Valida placa de veículo (Mercosul ou padrão antigo)
+     * @param {string} placa - Placa a ser validada
+     * @returns {boolean} True se válida
+     */
+    validatePlaca(placa) {
+      if (!placa) return false;
+      
+      placa = placa.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      
+      // Padrão antigo: ABC1234 (3 letras + 4 números)
+      const oldPattern = /^[A-Z]{3}[0-9]{4}$/;
+      
+      // Padrão Mercosul: ABC1D23 (3 letras + 1 número + 1 letra + 2 números)
+      const mercosulPattern = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
+      
+      return oldPattern.test(placa) || mercosulPattern.test(placa);
+    },
+
+    /**
+     * Gera ID único baseado em timestamp + random
+     * @param {string} prefix - Prefixo opcional
+     * @returns {string} ID único
+     */
+    generateUniqueId(prefix = '') {
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).substr(2, 9);
+      return prefix ? `${prefix}-${timestamp}-${random}` : `${timestamp}-${random}`;
+    },
+
+    /**
+     * Sanitiza HTML para prevenir XSS
+     * @param {string} unsafe - String não confiável
+     * @returns {string} String sanitizada
+     */
+    escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      
+      return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    },
+
+    /**
+     * Remove acentos de string
+     * @param {string} str - String com acentos
+     * @returns {string} String sem acentos
+     */
+    removeAccents(str) {
+      if (!str) return '';
+      
+      return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    },
+
+    /**
+     * Capitaliza primeira letra de cada palavra
+     * @param {string} str - String a ser capitalizada
+     * @returns {string} String capitalizada
+     */
+    capitalize(str) {
+      if (!str) return '';
+      
+      return str.toLowerCase().replace(/(?:^|\s)\S/g, char => char.toUpperCase());
+    },
+
+    /**
+     * Trunca string adicionando reticências
+     * @param {string} str - String a ser truncada
+     * @param {number} maxLength - Tamanho máximo
+     * @returns {string} String truncada
+     */
+    truncate(str, maxLength = 50) {
+      if (!str || str.length <= maxLength) return str;
+      
+      return str.substring(0, maxLength - 3) + '...';
+    },
+
+    /**
+     * Copia texto para clipboard
+     * @param {string} text - Texto a ser copiado
+     * @returns {Promise<boolean>} True se copiado com sucesso
+     */
+    async copyToClipboard(text) {
+      try {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } else {
+          // Fallback para navegadores antigos
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          const success = document.execCommand('copy');
+          document.body.removeChild(textarea);
+          return success;
+        }
+      } catch (e) {
+        console.error('[Utils] Erro ao copiar para clipboard:', e);
+        return false;
+      }
+    },
+
+    /**
+     * Aguarda um tempo específico (delay)
+     * @param {number} ms - Milissegundos para aguardar
+     * @returns {Promise<void>}
+     */
+    sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    },
+
+    /**
+     * Verifica se objeto está vazio
+     * @param {Object} obj - Objeto a ser verificado
+     * @returns {boolean} True se vazio
+     */
+    isEmpty(obj) {
+      if (obj === null || obj === undefined) return true;
+      if (Array.isArray(obj)) return obj.length === 0;
+      if (typeof obj === 'object') return Object.keys(obj).length === 0;
+      if (typeof obj === 'string') return obj.trim() === '';
+      return false;
+    },
+
+    /**
+     * Deep clone de objeto
+     * @param {any} obj - Objeto a ser clonado
+     * @returns {any} Clone profundo
+     */
+    deepClone(obj) {
+      if (obj === null || typeof obj !== 'object') return obj;
+      
+      try {
+        return JSON.parse(JSON.stringify(obj));
+      } catch (e) {
+        console.error('[Utils] Erro ao clonar objeto:', e);
+        return obj;
+      }
+    },
+
+    /**
+     * Calcula diferença entre datas em dias
+     * @param {Date|string} date1 - Data inicial
+     * @param {Date|string} date2 - Data final
+     * @returns {number} Diferença em dias
+     */
+    daysBetween(date1, date2) {
+      const d1 = new Date(date1);
+      const d2 = new Date(date2);
+      const diffTime = Math.abs(d2 - d1);
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    },
+
+    /**
+     * Verifica se data é hoje
+     * @param {Date|string} date - Data a verificar
+     * @returns {boolean} True se for hoje
+     */
+    isToday(date) {
+      const d = new Date(date);
+      const today = new Date();
+      return d.getDate() === today.getDate() &&
+             d.getMonth() === today.getMonth() &&
+             d.getFullYear() === today.getFullYear();
+    }
+  };
+
+  // Disponibiliza globalmente
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Utils;
+  }
+
+  console.log('[Utils] ✅ Módulo carregado com sucesso');
+  console.log('[Utils] 📦 Funções disponíveis:', Object.keys(Utils).length);
+
+})();
+</script>

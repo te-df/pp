@@ -1,0 +1,670 @@
+<!--============================================================================-->
+
+<style>
+/*
+  ============================================================================
+  WIDGET: DATASET MONITOR - SIG-TE
+  ============================================================================
+  Widget de monitoramento do dataset para dashboard
+  Exibe tamanho atual, status e ações rápidas
+  
+  Versão: 1.0
+  Data: 2025-10-20
+  ============================================================================
+*/
+
+.dataset-monitor-widget {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 24px;
+  color: white;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  min-height: 300px;
+  position: relative;
+  overflow: hidden;
+}
+
+.dataset-monitor-widget::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.widget-title {
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.widget-title i {
+  font-size: 24px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-ok { background: rgba(16, 185, 129, 0.3); border: 2px solid #10b981; }
+.status-warning { background: rgba(245, 158, 11, 0.3); border: 2px solid #f59e0b; }
+.status-critical { background: rgba(239, 68, 68, 0.3); border: 2px solid #ef4444; }
+
+.dataset-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 8px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.stat-label {
+  font-size: 12px;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.progress-section {
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.progress-bar-container {
+  background: rgba(0, 0, 0, 0.2);
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 6px;
+  transition: width 0.5s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.widget-actions {
+  display: flex;
+  gap: 12px;
+  position: relative;
+}
+
+.widget-btn {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.widget-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.widget-btn:active {
+  transform: translateY(0);
+}
+
+.widget-btn i {
+  font-size: 16px;
+}
+
+.widget-btn.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.widget-btn.loading i {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.last-cleanup {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.last-cleanup i {
+  font-size: 16px;
+}
+
+.critical-sheets {
+  margin-top: 16px;
+  position: relative;
+}
+
+.critical-sheets-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  opacity: 0.9;
+}
+
+.sheet-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.sheet-item:hover {
+  background: rgba(0, 0, 0, 0.3);
+  transform: translateX(4px);
+}
+
+.sheet-name {
+  font-weight: 600;
+}
+
+.sheet-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* Animação de entrada */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dataset-monitor-widget {
+  animation: fadeInUp 0.5s ease;
+}
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dataset-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-value {
+    font-size: 28px;
+  }
+  
+  .widget-actions {
+    flex-direction: column;
+  }
+}
+</style>
+
+<div id="datasetMonitorWidget-1" class="dataset-monitor-widget">
+  <div class="widget-header">
+    <div class="widget-title">
+      <i class="fas fa-database"></i>
+      <span>Monitor de Dataset</span>
+    </div>
+    <div id="statusBadge-1" class="status-badge status-ok">OK</div>
+  </div>
+  
+  <div class="dataset-stats">
+    <div class="stat-card">
+      <div id="totalRecords-1" class="stat-value">---</div>
+      <div class="stat-label">Registros</div>
+    </div>
+    <div class="stat-card">
+      <div id="totalSize-1" class="stat-value">---</div>
+      <div class="stat-label">Tamanho (MB)</div>
+    </div>
+    <div class="stat-card">
+      <div id="totalSheets-1" class="stat-value">---</div>
+      <div class="stat-label">Planilhas</div>
+    </div>
+  </div>
+  
+  <div class="progress-section">
+    <div class="progress-label">
+      <span>Uso do Dataset</span>
+      <span id="progressPercent-1">0%</span>
+    </div>
+    <div class="progress-bar-container">
+      <div id="progressBarFill-1" class="progress-bar-fill"  style="width: 0%"></div>
+    </div>
+  </div>
+  
+  <div class="widget-actions">
+    <button class="widget-btn" onclick="refreshDatasetMonitor()">
+      <i class="fas fa-sync-alt"></i>
+      Atualizar
+    </button>
+    <button class="widget-btn" onclick="executeManualCleanupFromWidget()">
+      <i class="fas fa-broom"></i>
+      Limpar Agora
+    </button>
+    <button class="widget-btn" onclick="viewArchiveHistory()">
+      <i class="fas fa-history"></i>
+      Histórico
+    </button>
+  </div>
+  
+  <div id="lastCleanup-1" class="last-cleanup">
+    <i class="fas fa-clock"></i>
+    <span>Última limpeza: <span id="lastCleanupDate-1">Carregando...</span></span>
+  </div>
+  
+  <div id="criticalSheets-1" class="critical-sheets"  style="display: none">
+    <div class="critical-sheets-title">⚠️ Planilhas Críticas</div>
+    <div id="criticalSheetsList-1"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// DATASET MONITOR - JAVASCRIPT
+// ============================================================================
+
+let datasetMonitorInterval = null;
+
+/**
+ * Inicializa o widget
+ */
+function initDatasetMonitor() {
+  console.log('📊 Inicializando Dataset Monitor Widget...');
+  
+  // Carrega dados iniciais
+  refreshDatasetMonitor();
+  
+  // Auto-refresh desabilitado para reduzir carga no servidor
+  // Para atualizar, clique no botão "Atualizar"
+  
+  console.log('✅ Dataset Monitor ativo (auto-refresh desabilitado)');
+}
+
+/**
+ * Atualiza dados do widget
+ */
+function refreshDatasetMonitor() {
+  const btn = event?.target;
+  if (btn) {
+    btn.classList.add('loading');
+    btn.querySelector('i').classList.add('fa-spin');
+  }
+  
+  console.log('🔄 Atualizando Dataset Monitor...');
+  
+  google.script.run
+    .withSuccessHandler(onDatasetStatusLoaded)
+    .withFailureHandler(onDatasetStatusError)
+    .getArchivingStatus();
+}
+
+/**
+ * Callback: Dados carregados
+ */
+function onDatasetStatusLoaded(response) {
+  console.log('📊 Status recebido:', response);
+  
+  // Remove loading
+  document.querySelectorAll('.widget-btn.loading').forEach(btn => {
+    btn.classList.remove('loading');
+    btn.querySelector('i').classList.remove('fa-spin');
+  });
+  
+  if (!response.success) {
+    showToast('Erro ao carregar status do dataset', 'error');
+    return;
+  }
+  
+  const data = response.data;
+  
+  // Atualiza valores
+  document.getElementById('totalRecords').textContent = formatNumber(data.dataset.totalRecords);
+  document.getElementById('totalSize').textContent = data.dataset.totalSizeMB;
+  document.getElementById('totalSheets').textContent = data.dataset.totalSheets;
+  
+  // Atualiza status badge
+  const statusBadge = document.getElementById('statusBadge');
+  statusBadge.className = `status-badge status-${data.status}`;
+  statusBadge.textContent = data.status === 'ok' ? 'OK' : 
+                            data.status === 'warning' ? 'Atenção' : 'Crítico';
+  
+  // Atualiza barra de progresso
+  const sizeMB = parseFloat(data.dataset.totalSizeMB);
+  const maxSize = 50; // MB
+  const percent = Math.min((sizeMB / maxSize) * 100, 100);
+  
+  document.getElementById('progressPercent').textContent = Math.round(percent) + '%';
+  document.getElementById('progressBarFill').style.width = percent + '%';
+  
+  // Muda cor da barra conforme tamanho
+  const progressBar = document.getElementById('progressBarFill');
+  if (percent > 80) {
+    progressBar.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
+  } else if (percent > 50) {
+    progressBar.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+  } else {
+    progressBar.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
+  }
+  
+  // Última limpeza
+  const lastCleanup = data.lastExecution.lastCleanup;
+  document.getElementById('lastCleanupDate').textContent = 
+    lastCleanup !== 'Nunca executado' ? formatDate(lastCleanup) : lastCleanup;
+  
+  // Planilhas críticas
+  if (data.criticalSheets && data.criticalSheets.length > 0) {
+    const criticalDiv = document.getElementById('criticalSheets');
+    const listDiv = document.getElementById('criticalSheetsList');
+    
+    listDiv.innerHTML = data.criticalSheets.slice(0, 5).map(sheet => `
+      <div class="sheet-item">
+        <span class="sheet-name">${sheet.name}</span>
+        <div class="sheet-stats">
+          <span>${formatNumber(sheet.records)} reg</span>
+          <span>${sheet.sizeMB} MB</span>
+        </div>
+      </div>
+    `).join('');
+    
+    criticalDiv.style.display = 'block';
+  }
+  
+  console.log('✅ Widget atualizado');
+}
+
+/**
+ * Callback: Erro ao carregar
+ */
+function onDatasetStatusError(error) {
+  console.error('❌ Erro ao carregar status:', error);
+  
+  // Remove loading
+  document.querySelectorAll('.widget-btn.loading').forEach(btn => {
+    btn.classList.remove('loading');
+    btn.querySelector('i').classList.remove('fa-spin');
+  });
+  
+  showToast('Erro ao carregar status do dataset', 'error');
+}
+
+/**
+ * Executa limpeza manual
+ */
+function executeManualCleanupFromWidget() {
+  if (!confirm('Deseja executar a limpeza manual agora?\n\nIsso irá arquivar e limpar dados conforme política de retenção.')) {
+    return;
+  }
+  
+  const btn = event.target;
+  btn.classList.add('loading');
+  btn.querySelector('i').classList.add('fa-spin');
+  
+  showToast('Executando limpeza... Isso pode levar alguns minutos.', 'info');
+  
+  google.script.run
+    .withSuccessHandler(onManualCleanupSuccess)
+    .withFailureHandler(onManualCleanupError)
+    .executeManualCleanup();
+}
+
+/**
+ * Callback: Limpeza concluída
+ */
+function onManualCleanupSuccess(response) {
+  console.log('✅ Limpeza concluída:', response);
+  
+  if (response.success) {
+    showToast(`Limpeza concluída! ${response.data.cleaned} registros deletados.`, 'success');
+    
+    // Atualiza widget
+    setTimeout(refreshDatasetMonitor, 2000);
+  } else {
+    showToast('Erro na limpeza: ' + response.error, 'error');
+  }
+  
+  // Remove loading
+  document.querySelectorAll('.widget-btn.loading').forEach(btn => {
+    btn.classList.remove('loading');
+    btn.querySelector('i').classList.remove('fa-spin');
+  });
+}
+
+/**
+ * Callback: Erro na limpeza
+ */
+function onManualCleanupError(error) {
+  console.error('❌ Erro na limpeza:', error);
+  showToast('Erro ao executar limpeza: ' + error.message, 'error');
+  
+  // Remove loading
+  document.querySelectorAll('.widget-btn.loading').forEach(btn => {
+    btn.classList.remove('loading');
+    btn.querySelector('i').classList.remove('fa-spin');
+  });
+}
+
+/**
+ * Visualiza histórico de arquivos
+ */
+function viewArchiveHistory() {
+  showToast('Carregando histórico...', 'info');
+  
+  google.script.run
+    .withSuccessHandler(onArchiveHistoryLoaded)
+    .withFailureHandler(onArchiveHistoryError)
+    .listArchivedFiles();
+}
+
+/**
+ * Callback: Histórico carregado
+ */
+function onArchiveHistoryLoaded(response) {
+  if (!response.success) {
+    showToast('Erro ao carregar histórico', 'error');
+    return;
+  }
+  
+  const files = response.data.files;
+  
+  if (files.length === 0) {
+    showToast('Nenhum arquivo histórico encontrado', 'info');
+    return;
+  }
+  
+  // Cria modal com lista de arquivos
+  const modal = `
+    <div class="modal-overlay" onclick="this.remove()">
+      <div class="modal-content" onclick="event.stopPropagation()"  style="max-width: 600px">
+        <div class="modal-header">
+          <h3><i class="fas fa-history"></i> Histórico de Arquivos</h3>
+          <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+        </div>
+        <div class="modal-body">
+          <p  style="margin-bottom: 16px">
+            <strong>${files.length}</strong> arquivo(s) histórico(s) 
+            <span  style="opacity: 0.7">(${response.data.totalSizeMB} MB total)</span>
+          </p>
+          <div  style="max-height: 400px; overflow-y: auto">
+            ${files.map(file => `
+              <div class="sheet-item"  style="margin-bottom: 8px">
+                <div>
+                  <div class="sheet-name">${file.name}</div>
+                  <div  style="font-size: 11px; opacity: 0.7; margin-top: 4px">
+                    ${formatDate(file.created)}
+                  </div>
+                </div>
+                <div class="sheet-stats">
+                  <span>${file.sizeMB} MB</span>
+                  <a href="${file.url}" target="_blank"  style="color: white; text-decoration: none">
+                    <i class="fas fa-external-link-alt"></i>
+                  </a>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <div  style="margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.1); border-radius: 8px">
+            <a href="${response.data.folderUrl}" target="_blank"  class="flex items-center" style="color: white; text-decoration: none; gap: 8px">
+              <i class="fas fa-folder-open"></i>
+              Abrir pasta no Google Drive
+              <i class="fas fa-external-link-alt"  style="font-size: 12px"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', modal);
+}
+
+/**
+ * Callback: Erro ao carregar histórico
+ */
+function onArchiveHistoryError(error) {
+  console.error('❌ Erro ao carregar histórico:', error);
+  showToast('Erro ao carregar histórico', 'error');
+}
+
+/**
+ * Formata número com separadores
+ */
+function formatNumber(num) {
+  return new Intl.NumberFormat('pt-BR').format(num);
+}
+
+/**
+ * Formata data
+ */
+function formatDate(dateStr) {
+  if (!dateStr) return 'N/A';
+  const date = new Date(dateStr);
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+// Inicializa quando documento estiver pronto
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDatasetMonitor);
+} else {
+  initDatasetMonitor();
+}
+
+// Cleanup ao sair
+window.addEventListener('beforeunload', () => {
+  if (datasetMonitorInterval) {
+    clearInterval(datasetMonitorInterval);
+  }
+});
+</script>

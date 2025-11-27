@@ -1,0 +1,1005 @@
+<script>
+/**
+ * JS-Components-Enhanced.html
+ * Sistema de componentes reutilizáveis
+ * Versão: 2.0.0
+ * 
+ * Componentes UI prontos para uso
+ */
+
+(function(window) {
+  'use strict';
+
+  window.Components = window.Components || {};
+  const C = window.Components;
+
+  // ============================================================================
+  // MODAL
+  // ============================================================================
+  
+  C.Modal = {
+    /**
+     * Cria e exibe modal
+     * @param {Object} options - Opções
+     * @returns {HTMLElement}
+     */
+    create: function(options = {}) {
+      const {
+        title = 'Modal',
+        content = '',
+        size = 'medium', // small, medium, large, fullscreen
+        closable = true,
+        footer = null,
+        onClose = null,
+        className = ''
+      } = options;
+
+      // Remove modais existentes
+      this.closeAll();
+
+      // Cria modal
+      const modal = document.createElement('div');
+      modal.className = `modal modal-${size} ${className}`;
+      modal.innerHTML = `
+        <div class="modal-overlay"></div>
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3 class="modal-title">${title}</h3>
+            ${closable ? '<button class="modal-close"><i class="fas fa-times"></i></button>' : ''}
+          </div>
+          <div class="modal-body">
+            ${content}
+          </div>
+          ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      // Event listeners
+      if (closable) {
+        const closeBtn = modal.querySelector('.modal-close');
+        const overlay = modal.querySelector('.modal-overlay');
+        
+        const close = () => {
+          this.close(modal);
+          if (onClose) onClose();
+        };
+
+        closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', close);
+        
+        // ESC fecha modal
+        const escHandler = (e) => {
+          if (e.key === 'Escape') {
+            close();
+            document.removeEventListener('keydown', escHandler);
+          }
+        };
+        document.addEventListener('keydown', escHandler);
+      }
+
+      // Animação de entrada
+      setTimeout(() => modal.classList.add('active'), 10);
+
+      return modal;
+    },
+
+    /**
+     * Fecha modal
+     * @param {HTMLElement} modal - Modal
+     */
+    close: function(modal) {
+      modal.classList.remove('active');
+      setTimeout(() => modal.remove(), 300);
+    },
+
+    /**
+     * Fecha todos os modais
+     */
+    closeAll: function() {
+      document.querySelectorAll('.modal').forEach(m => this.close(m));
+    },
+
+    /**
+     * Modal de confirmação
+     * @param {Object} options - Opções
+     * @returns {Promise<boolean>}
+     */
+    confirm: function(options = {}) {
+      const {
+        title = 'Confirmar',
+        message = 'Tem certeza?',
+        confirmText = 'Confirmar',
+        cancelText = 'Cancelar',
+        type = 'warning' // success, warning, danger, info
+      } = options;
+
+      return new Promise((resolve) => {
+        const footer = `
+          <button class="btn btn-secondary" data-action="cancel">${cancelText}</button>
+          <button class="btn btn-${type}" data-action="confirm">${confirmText}</button>
+        `;
+
+        const modal = this.create({
+          title,
+          content: `<p class="text-center">${message}</p>`,
+          footer,
+          closable: true,
+          onClose: () => resolve(false)
+        });
+
+        modal.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+          this.close(modal);
+          resolve(false);
+        });
+
+        modal.querySelector('[data-action="confirm"]').addEventListener('click', () => {
+          this.close(modal);
+          resolve(true);
+        });
+      });
+    },
+
+    /**
+     * Modal de alerta
+     * @param {Object} options - Opções
+     */
+    alert: function(options = {}) {
+      const {
+        title = 'Alerta',
+        message = '',
+        type = 'info',
+        okText = 'OK'
+      } = options;
+
+      return new Promise((resolve) => {
+        const footer = `
+          <button class="btn btn-${type}" data-action="ok">${okText}</button>
+        `;
+
+        const modal = this.create({
+          title,
+          content: `<p class="text-center">${message}</p>`,
+          footer,
+          closable: true,
+          onClose: () => resolve()
+        });
+
+        modal.querySelector('[data-action="ok"]').addEventListener('click', () => {
+          this.close(modal);
+          resolve();
+        });
+      });
+    },
+
+    /**
+     * Modal de prompt
+     * @param {Object} options - Opções
+     * @returns {Promise<string|null>}
+     */
+    prompt: function(options = {}) {
+      const {
+        title = 'Entrada',
+        message = '',
+        placeholder = '',
+        defaultValue = '',
+        okText = 'OK',
+        cancelText = 'Cancelar'
+      } = options;
+
+      return new Promise((resolve) => {
+        const content = `
+          <p>${message}</p>
+          <input type="text" class="form-control" id="prompt-input" 
+                 placeholder="${placeholder}" value="${defaultValue}">
+        `;
+
+        const footer = `
+          <button class="btn btn-secondary" data-action="cancel">${cancelText}</button>
+          <button class="btn btn-primary" data-action="ok">${okText}</button>
+        `;
+
+        const modal = this.create({
+          title,
+          content,
+          footer,
+          closable: true,
+          onClose: () => resolve(null)
+        });
+
+        const input = modal.querySelector('#prompt-input');
+        input.focus();
+
+        modal.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+          this.close(modal);
+          resolve(null);
+        });
+
+        modal.querySelector('[data-action="ok"]').addEventListener('click', () => {
+          this.close(modal);
+          resolve(input.value);
+        });
+
+        // Enter confirma
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            this.close(modal);
+            resolve(input.value);
+          }
+        });
+      });
+    }
+  };
+
+  // ============================================================================
+  // TABS
+  // ============================================================================
+  
+  C.Tabs = {
+    /**
+     * Inicializa tabs
+     * @param {string|HTMLElement} container - Container
+     */
+    init: function(container) {
+      const element = typeof container === 'string' 
+        ? document.querySelector(container) 
+        : container;
+
+      if (!element) return;
+
+      const tabs = element.querySelectorAll('[data-tab]');
+      const contents = element.querySelectorAll('[data-tab-content]');
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const target = tab.dataset.tab;
+
+          // Remove active de todos
+          tabs.forEach(t => t.classList.remove('active'));
+          contents.forEach(c => c.classList.remove('active'));
+
+          // Ativa selecionado
+          tab.classList.add('active');
+          const content = element.querySelector(`[data-tab-content="${target}"]`);
+          if (content) {
+            content.classList.add('active');
+          }
+
+          // Trigger evento
+          element.dispatchEvent(new CustomEvent('tab:changed', {
+            detail: { tab: target }
+          }));
+        });
+      });
+
+      // Ativa primeira tab
+      if (tabs.length > 0) {
+        tabs[0].click();
+      }
+    }
+  };
+
+  // ============================================================================
+  // ACCORDION
+  // ============================================================================
+  
+  C.Accordion = {
+    /**
+     * Inicializa accordion
+     * @param {string|HTMLElement} container - Container
+     */
+    init: function(container) {
+      const element = typeof container === 'string' 
+        ? document.querySelector(container) 
+        : container;
+
+      if (!element) return;
+
+      const items = element.querySelectorAll('[data-accordion-item]');
+
+      items.forEach(item => {
+        const header = item.querySelector('[data-accordion-header]');
+        const content = item.querySelector('[data-accordion-content]');
+
+        if (!header || !content) return;
+
+        header.addEventListener('click', () => {
+          const isOpen = item.classList.contains('open');
+
+          // Fecha outros (se não for multiple)
+          if (!element.hasAttribute('data-accordion-multiple')) {
+            items.forEach(i => {
+              i.classList.remove('open');
+              const c = i.querySelector('[data-accordion-content]');
+              if (c) c.style.maxHeight = null;
+            });
+          }
+
+          // Toggle atual
+          if (isOpen) {
+            item.classList.remove('open');
+            content.style.maxHeight = null;
+          } else {
+            item.classList.add('open');
+            content.style.maxHeight = content.scrollHeight + 'px';
+          }
+        });
+      });
+    }
+  };
+
+  // ============================================================================
+  // DROPDOWN
+  // ============================================================================
+  
+  C.Dropdown = {
+    /**
+     * Inicializa dropdowns
+     */
+    init: function() {
+      document.querySelectorAll('[data-dropdown]').forEach(dropdown => {
+        const trigger = dropdown.querySelector('[data-dropdown-trigger]');
+        const menu = dropdown.querySelector('[data-dropdown-menu]');
+
+        if (!trigger || !menu) return;
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          
+          // Fecha outros dropdowns
+          document.querySelectorAll('[data-dropdown].open').forEach(d => {
+            if (d !== dropdown) d.classList.remove('open');
+          });
+
+          // Toggle atual
+          dropdown.classList.toggle('open');
+        });
+
+        // Fecha ao clicar fora
+        document.addEventListener('click', () => {
+          dropdown.classList.remove('open');
+        });
+
+        // Previne fechar ao clicar dentro do menu
+        menu.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+      });
+    }
+  };
+
+  // ============================================================================
+  // TOOLTIP
+  // ============================================================================
+  
+  C.Tooltip = {
+    /**
+     * Inicializa tooltips
+     */
+    init: function() {
+      document.querySelectorAll('[data-tooltip]').forEach(element => {
+        const text = element.dataset.tooltip;
+        const position = element.dataset.tooltipPosition || 'top';
+
+        element.addEventListener('mouseenter', () => {
+          const tooltip = document.createElement('div');
+          tooltip.className = `tooltip tooltip-${position}`;
+          tooltip.textContent = text;
+          tooltip.id = 'active-tooltip';
+
+          document.body.appendChild(tooltip);
+
+          // Posiciona tooltip
+          const rect = element.getBoundingClientRect();
+          const tooltipRect = tooltip.getBoundingClientRect();
+
+          let top, left;
+
+          switch (position) {
+            case 'top':
+              top = rect.top - tooltipRect.height - 8;
+              left = rect.left + (rect.width - tooltipRect.width) / 2;
+              break;
+            case 'bottom':
+              top = rect.bottom + 8;
+              left = rect.left + (rect.width - tooltipRect.width) / 2;
+              break;
+            case 'left':
+              top = rect.top + (rect.height - tooltipRect.height) / 2;
+              left = rect.left - tooltipRect.width - 8;
+              break;
+            case 'right':
+              top = rect.top + (rect.height - tooltipRect.height) / 2;
+              left = rect.right + 8;
+              break;
+          }
+
+          tooltip.style.top = top + 'px';
+          tooltip.style.left = left + 'px';
+
+          setTimeout(() => tooltip.classList.add('show'), 10);
+        });
+
+        element.addEventListener('mouseleave', () => {
+          const tooltip = document.getElementById('active-tooltip');
+          if (tooltip) {
+            tooltip.classList.remove('show');
+            setTimeout(() => tooltip.remove(), 200);
+          }
+        });
+      });
+    }
+  };
+
+  // ============================================================================
+  // PAGINATION
+  // ============================================================================
+  
+  C.Pagination = {
+    /**
+     * Cria paginação
+     * @param {Object} options - Opções
+     * @returns {HTMLElement}
+     */
+    create: function(options = {}) {
+      const {
+        currentPage = 1,
+        totalPages = 1,
+        onPageChange = null,
+        maxVisible = 5
+      } = options;
+
+      const container = document.createElement('div');
+      container.className = 'pagination';
+
+      // Botão anterior
+      const prev = document.createElement('button');
+      prev.className = 'pagination-btn';
+      prev.innerHTML = '<i class="fas fa-chevron-left"></i>';
+      prev.disabled = currentPage === 1;
+      prev.onclick = () => onPageChange && onPageChange(currentPage - 1);
+      container.appendChild(prev);
+
+      // Páginas
+      const start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+      const end = Math.min(totalPages, start + maxVisible - 1);
+
+      for (let i = start; i <= end; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'pagination-btn';
+        if (i === currentPage) btn.classList.add('active');
+        btn.textContent = i;
+        btn.onclick = () => onPageChange && onPageChange(i);
+        container.appendChild(btn);
+      }
+
+      // Botão próximo
+      const next = document.createElement('button');
+      next.className = 'pagination-btn';
+      next.innerHTML = '<i class="fas fa-chevron-right"></i>';
+      next.disabled = currentPage === totalPages;
+      next.onclick = () => onPageChange && onPageChange(currentPage + 1);
+      container.appendChild(next);
+
+      return container;
+    }
+  };
+
+  // ============================================================================
+  // BREADCRUMB
+  // ============================================================================
+  
+  C.Breadcrumb = {
+    /**
+     * Cria breadcrumb
+     * @param {Array} items - Items [{label, href}]
+     * @returns {HTMLElement}
+     */
+    create: function(items = []) {
+      const nav = document.createElement('nav');
+      nav.className = 'breadcrumb';
+
+      const ol = document.createElement('ol');
+      ol.className = 'breadcrumb-list';
+
+      items.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'breadcrumb-item';
+
+        if (index === items.length - 1) {
+          li.classList.add('active');
+          li.textContent = item.label;
+        } else {
+          const a = document.createElement('a');
+          a.href = item.href || '#';
+          a.textContent = item.label;
+          li.appendChild(a);
+        }
+
+        ol.appendChild(li);
+      });
+
+      nav.appendChild(ol);
+      return nav;
+    }
+  };
+
+  // ============================================================================
+  // BADGE
+  // ============================================================================
+  
+  C.Badge = {
+    /**
+     * Cria badge
+     * @param {Object} options - Opções
+     * @returns {HTMLElement}
+     */
+    create: function(options = {}) {
+      const {
+        text = '',
+        type = 'primary', // primary, success, warning, danger, info
+        size = 'medium', // small, medium, large
+        pill = false
+      } = options;
+
+      const badge = document.createElement('span');
+      badge.className = `badge badge-${type} badge-${size}`;
+      if (pill) badge.classList.add('badge-pill');
+      badge.textContent = text;
+
+      return badge;
+    }
+  };
+
+  // ============================================================================
+  // PROGRESS BAR
+  // ============================================================================
+  
+  C.ProgressBar = {
+    /**
+     * Cria progress bar
+     * @param {Object} options - Opções
+     * @returns {HTMLElement}
+     */
+    create: function(options = {}) {
+      const {
+        value = 0,
+        max = 100,
+        label = '',
+        type = 'primary',
+        striped = false,
+        animated = false
+      } = options;
+
+      const container = document.createElement('div');
+      container.className = 'progress';
+
+      const bar = document.createElement('div');
+      bar.className = `progress-bar progress-bar-${type}`;
+      if (striped) bar.classList.add('progress-bar-striped');
+      if (animated) bar.classList.add('progress-bar-animated');
+
+      const percentage = (value / max) * 100;
+      bar.style.width = percentage + '%';
+      bar.textContent = label || `${Math.round(percentage)}%`;
+
+      container.appendChild(bar);
+      return container;
+    },
+
+    /**
+     * Atualiza progress bar
+     * @param {HTMLElement} progressBar - Progress bar
+     * @param {number} value - Valor
+     * @param {number} max - Máximo
+     */
+    update: function(progressBar, value, max = 100) {
+      const bar = progressBar.querySelector('.progress-bar');
+      if (bar) {
+        const percentage = (value / max) * 100;
+        bar.style.width = percentage + '%';
+        bar.textContent = `${Math.round(percentage)}%`;
+      }
+    }
+  };
+
+  // ============================================================================
+  // INICIALIZAÇÃO AUTOMÁTICA
+  // ============================================================================
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    C.Dropdown.init();
+    C.Tooltip.init();
+    
+    // Inicializa tabs
+    document.querySelectorAll('[data-tabs]').forEach(tabs => {
+      C.Tabs.init(tabs);
+    });
+
+    // Inicializa accordions
+    document.querySelectorAll('[data-accordion]').forEach(accordion => {
+      C.Accordion.init(accordion);
+    });
+
+    console.log('✅ Components Enhanced inicializado');
+  });
+
+  // Expõe globalmente
+  window.C = C;
+
+})(window);
+</script>
+
+<style>
+/* ============================================================================
+   ESTILOS DOS COMPONENTES
+   ============================================================================ */
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-container {
+  position: relative;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow: auto;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.modal.active .modal-container {
+  transform: scale(1);
+}
+
+.modal-small .modal-container { width: 400px; }
+.modal-medium .modal-container { width: 600px; }
+.modal-large .modal-container { width: 800px; }
+.modal-fullscreen .modal-container { width: 95vw; height: 95vh; }
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.modal-close:hover {
+  opacity: 1;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  padding: 20px;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Tabs */
+[data-tabs] {
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs-header {
+  display: flex;
+  border-bottom: 2px solid #e9ecef;
+  gap: 4px;
+}
+
+[data-tab] {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+[data-tab]:hover {
+  background: #f8f9fa;
+}
+
+[data-tab].active {
+  border-bottom-color: #667eea;
+  color: #667eea;
+  font-weight: 600;
+}
+
+[data-tab-content] {
+  display: none;
+  padding: 20px 0;
+}
+
+[data-tab-content].active {
+  display: block;
+}
+
+/* Accordion */
+[data-accordion-item] {
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+[data-accordion-header] {
+  padding: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.2s;
+}
+
+[data-accordion-header]:hover {
+  background: #f8f9fa;
+}
+
+[data-accordion-header]::after {
+  content: '\f078';
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+  transition: transform 0.3s;
+}
+
+[data-accordion-item].open [data-accordion-header]::after {
+  transform: rotate(180deg);
+}
+
+[data-accordion-content] {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+[data-accordion-item].open [data-accordion-content] {
+  border-top: 1px solid #e9ecef;
+  padding: 16px;
+}
+
+/* Dropdown */
+[data-dropdown] {
+  position: relative;
+  display: inline-block;
+}
+
+[data-dropdown-menu] {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.2s;
+  z-index: 1000;
+}
+
+[data-dropdown].open [data-dropdown-menu] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.tooltip.show {
+  opacity: 1;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
+  border: 1px solid #e9ecef;
+  background: white;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f8f9fa;
+  border-color: #667eea;
+}
+
+.pagination-btn.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Badge */
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.badge-pill {
+  border-radius: 50px;
+}
+
+.badge-small { font-size: 0.65rem; padding: 2px 6px; }
+.badge-medium { font-size: 0.75rem; padding: 4px 8px; }
+.badge-large { font-size: 0.875rem; padding: 6px 12px; }
+
+.badge-primary { background: #667eea; color: white; }
+.badge-success { background: #51cf66; color: white; }
+.badge-warning { background: #ff922b; color: white; }
+.badge-danger { background: #ff6b6b; color: white; }
+.badge-info { background: #339af0; color: white; }
+
+/* Progress Bar */
+.progress {
+  height: 20px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #667eea;
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.progress-bar-success { background: #51cf66; }
+.progress-bar-warning { background: #ff922b; }
+.progress-bar-danger { background: #ff6b6b; }
+.progress-bar-info { background: #339af0; }
+
+.progress-bar-striped {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 1rem 1rem;
+}
+
+.progress-bar-animated {
+  animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+  0% { background-position: 1rem 0; }
+  100% { background-position: 0 0; }
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  padding: 12px 0;
+}
+
+.breadcrumb-list {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 8px;
+  align-items: center;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumb-item:not(:last-child)::after {
+  content: '/';
+  margin-left: 8px;
+  color: #adb5bd;
+}
+
+.breadcrumb-item a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-item.active {
+  color: #6c757d;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .modal-container {
+    width: 95vw !important;
+    max-height: 95vh;
+  }
+}
+</style>

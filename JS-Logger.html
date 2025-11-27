@@ -1,0 +1,174 @@
+<!--============================================================================-->
+
+<script>
+
+/* * ============================================================================
+ * LOGGER CONDICIONAL - Sistema de Logging para Produção
+ * ============================================================================
+ *
+ * Gerencia logs de forma inteligente baseado no ambiente
+ * Versão: 1.0
+ * Data: 2025-10-16
+ * ============================================================================ */
+
+(function(window) {
+  'use strict';
+
+ /* * Detecta ambiente de execução
+   * @returns {string} 'production' ou 'development' */
+ function detectEnvironment() {
+ // Se estiver no domínio do Google Apps Script publicado = produção
+ const hostname = window.location.hostname;
+
+    if (hostname.includes('script.google.com') ||
+        hostname.includes('script.googleusercontent.com')) {
+      return 'production';
+ }
+
+ // Modo de desenvolvimento (testando localmente ou via Apps Script Editor)
+    return 'development';
+ }
+
+ /* * Logger inteligente que desabilita logs em produção */
+ const Logger = {
+
+ environment: detectEnvironment(),
+
+ // Flag para forçar logs (debug remoto em produção)
+ forceEnable: false,
+
+ /* * Verifica se deve logar */
+ shouldLog() {
+      return this.forceEnable || this.environment === 'development';
+ },
+
+ /* * Log de informação */
+ log(...args) {
+ if (this.shouldLog()) {
+ console.log(...args);
+ }
+ },
+
+ /* * Log de informação (alias) */
+ info(...args) {
+ if (this.shouldLog()) {
+ console.info(...args);
+ }
+ },
+
+ /* * Log de warning (sempre mostra) */
+ warn(...args) {
+ console.warn(...args);
+ },
+
+ /* * Log de erro (sempre mostra) */
+ error(...args) {
+ console.error(...args);
+ },
+
+ /* * Log de debug (apenas em desenvolvimento) */
+ debug(...args) {
+ if (this.shouldLog()) {
+ console.debug(...args);
+ }
+ },
+
+ /* * Grupo de logs */
+ group(label) {
+ if (this.shouldLog() && console.group) {
+ console.group(label);
+ }
+ },
+
+ /* * Grupo de logs colapsado */
+ groupCollapsed(label) {
+ if (this.shouldLog() && console.groupCollapsed) {
+ console.groupCollapsed(label);
+ }
+ },
+
+ /* * Fecha grupo de logs */
+ groupEnd() {
+ if (this.shouldLog() && console.groupEnd) {
+ console.groupEnd();
+ }
+ },
+
+ /* * Tabela (apenas desenvolvimento) */
+ table(data) {
+ if (this.shouldLog() && console.table) {
+ console.table(data);
+ }
+ },
+
+ /* * Tempo (performance) */
+ time(label) {
+ if (this.shouldLog() && console.time) {
+ console.time(label);
+ }
+ },
+
+ /* * Fim do tempo */
+ timeEnd(label) {
+ if (this.shouldLog() && console.timeEnd) {
+ console.timeEnd(label);
+ }
+ },
+
+ /* * Habilita logs remotos em produção (para debug)
+ * Usar apenas quando necessário! */
+ enableRemoteDebug() {
+ this.forceEnable = true;
+      console.warn('⚠️ Remote debug ENABLED. Logs visíveis em produção!');
+ },
+
+ /* * Desabilita logs remotos */
+ disableRemoteDebug() {
+ this.forceEnable = false;
+      if (this.environment === 'production') {
+        console.info('✅ Remote debug DISABLED. Logs silenciados em produção.');
+ }
+ },
+
+ /* * Informações do ambiente */
+ getEnvironmentInfo() {
+ return {
+ environment: this.environment,
+ forceEnabled: this.forceEnable,
+ hostname: window.location.hostname,
+ userAgent: navigator.userAgent,
+ timestamp: new Date().toISOString()
+ };
+ }
+ };
+
+ // Exponha globalmente
+ window.Logger = Logger;
+
+ // Substitui console nativo em produção
+  if (Logger.environment === 'production' && !Logger.forceEnable) {
+ const noop = () => {};
+ window.console = {
+ ...console,
+ log: noop,
+ debug: noop,
+ info: noop,
+ // Mantém warn e error
+ warn: console.warn.bind(console),
+ error: console.error.bind(console)
+ };
+ }
+
+ // Log inicial
+ if (Logger.shouldLog()) {
+ console.log(`[Logger] Ambiente: ${Logger.environment}`);
+    console.log(`[Logger] Logs ${Logger.environment === 'production' ? 'DESABILITADOS' : 'HABILITADOS'}`);
+ }
+
+})(window);
+
+</script>
+
+
+
+<!--============================================================================-->

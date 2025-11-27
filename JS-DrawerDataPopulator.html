@@ -1,0 +1,541 @@
+<!--============================================================================-->
+
+<script>
+/**
+ * ============================================================================
+ * DRAWER DATA POPULATOR - Popula drawers com dados reais do backend
+ * ============================================================================
+ * Carrega dados das planilhas e popula cada drawer dinamicamente
+ * ============================================================================
+ */
+(function() {
+    'use strict';
+
+    const DrawerDataPopulator = {
+        // Cache de dados
+        cache: {
+            notifications: [],
+            projects: [],
+            searchResults: []
+        },
+
+        /**
+         * Inicializa o sistema
+         */
+        async init() {
+            console.log('[DrawerDataPopulator] 🚀 Inicializando...');
+            
+            // Escutar quando drawers são abertos
+            this.setupDrawerListeners();
+            
+            // Carregar dados iniciais
+            await this.loadAllData();
+            
+            // Atualizar a cada 2 minutos
+            setInterval(() => {
+                this.loadAllData();
+            }, 2 * 60 * 1000);
+            
+            console.log('[DrawerDataPopulator] ✅ Inicializado!');
+        },
+
+        /**
+         * Configura listeners para quando drawers são abertos
+         */
+        setupDrawerListeners() {
+            // Usar MutationObserver para detectar quando drawer fica ativo
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                        const drawer = mutation.target;
+                        if (drawer.classList.contains('active') || drawer.classList.contains('is-active')) {
+                            this.onDrawerOpened(drawer.id);
+                        }
+                    }
+                });
+            });
+
+            // Observar todos os drawers
+            document.querySelectorAll('[id$="-drawer"]').forEach(drawer => {
+                observer.observe(drawer, { attributes: true });
+            });
+        },
+
+        /**
+         * Callback quando drawer é aberto
+         */
+        async onDrawerOpened(drawerId) {
+            console.log('[DrawerDataPopulator] 📂 Drawer aberto:', drawerId);
+            
+            switch(drawerId) {
+                case 'notifications-drawer':
+                    await this.populateNotifications();
+                    break;
+                case 'projects-drawer':
+                    await this.populateProjects();
+                    break;
+                case 'search-drawer':
+                    this.setupSearchDrawer();
+                    break;
+                case 'user-drawer':
+                    this.populateUserDrawer();
+                    break;
+            }
+        },
+
+        /**
+         * Carrega todos os dados necessários
+         */
+        async loadAllData() {
+            try {
+                if (typeof window.DataLoader === 'undefined') {
+                    console.warn('[DrawerDataPopulator] ⚠️ DataLoader não disponível');
+                    return;
+                }
+
+                console.log('[DrawerDataPopulator] 📥 Carregando dados...');
+
+                // Carregar dados em paralelo
+                const [logs, eventos, incidentes] = await Promise.all([
+                    window.DataLoader.load('Logs', {}, false).catch(() => []),
+                    window.DataLoader.load('Eventos', {}, false).catch(() => []),
+                    window.DataLoader.load('Incidentes', {}, false).catch(() => [])
+                ]);
+
+                // Processar para notificações
+                this.cache.notifications = this.processNotifications(logs, eventos, incidentes);
+                
+                // Processar para projetos em andamento
+                this.cache.projects = this.processProjects(eventos, incidentes);
+
+                console.log('[DrawerDataPopulator] ✅ Dados carregados:', {
+                    notifications: this.cache.notifications.length,
+                    projects: this.cache.projects.length
+                });
+
+            } catch (error) {
+                console.error('[DrawerDataPopulator] ❌ Erro ao carregar dados:', error);
+            }
+        },
+
+        /**
+         * Processa dados para notificações
+         */
+        processNotifications(logs, eventos, incidentes) {
+            const notifications = [];
+            const now = new Date();
+            const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
+
+            // Logs recentes (últimas 24h)
+            logs.forEach(log => {
+                const logDate = new Date(log.Timestamp || log.Data);
+                if (logDate >= oneDayAgo) {
+                    notifications.push({
+                        type: 'log',
+                        title: log.Acao || 'Ação no sistema',
+                        description: log.Detalhes || `Por ${log.Usuario}`,
+                        timestamp: log.Timestamp,
+                        icon: 'fa-info-circle',
+                        color: 'blue'
+                    });
+                }
+            });
+
+            // Eventos próximos (próximos 7 dias)
+            const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            eventos.forEach(evento => {
+                const eventoDate = new Date(evento.Data_Inicio || evento.Data);
+                if (eventoDate >= now && eventoDate <= oneWeekLater) {
+                    notifications.push({
+                        type: 'evento',
+                        title: evento.Titulo || 'Evento',
+                        description: evento.Descricao || evento.Tipo_Evento,
+                        timestamp: evento.Data_Inicio,
+                        icon: 'fa-calendar-alt',
+                        color: 'purple'
+                    });
+                }
+            });
+
+            // Incidentes abertos
+            incidentes.forEach(incidente => {
+                if (incidente.Status === 'Aberto' || incidente.Status === 'Em Andamento') {
+                    notifications.push({
+                        type: 'incidente',
+                        title: `Incidente: ${incidente.Tipo || 'Ocorrência'}`,
+                        description: incidente.Descricao || incidente.Detalhes,
+                        timestamp: incidente.Data_Hora || incidente.Criado_Em,
+                        icon: 'fa-exclamation-triangle',
+                        color: 'red'
+                    });
+                }
+            });
+
+            // Ordenar por timestamp (mais recentes primeiro)
+            notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            return notifications.slice(0, 20); // Limitar a 20
+        },
+
+        /**
+         * Processa dados para projetos em andamento
+         */
+        processProjects(eventos, incidentes) {
+            const projects = [];
+
+            // Eventos em andamento
+            eventos.forEach(evento => {
+                if (evento.Status === 'Agendado' || evento.Status === 'Em Andamento') {
+                    projects.push({
+                        id: evento.ID,
+                        title: evento.Titulo || 'Evento',
+                        description: evento.Descricao,
+                        type: 'Evento',
+                        status: evento.Status,
+                        progress: evento.Status === 'Agendado' ? 25 : 50,
+                        dueDate: evento.Data_Inicio,
+                        icon: 'fa-calendar-alt',
+                        color: 'purple'
+                    });
+                }
+            });
+
+            // Incidentes em resolução
+            incidentes.forEach(incidente => {
+                if (incidente.Status === 'Em Andamento') {
+                    projects.push({
+                        id: incidente.ID,
+                        title: `Incidente: ${incidente.Tipo}`,
+                        description: incidente.Descricao,
+                        type: 'Incidente',
+                        status: incidente.Status,
+                        progress: 50,
+                        dueDate: incidente.Prazo_Resolucao,
+                        icon: 'fa-exclamation-triangle',
+                        color: 'red'
+                    });
+                }
+            });
+
+            return projects.slice(0, 10); // Limitar a 10
+        },
+
+        /**
+         * Popula drawer de notificações
+         */
+        async populateNotifications() {
+            const drawer = document.getElementById('notifications-drawer');
+            if (!drawer) return;
+
+            let container = drawer.querySelector('.notifications-list');
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'notifications-list';
+                const body = drawer.querySelector('.drawer-body');
+                if (body) {
+                    body.innerHTML = '';
+                    body.appendChild(container);
+                }
+            }
+
+            if (this.cache.notifications.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-bell-slash"></i>
+                        <p>Nenhuma notificação</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = this.cache.notifications.map(notif => `
+                <div class="notification-item" data-type="${notif.type}">
+                    <div class="notification-icon" style="color: ${notif.color}">
+                        <i class="fas ${notif.icon}"></i>
+                    </div>
+                    <div class="notification-content">
+                        <h4 class="notification-title">${this.escapeHtml(notif.title)}</h4>
+                        <p class="notification-description">${this.escapeHtml(notif.description || '')}</p>
+                        <span class="notification-time">${this.formatTimeAgo(notif.timestamp)}</span>
+                    </div>
+                </div>
+            `).join('');
+        },
+
+        /**
+         * Popula drawer de projetos
+         */
+        async populateProjects() {
+            const drawer = document.getElementById('projects-drawer');
+            if (!drawer) return;
+
+            let container = drawer.querySelector('.projects-list');
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'projects-list';
+                const body = drawer.querySelector('.drawer-body');
+                if (body) {
+                    body.innerHTML = '';
+                    body.appendChild(container);
+                }
+            }
+
+            if (this.cache.projects.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-tasks"></i>
+                        <p>Nenhuma tarefa em andamento</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = this.cache.projects.map(project => `
+                <div class="project-item" data-id="${project.id}">
+                    <div class="project-header">
+                        <i class="fas ${project.icon}" style="color: ${project.color}"></i>
+                        <h4 class="project-title">${this.escapeHtml(project.title)}</h4>
+                    </div>
+                    <p class="project-description">${this.escapeHtml(project.description || '')}</p>
+                    <div class="project-meta">
+                        <span class="project-type">${project.type}</span>
+                        <span class="project-status">${project.status}</span>
+                    </div>
+                    <div class="project-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${project.progress}%; background: ${project.color}"></div>
+                        </div>
+                        <span class="progress-text">${project.progress}%</span>
+                    </div>
+                </div>
+            `).join('');
+        },
+
+        /**
+         * Configura drawer de busca
+         */
+        setupSearchDrawer() {
+            const drawer = document.getElementById('search-drawer');
+            if (!drawer) return;
+
+            const searchInput = drawer.querySelector('#global-search-input');
+            if (!searchInput) return;
+
+            // Focar no input quando drawer abre
+            setTimeout(() => searchInput.focus(), 100);
+        },
+
+        /**
+         * Popula drawer do usuário
+         */
+        populateUserDrawer() {
+            // UserDrawer.html já cuida disso
+            if (typeof window.UserDrawer !== 'undefined') {
+                window.UserDrawer.updateDrawerView();
+            }
+        },
+
+        /**
+         * Escapa HTML para prevenir XSS
+         */
+        escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        },
+
+        /**
+         * Formata timestamp para "há X tempo"
+         */
+        formatTimeAgo(timestamp) {
+            if (!timestamp) return '';
+            
+            const now = new Date();
+            const date = new Date(timestamp);
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Agora mesmo';
+            if (seconds < 3600) return `Há ${Math.floor(seconds / 60)} min`;
+            if (seconds < 86400) return `Há ${Math.floor(seconds / 3600)}h`;
+            if (seconds < 604800) return `Há ${Math.floor(seconds / 86400)} dias`;
+            
+            return date.toLocaleDateString('pt-BR');
+        }
+    };
+
+    // Inicializar
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => DrawerDataPopulator.init(), 1000);
+        });
+    } else {
+        setTimeout(() => DrawerDataPopulator.init(), 1000);
+    }
+
+    // Expor globalmente
+    window.DrawerDataPopulator = DrawerDataPopulator;
+
+    console.log('[DrawerDataPopulator] 📦 Script carregado');
+
+})();
+</script>
+
+<style>
+/* Estilos para notificações e projetos nos drawers */
+.notifications-list,
+.projects-list {
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.empty-state {
+    text-align: center;
+    padding: var(--space-6);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: var(--space-3);
+    opacity: 0.5;
+}
+
+/* Notification Item */
+.notification-item {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--md-sys-color-surface-container);
+    border-radius: var(--radius-lg);
+    border-left: 3px solid var(--md-sys-color-primary);
+    transition: all 200ms ease;
+}
+
+.notification-item:hover {
+    transform: translateX(4px);
+    background: var(--md-sys-color-surface-container-high);
+}
+
+.notification-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 var(--space-1) 0;
+    color: var(--md-sys-color-on-surface);
+}
+
+.notification-description {
+    font-size: 0.85rem;
+    margin: 0 0 var(--space-2) 0;
+    color: var(--md-sys-color-on-surface-variant);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.notification-time {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.7;
+}
+
+/* Project Item */
+.project-item {
+    padding: var(--space-4);
+    background: var(--md-sys-color-surface-container);
+    border-radius: var(--radius-lg);
+    transition: all 200ms ease;
+}
+
+.project-item:hover {
+    background: var(--md-sys-color-surface-container-high);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.project-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.project-header i {
+    font-size: 1.2rem;
+}
+
+.project-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--md-sys-color-on-surface);
+}
+
+.project-description {
+    font-size: 0.85rem;
+    margin: 0 0 var(--space-3) 0;
+    color: var(--md-sys-color-on-surface-variant);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.project-meta {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.project-type,
+.project-status {
+    font-size: 0.75rem;
+    padding: var(--space-1) var(--space-2);
+    background: var(--md-sys-color-surface-container-highest);
+    border-radius: var(--radius-full);
+    color: var(--md-sys-color-on-surface);
+}
+
+.project-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--md-sys-color-surface-container-highest);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    transition: width 300ms ease;
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface-variant);
+}
+</style>
+
+
+<!--============================================================================-->

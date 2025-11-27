@@ -1,0 +1,258 @@
+<!--============================================================================-->
+
+<!-- Componente de Instruções de Instalação PWA -->
+<style>
+ .pwa-install-banner {
+ position: fixed;
+ bottom: 20px;
+ left: 50%;
+ transform: translateX(-50%);
+ background: linear-gradient(135deg, var(--md-sys-color-primary) 0%, var(--md-sys-color-tertiary) 100%);
+ color: white;
+ padding: 16px 24px;
+ border-radius: 12px;
+ box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+ display: none;
+ flex-direction: row;
+ align-items: center;
+ gap: 16px;
+ max-width: 500px;
+ width: 90%;
+ z-index: 10000;
+ animation: slideUp 0.3s ease-out;
+ }
+
+ .pwa-install-banner.show {
+ display: flex;
+ }
+
+ @keyframes slideUp {
+ from {
+ transform: translateX(-50%) translateY(100px);
+ opacity: 0;
+ }
+ to {
+ transform: translateX(-50%) translateY(0);
+ opacity: 1;
+ }
+ }
+
+ .pwa-install-icon {
+ font-size: 48px;
+ line-height: 1;
+ }
+
+ .pwa-install-content {
+ flex: 1;
+ }
+
+ .pwa-install-title {
+ font-size: 16px;
+ font-weight: 700;
+ margin: 0 0 4px 0;
+ }
+
+ .pwa-install-text {
+ font-size: 13px;
+ opacity: 0.9;
+ margin: 0;
+ }
+
+ .pwa-install-actions {
+ display: flex;
+ gap: 8px;
+ }
+
+ .pwa-install-btn {
+ background: white;
+ color: var(--md-sys-color-primary);
+ border: none;
+ padding: 10px 20px;
+ border-radius: 8px;
+ font-weight: 600;
+ font-size: 14px;
+ cursor: pointer;
+ transition: all 0.2s;
+ }
+
+ .pwa-install-btn:hover {
+ transform: translateY(-2px);
+ box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+ }
+
+ .pwa-install-btn.secondary {
+ background: rgba(255, 255, 255, 0.2);
+ color: white;
+ }
+
+ .pwa-install-btn.secondary:hover {
+ background: rgba(255, 255, 255, 0.3);
+ }
+
+ @media (max-width: 600px) {
+ .pwa-install-banner {
+ flex-direction: column;
+ text-align: center;
+ bottom: 10px;
+ }
+
+ .pwa-install-actions {
+ width: 100%;
+ flex-direction: column;
+ }
+
+ .pwa-install-btn {
+ width: 100%;
+ }
+ }
+</style>
+
+<!-- Banner de Instalação -->
+<div id="pwa-install-banner-1" class="pwa-install-banner">
+  <div class="pwa-install-icon">📱</div>
+  <div class="pwa-install-content">
+    <h3 class="pwa-install-title">Instalar TE-DF</h3>
+    <p class="pwa-install-text">Instale o app para acesso rápido e uso offline</p>
+ </div>
+  <div class="pwa-install-actions">
+    <button id="pwa-install-button-1" class="pwa-install-btn">Instalar</button>
+    <button id="pwa-dismiss-button-1" class="pwa-install-btn secondary">Agora não</button>
+ </div>
+</div>
+
+<script>
+ (function() {
+    'use strict';
+
+ // Gerenciamento do banner de instalação PWA
+ let deferredPrompt = null;
+    const installBanner = document.getElementById('pwa-install-banner');
+    const installButton = document.getElementById('pwa-install-button');
+    const dismissButton = document.getElementById('pwa-dismiss-button');
+
+ // Chave para localStorage
+    const DISMISSED_KEY = 'pwa-install-dismissed';
+ const DISMISSED_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 dias
+
+ // Verifica se o banner foi dispensado recentemente
+ function wasDismissedRecently() {
+ const dismissed = localStorage.getItem(DISMISSED_KEY);
+ if (!dismissed) return false;
+
+ const dismissedTime = parseInt(dismissed, 10);
+ const now = Date.now();
+
+ if (now - dismissedTime > DISMISSED_EXPIRY) {
+ localStorage.removeItem(DISMISSED_KEY);
+ return false;
+ }
+
+ return true;
+ }
+
+ // Evento beforeinstallprompt - captura o prompt de instalação
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('💡 PWA pronto para instalação');
+
+ // Previne o prompt automático do navegador
+ e.preventDefault();
+
+ // Armazena o evento para uso posterior
+ deferredPrompt = e;
+
+ // Mostra o banner customizado se não foi dispensado recentemente
+ if (!wasDismissedRecently()) {
+ setTimeout(() => {
+          installBanner.classList.add('show');
+ }, 2000); // Aguarda 2s após o carregamento
+ }
+ });
+
+ // Botão de instalação
+    installButton.addEventListener('click', async () => {
+ if (!deferredPrompt) {
+        console.warn('⚠️ Prompt de instalação não disponível');
+ showInstallInstructions();
+ return;
+ }
+
+ // Mostra o prompt de instalação
+ deferredPrompt.prompt();
+
+ // Aguarda a escolha do usuário
+ const { outcome } = await deferredPrompt.userChoice;
+ console.log(`👤 Escolha do usuário: ${outcome}`);
+
+      if (outcome === 'accepted') {
+        console.log('✅ Usuário aceitou instalar o PWA');
+ } else {
+        console.log('❌ Usuário recusou instalar o PWA');
+ }
+
+ // Limpa o prompt
+ deferredPrompt = null;
+
+ // Esconde o banner
+      installBanner.classList.remove('show');
+ });
+
+ // Botão de dispensar
+    dismissButton.addEventListener('click', () => {
+      installBanner.classList.remove('show');
+ localStorage.setItem(DISMISSED_KEY, Date.now().toString());
+      console.log('ℹ️ Banner de instalação dispensado');
+ });
+
+ // Detecta quando o app foi instalado
+    window.addEventListener('appinstalled', () => {
+      console.log('✅ PWA instalado com sucesso!');
+      installBanner.classList.remove('show');
+ deferredPrompt = null;
+
+ // Opcional: Mostrar mensagem de sucesso
+ if (window.showToast) {
+        window.showToast('App instalado com sucesso! 🎉', 'success');
+ }
+ });
+
+ // Mostra instruções manuais de instalação
+ function showInstallInstructions() {
+ const userAgent = navigator.userAgent.toLowerCase();
+      let instructions = '';
+
+      if (userAgent.includes('chrome') || userAgent.includes('samsung')) {
+        instructions = '📱 Para instalar:\n\n1. Toque no menu (⋮) no canto superior direito\n2. Selecione "Adicionar à tela inicial" ou "Instalar app"';
+      } else if (userAgent.includes('safari')) {
+        instructions = '📱 Para instalar no Safari:\n\n1. Toque no botão de compartilhar (□↑)\n2. Selecione "Adicionar à Tela de Início"';
+      } else if (userAgent.includes('firefox')) {
+        instructions = '📱 Para instalar no Firefox:\n\n1. Toque no menu\n2. Selecione "Instalar"';
+ } else {
+        instructions = '📱 Para instalar:\n\nUse o menu do seu navegador e procure por "Adicionar à tela inicial" ou "Instalar"';
+ }
+
+ if (window.showToast) {
+        window.showToast(instructions, 'info', 8000);
+ } else {
+ alert(instructions);
+ }
+ }
+
+ // Detecta se já está instalado (modo standalone)
+    if (window.matchMedia('(display-mode: standalone)').matches ||
+ window.navigator.standalone === true) {
+      console.log('✅ App rodando em modo instalado (standalone)');
+
+ // Opcional: Ajustar UI para modo instalado
+      document.documentElement.setAttribute('data-pwa-installed', 'true');
+ }
+
+ // Log de suporte PWA
+    console.log('PWA Install Component carregado');
+    console.log('Service Worker suportado:', 'serviceWorker' in navigator);
+    console.log('beforeinstallprompt suportado:', 'onbeforeinstallprompt' in window);
+ })();
+</script>
+
+
+
+<!--============================================================================-->

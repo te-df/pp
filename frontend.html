@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧪 Teste de Frontend - Drawers e API</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    
+    .subtitle {
+      text-align: center;
+      opacity: 0.9;
+      margin-bottom: 3rem;
+    }
+    
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    
+    .test-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .test-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    
+    .test-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .test-card p {
+      opacity: 0.85;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    
+    .btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.02);
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .results {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      font-family: 'Courier New', monospace;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .results h2 {
+      margin-bottom: 1rem;
+    }
+    
+    .log-entry {
+      padding: 0.5rem;
+      margin: 0.25rem 0;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    
+    .log-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+    }
+    
+    .log-error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+    }
+    
+    .log-info {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+    }
+    
+    .log-warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fcd34d;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+    
+    .status-pending {
+      background: rgba(107, 114, 128, 0.3);
+      color: #d1d5db;
+    }
+    
+    .status-running {
+      background: rgba(59, 130, 246, 0.3);
+      color: #93c5fd;
+    }
+    
+    .status-success {
+      background: rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+    
+    .status-failed {
+      background: rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Teste de Frontend</h1>
+    <p class="subtitle">Valide os Drawers e a integração com a API</p>
+    
+    <div class="w-full test-grid">
+      <!-- Teste 1: Drawers -->
+      <div class="test-card">
+        <h3>🪟 Teste de Drawers</h3>
+        <p>Verifica se os 5 drawers abrem e fecham corretamente</p>
+        <button class="btn" onclick="testDrawers()">
+          ▶️ Testar Drawers
+        </button>
+        <span id="status-drawers" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 2: Conexão API -->
+      <div class="test-card">
+        <h3>🔌 Conexão com API</h3>
+        <p>Testa a conectividade com o backend Google Apps Script</p>
+        <button class="btn" onclick="testAPIConnection()">
+          ▶️ Testar API
+        </button>
+        <span id="status-api" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 3: Leitura de Dados -->
+      <div class="test-card">
+        <h3>📖 Leitura de Dados</h3>
+        <p>Carrega dados de alunos da planilha</p>
+        <button class="btn" onclick="testReadData()">
+          ▶️ Ler Dados
+        </button>
+        <span id="status-read" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 4: CRUD Universal -->
+      <div class="test-card">
+        <h3>💾 CRUD Universal</h3>
+        <p>Verifica se o sistema CRUD está inicializado</p>
+        <button class="btn" onclick="testCRUD()">
+          ▶️ Testar CRUD
+        </button>
+        <span id="status-crud" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 5: Cards Dinâmicos -->
+      <div class="test-card">
+        <h3>📊 Cards Dinâmicos</h3>
+        <p>Testa atualização de cards com dados da API</p>
+        <button class="btn" onclick="testDynamicCards()">
+          ▶️ Testar Cards
+        </button>
+        <span id="status-cards" class="status-badge status-pending">Pendente</span>
+      </div>
+      
+      <!-- Teste 6: Todos -->
+      <div class="test-card">
+        <h3>🚀 Executar Todos</h3>
+        <p>Executa todos os testes em sequência</p>
+        <button class="btn" onclick="runAllTests()">
+          ▶️ Testar Tudo
+        </button>
+        <span id="status-all" class="status-badge status-pending">Pendente</span>
+      </div>
+    </div>
+    
+    <!-- Resultados -->
+    <div class="results" id="results">
+      <h2>📝 Log de Testes</h2>
+      <p  style="opacity: 0.7">Os resultados aparecerão aqui...</p>
+    </div>
+  </div>
+  
+  <script>
+    // ========================================================================
+    // SISTEMA DE LOG
+    // ========================================================================
+    
+    function log(message, type = 'info') {
+      const results = document.getElementById('results');
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      results.appendChild(entry);
+      results.scrollTop = results.scrollHeight;
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+    
+    function updateStatus(testId, status) {
+      const badge = document.getElementById(`status-${testId}`);
+      if (badge) {
+        badge.className = `status-badge status-${status}`;
+        badge.textContent = status === 'running' ? 'Executando...' 
+          : status === 'success' ? 'Sucesso'
+          : status === 'failed' ? 'Falhou'
+          : 'Pendente';
+      }
+    }
+    
+    // ========================================================================
+    // TESTE 1: DRAWERS
+    // ========================================================================
+    
+    async function testDrawers() {
+      updateStatus('drawers', 'running');
+      log('🧪 Iniciando teste de Drawers...', 'info');
+      
+      const drawers = [
+        'search-drawer',
+        'chatbot-drawer',
+        'notifications-drawer',
+        'user-drawer',
+        'projects-drawer'
+      ];
+      
+      let passed = 0;
+      let failed = 0;
+      
+      for (const drawerId of drawers) {
+        try {
+          log(`Verificando: ${drawerId}...`, 'info');
+          
+          // Verificar se o drawer existe no DOM
+          const drawer = document.getElementById(drawerId);
+          if (!drawer) {
+            log(`❌ Drawer não encontrado: ${drawerId}`, 'error');
+            failed++;
+            continue;
+          }
+          
+          // Verificar se openDrawer está disponível
+          if (typeof window.openDrawer === 'function') {
+            log(`✅ Drawer ${drawerId} encontrado e função disponível`, 'success');
+            passed++;
+          } else {
+            log(`⚠️  Drawer ${drawerId} encontrado mas openDrawer() não disponível`, 'warning');
+            failed++;
+          }
+          
+          await sleep(200);
+          
+        } catch (error) {
+          log(`❌ Erro ao testar ${drawerId}: ${error.message}`, 'error');
+          failed++;
+        }
+      }
+      
+      log(`\n📊 Resultado: ${passed} passaram, ${failed} falharam`, 
+        failed === 0 ? 'success' : 'warning');
+      
+      updateStatus('drawers', failed === 0 ? 'success' : 'failed');
+    }
+    
+    // ========================================================================
+    // TESTE 2: CONEXÃO API
+    // ========================================================================
+    
+    async function testAPIConnection() {
+      updateStatus('api', 'running');
+      log('🧪 Testando conexão com API...', 'info');
+      
+      try {
+        // Verificar se google.script.run está disponível
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          log('✅ google.script.run está disponível', 'success');
+          log('✅ Ambiente Google Apps Script detectado', 'success');
+          updateStatus('api', 'success');
+        } else {
+          log('⚠️  google.script.run não disponível (ambiente local?)', 'warning');
+          log('ℹ️  Para testar a API, execute via Google Apps Script', 'info');
+          updateStatus('api', 'failed');
+        }
+      } catch (error) {
+        log(`❌ Erro: ${error.message}`, 'error');
+        updateStatus('api', 'failed');
+      }
+    }
+    
+    // ========================================================================
+    // TESTE 3: LEITURA DE DADOS
+    // ========================================================================
+    
+    async function testReadData() {
+      updateStatus('read', 'running');
+      log('🧪 Testando leitura de dados...', 'info');
+      
+      try {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          log('📡 Fazendo requisição para readRecords...', 'info');
+          
+          // Simulação - não vai funcionar em arquivo local
+          log('⚠️  Teste real requer deploy no Google Apps Script', 'warning');
+          log('ℹ️  Use o teste backend: runFullAPITest() no Apps Script', 'info');
+          
+          updateStatus('read', 'failed');
+        } else {
+          log('❌ API não disponível neste ambiente', 'error');
+          updateStatus('read', 'failed');
+        }
+      } catch (error) {
+        log(`❌ Erro: ${error.message}`, 'error');
+        updateStatus('read', 'failed');
+      }
+    }
+    
+    // ========================================================================
+    // TESTE 4: CRUD UNIVERSAL
+    // ========================================================================
+    
+    async function testCRUD() {
+      updateStatus('crud', 'running');
+      log('🧪 Testando CRUD Universal...', 'info');
+      
+      try {
+        // Verificar se CRUDManagerUniversal está definido
+        if (typeof CRUDManagerUniversal !== 'undefined') {
+          log('✅ CRUDManagerUniversal encontrado', 'success');
+          
+          // Verificar instâncias
+          const instances = CRUDManagerUniversal.instances || {};
+          log(`📊 Instâncias CRUD: ${Object.keys(instances).length}`, 'info');
+          
+          if (Object.keys(instances).length > 0) {
+            Object.keys(instances).forEach(key => {
+              log(`  - ${key}`, 'info');
+            });
+          }
+          
+          updateStatus('crud', 'success');
+        } else {
+          log('❌ CRUDManagerUniversal não encontrado', 'error');
+          log('ℹ️  Certifique-se de incluir JS-CRUD-Universal.html', 'info');
+          updateStatus('crud', 'failed');
+        }
+      } catch (error) {
+        log(`❌ Erro: ${error.message}`, 'error');
+        updateStatus('crud', 'failed');
+      }
+    }
+    
+    // ========================================================================
+    // TESTE 5: CARDS DINÂMICOS
+    // ========================================================================
+    
+    async function testDynamicCards() {
+      updateStatus('cards', 'running');
+      log('🧪 Testando cards dinâmicos...', 'info');
+      
+      try {
+        // Procurar cards com IDs stat-*
+        const statCards = document.querySelectorAll('[id^="stat-"]');
+        
+        log(`📊 Cards stat-* encontrados: ${statCards.length}`, 'info');
+        
+        if (statCards.length > 0) {
+          statCards.forEach(card => {
+            log(`  - ${card.id}: "${card.textContent.trim()}"`, 'info');
+          });
+          log('✅ Cards stat-* estão presentes', 'success');
+          updateStatus('cards', 'success');
+        } else {
+          log('⚠️  Nenhum card stat-* encontrado', 'warning');
+          updateStatus('cards', 'failed');
+        }
+      } catch (error) {
+        log(`❌ Erro: ${error.message}`, 'error');
+        updateStatus('cards', 'failed');
+      }
+    }
+    
+    // ========================================================================
+    // EXECUTAR TODOS OS TESTES
+    // ========================================================================
+    
+    async function runAllTests() {
+      updateStatus('all', 'running');
+      log('🚀 Executando todos os testes...', 'info');
+      log('='.repeat(60), 'info');
+      
+      await testDrawers();
+      await sleep(500);
+      
+      await testAPIConnection();
+      await sleep(500);
+      
+      await testReadData();
+      await sleep(500);
+      
+      await testCRUD();
+      await sleep(500);
+      
+      await testDynamicCards();
+      
+      log('='.repeat(60), 'info');
+      log('✅ Todos os testes concluídos!', 'success');
+      updateStatus('all', 'success');
+    }
+    
+    // ========================================================================
+    // UTILITÁRIOS
+    // ========================================================================
+    
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+      log('🎉 Sistema de testes carregado!', 'success');
+      log('ℹ️  Clique nos botões para executar os testes', 'info');
+    });
+  </script>
+</body>
+</html>

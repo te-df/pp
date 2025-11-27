@@ -1,0 +1,237 @@
+<script>
+    /**
+     * JS-Admin
+     * Lógica para o painel administrativo
+     */
+
+    const AdminManager = {
+        isInitialized: false,
+
+        init() {
+            if (this.isInitialized) return;
+            console.log('[AdminManager] Inicializando...');
+            this.isInitialized = true;
+
+            // Carrega dados iniciais se o drawer estiver aberto
+            const drawer = document.getElementById('drawer-admin');
+            if (drawer && drawer.classList.contains('open')) {
+                this.refreshStatus();
+            }
+
+            // Listener para quando o drawer for aberto
+            document.addEventListener('drawerOpened', (e) => {
+                if (e.detail.drawerId === 'drawer-admin') {
+                    this.refreshStatus();
+                }
+            });
+        },
+
+        async refreshStatus() {
+            this.loadSystemStatus();
+            this.loadTriggers();
+            this.loadHistory();
+        },
+
+        async loadSystemStatus() {
+            const statusMsg = document.getElementById('admin-status-message');
+            if (statusMsg) {
+                statusMsg.style.display = 'block';
+                statusMsg.className = 'alert alert-info';
+                statusMsg.textContent = 'Atualizando status...';
+            }
+
+            try {
+                // Carrega status de arquivamento
+                const result = await API.run('handleArchivingStatus');
+
+                if (result && result.success && result.data) {
+                    const data = result.data;
+
+                    // Atualiza UI
+                    document.getElementById('admin-total-records').textContent = data.dataset.totalRecords.toLocaleString();
+                    document.getElementById('admin-total-size').textContent = data.dataset.totalSizeMB + ' MB';
+
+                    // Status message
+                    if (statusMsg) {
+                        statusMsg.className = `alert alert-${data.status === 'ok' ? 'success' : data.status === 'warning' ? 'warning' : 'danger'}`;
+                        statusMsg.innerHTML = `<i class="fas fa-info-circle"></i> ${data.statusMessage}`;
+                    }
+                }
+
+                // Carrega arquivos arquivados (para contagem)
+                // Nota: Se não houver endpoint específico, podemos pular ou adicionar depois
+                // Por enquanto, vamos usar o que temos
+
+            } catch (error) {
+                console.error('[AdminManager] Erro ao carregar status:', error);
+                if (statusMsg) {
+                    statusMsg.className = 'alert alert-danger';
+                    statusMsg.textContent = 'Erro ao carregar status.';
+                }
+            }
+        },
+
+        async loadTriggers() {
+            const container = document.getElementById('admin-triggers-list');
+            if (!container) return;
+
+            container.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+
+            try {
+                // Usa o endpoint handleTriggerList que mapeamos para listActiveTriggers
+                const result = await API.run('handleTriggerList');
+
+                if (result && Array.isArray(result)) {
+                    if (result.length === 0) {
+                        container.innerHTML = '<div class="alert alert-warning">Nenhum trigger ativo.</div>';
+                        return;
+                    }
+
+                    container.innerHTML = result.map(trigger => `
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">${trigger.function}</h6>
+                            <small class="text-muted">${trigger.type}</small>
+                        </div>
+                        <span class="badge badge-success">Ativo</span>
+                    </div>
+                `).join('');
+                } else {
+                    container.innerHTML = '<div class="alert alert-warning">Nenhum trigger encontrado.</div>';
+                }
+            } catch (error) {
+                console.error('[AdminManager] Erro ao carregar triggers:', error);
+                container.innerHTML = '<div class="alert alert-danger">Erro ao carregar triggers.</div>';
+            }
+        },
+
+        async loadHistory() {
+            const tbody = document.querySelector('#admin-history-table tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center">Carregando...</td></tr>';
+
+            try {
+                const result = await API.run('handleCleanupHistory');
+
+                if (result && result.success && result.data && result.data.history) {
+                    const history = result.data.history;
+
+                    if (history.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Nenhum histórico recente.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = history.map(item => `
+                    <tr>
+                        <td>${new Date(item.timestamp).toLocaleString()}</td>
+                        <td>Limpeza</td>
+                        <td>
+                            <span class="badge badge-info" title="Arquivados">${item.archived} Arq</span>
+                            <span class="badge badge-success" title="Limpos">${item.cleaned} Del</span>
+                        </td>
+                    </tr>
+                `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Sem dados.</td></tr>';
+                }
+            } catch (error) {
+                console.error('[AdminManager] Erro ao carregar histórico:', error);
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Erro ao carregar.</td></tr>';
+            }
+        },
+
+        async runManualArchive() {
+            if (!confirm('Deseja iniciar o arquivamento manual dos dados? Isso pode levar alguns instantes.')) return;
+
+            LoadingManager.show('Arquivando dados...');
+            try {
+                const result = await API.run('handleManualArchive');
+                if (result.success) {
+                    ToastManager.show('Arquivamento concluído com sucesso!', 'success');
+                    this.refreshStatus();
+                } else {
+                    ToastManager.show('Erro no arquivamento: ' + result.error, 'error');
+                }
+            } catch (error) {
+                ToastManager.show('Erro ao executar arquivamento.', 'error');
+            } finally {
+                LoadingManager.hide();
+            }
+        },
+
+        async runManualCleanup() {
+            if (!confirm('ATENÇÃO: Isso irá limpar os dados antigos do sistema. Certifique-se de que o arquivamento já foi feito. Continuar?')) return;
+
+            LoadingManager.show('Executando limpeza...');
+            try {
+                const result = await API.run('handleManualCleanup');
+                if (result.success) {
+                    ToastManager.show('Limpeza concluída com sucesso!', 'success');
+                    this.refreshStatus();
+                } else {
+                    ToastManager.show('Erro na limpeza: ' + result.error, 'error');
+                }
+            } catch (error) {
+                ToastManager.show('Erro ao executar limpeza.', 'error');
+            } finally {
+                LoadingManager.hide();
+            }
+        },
+
+        async generateWeeklyReport() {
+            LoadingManager.show('Gerando relatório...');
+            try {
+                const result = await API.run('handleWeeklyReport');
+                ToastManager.show(result.message || 'Relatório gerado!', 'success');
+            } catch (error) {
+                ToastManager.show('Erro ao gerar relatório.', 'error');
+            } finally {
+                LoadingManager.hide();
+            }
+        },
+
+        async setupTriggers() {
+            if (!confirm('Deseja ativar todas as automações (limpeza diária, backup mensal, relatórios)?')) return;
+
+            LoadingManager.show('Configurando triggers...');
+            try {
+                const result = await API.run('handleTriggerSetup');
+                if (result.success) {
+                    ToastManager.show('Automações ativadas com sucesso!', 'success');
+                    this.loadTriggers();
+                } else {
+                    ToastManager.show('Erro ao ativar automações.', 'error');
+                }
+            } catch (error) {
+                ToastManager.show('Erro de comunicação.', 'error');
+            } finally {
+                LoadingManager.hide();
+            }
+        },
+
+        async removeTriggers() {
+            if (!confirm('Deseja DESATIVAR todas as automações? O sistema deixará de fazer backups e limpezas automáticas.')) return;
+
+            LoadingManager.show('Removendo triggers...');
+            try {
+                const result = await API.run('handleTriggerRemove');
+                if (result.success) {
+                    ToastManager.show('Automações desativadas.', 'warning');
+                    this.loadTriggers();
+                } else {
+                    ToastManager.show('Erro ao desativar automações.', 'error');
+                }
+            } catch (error) {
+                ToastManager.show('Erro de comunicação.', 'error');
+            } finally {
+                LoadingManager.hide();
+            }
+        }
+    };
+
+    // Inicializa quando o documento estiver pronto
+    document.addEventListener('DOMContentLoaded', () => {
+        AdminManager.init();
+    });
+</script>

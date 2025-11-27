@@ -1,0 +1,261 @@
+<!--============================================================================-->
+
+<script>
+
+/* ============================================================================
+ TAB MANAGER - Sistema de Abas para Seções Agrupadas
+ ============================================================================
+ Versão: 2.0 (Refatorado por Gemini Code Assist)
+ Gerencia múltiplas planilhas dentro de uma mesma seção
+ ============================================================================ */
+
+(function() {
+    'use strict';
+
+ /* * Gerenciador de Tabs Reutilizável */
+ const TabManager = {
+ instances: {},
+
+ /* * Cria um sistema de tabs para uma seção
+ * @param {string} sectionId - ID da seção
+ * @param {Array} tabs - Array de objetos {id, label, sheet, icon}
+ * @param {Function} onTabChange - Callback quando tab é alterada */
+ create(sectionId, tabs, onTabChange = () => {}) {
+ if (!tabs || tabs.length <= 1) return null;
+
+ const container = document.querySelector(`#${sectionId}-section`);
+ if (!container) {
+ console.warn(`[TabManager] Seção não encontrada: ${sectionId}`);
+ return null;
+ }
+
+ // Se já existe uma instância, destrói antes de recriar
+ if (this.instances[sectionId]) {
+ this.destroy(sectionId);
+ }
+
+ // Cria navegação de tabs
+            const tabNav = document.createElement('div');
+            tabNav.className = 'tab-navigation';
+            tabNav.setAttribute('role', 'tablist');
+
+ const tabButtons = tabs.map((tab, index) => `
+ <button
+                    class="tab-button ${index === 0 ? 'active' : ''}"
+                    data-tab-id="${tab.id}"
+                    data-sheet-name="${tab.sheet}"
+                    role="tab"
+                    aria-selected="${index === 0}"
+                    aria-controls="tab-panel-${tab.id}"
+                    id="tab-${tab.id}">
+                    ${tab.icon ? `<i class="fas fa-${tab.icon}"></i>` : ''}
+ <span>${tab.label}</span>
+ </button>
+            `).join('');
+
+ tabNav.innerHTML = `
+                <div class="tab-navigation-inner">
+ ${tabButtons}
+ </div>
+ `;
+
+ // Insere no topo da seção, antes do conteúdo
+            const pageHeader = container.querySelector('.page-header');
+ if (pageHeader) {
+                pageHeader.insertAdjacentElement('afterend', tabNav);
+ } else {
+ container.insertBefore(tabNav, container.firstChild);
+ }
+
+ // Cria painéis de conteúdo
+            let tabPanelsContainer = container.querySelector('.tab-panels');
+ if (!tabPanelsContainer) {
+                tabPanelsContainer = document.createElement('div');
+                tabPanelsContainer.className = 'tab-panels';
+
+ // Adiciona o container de painéis após a navegação de abas
+                tabNav.insertAdjacentElement('afterend', tabPanelsContainer);
+ }
+
+ tabs.forEach((tab, index) => {
+ let panel = tabPanelsContainer.querySelector(`#tab-panel-${tab.id}`);
+ // Cria o painel apenas se ele não existir
+ if (!panel) {
+                    panel = document.createElement('div');
+ panel.id = `tab-panel-${tab.id}`;
+                    panel.className = `tab-panel ${index === 0 ? 'active' : ''}`;
+                    panel.setAttribute('role', 'tabpanel');
+                    panel.setAttribute('aria-labelledby', `tab-${tab.id}`);
+                    panel.innerHTML = `<div class="tab-crud-container" id="${sectionId}-${tab.id}-container"></div>`;
+ tabPanelsContainer.appendChild(panel);
+ }
+ });
+
+ // Event listener com delegação
+ const tabClickHandler = (e) => {
+                const button = e.target.closest('.tab-button');
+ if (!button) return;
+
+                const tabId = button.getAttribute('data-tab-id');
+                const sheetName = button.getAttribute('data-sheet-name');
+
+ this.switchTab(sectionId, tabId);
+ onTabChange(tabId, sheetName);
+ };
+
+ // Adiciona event listener na navegação
+            tabNav.addEventListener('click', tabClickHandler);
+
+ // Salva instância
+ this.instances[sectionId] = {
+ tabs,
+ currentTab: tabs[0].id,
+ currentSheet: tabs[0].sheet,
+ onTabChange,
+ container,
+ eventHandler: tabClickHandler
+ };
+
+ console.log(`[TabManager] Tabs criadas para ${sectionId}:`, tabs.length);
+
+ return this.instances[sectionId];
+ },
+
+ /* * Troca de tab */
+ switchTab(sectionId, tabId) {
+ const instance = this.instances[sectionId];
+ if (!instance) return;
+
+ const container = document.querySelector(`#${sectionId}-section`);
+ if (!container) return;
+
+ // Atualiza botões
+            container.querySelectorAll('.tab-button').forEach(btn => {
+                const isActive = btn.getAttribute('data-tab-id') === tabId;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-selected', isActive);
+ });
+
+ // Atualiza painéis
+            container.querySelectorAll('.tab-panel').forEach(panel => {
+ const isActive = panel.id === `tab-panel-${tabId}`;
+                panel.classList.toggle('active', isActive); // CSS fará a animação
+ });
+
+ // Atualiza estado
+ const newTab = instance.tabs.find(t => t.id === tabId);
+ if (!newTab) return;
+
+ const sheetName = newTab.sheet;
+ instance.currentTab = tabId;
+ instance.currentSheet = sheetName;
+
+ // Salva preferência
+ try {
+ localStorage.setItem(`sigte:tab:${sectionId}`, tabId);
+ } catch (e) {
+                console.warn('[TabManager] Erro ao salvar tab:', e);
+ }
+
+ console.log(`[TabManager] Tab ativada: ${sectionId} → ${tabId} (${sheetName})`);
+ },
+
+ /* * Obtém tab ativa */
+ getCurrentTab(sectionId) {
+ return this.instances[sectionId]?.currentTab || null;
+ },
+
+ /* * Obtém sheet ativa */
+ getCurrentSheet(sectionId) {
+ return this.instances[sectionId]?.currentSheet || null;
+ },
+
+ /* * Restaura última tab visitada */
+ restoreLastTab(sectionId) {
+ try {
+ const lastTab = localStorage.getItem(`sigte:tab:${sectionId}`);
+ if (lastTab) {
+ const instance = this.instances[sectionId];
+ const tab = instance?.tabs.find(t => t.id === lastTab);
+ if (tab) {
+ this.switchTab(sectionId, tab.id, tab.sheet);
+ }
+ }
+ } catch (e) {
+                console.warn('[TabManager] Erro ao restaurar tab:', e);
+ }
+ },
+
+ /* * Destrói instância de tabs */
+ destroy(sectionId) {
+ const instance = this.instances[sectionId];
+ if (!instance) return;
+
+ const container = document.querySelector(`#${sectionId}-section`);
+ if (container) {
+ // Remove navegação de tabs
+                const tabNav = container.querySelector('.tab-navigation');
+ if (tabNav) tabNav.remove();
+
+ // Remove painéis
+                const tabPanels = container.querySelector('.tab-panels');
+ if (tabPanels) tabPanels.remove();
+ }
+
+ delete this.instances[sectionId];
+ console.log(`[TabManager] Instância destruída: ${sectionId}`);
+ }
+ };
+
+ /* * Auto-inicialização de tabs quando seção é ativada */
+    document.addEventListener('sectionChanged', async (e) => {
+ const { section: sectionId, previousSection } = e.detail;
+
+ // Limpa a instância de tabs da seção anterior
+ if (previousSection && TabManager.instances[previousSection]) {
+ TabManager.destroy(previousSection);
+ }
+
+ if (!window.SheetMappingManager || !window.CRUDManagerUniversal) {
+            console.warn('[TabManager] SheetMappingManager não disponível');
+ return;
+ }
+
+ const metadata = SheetMappingManager.getSectionMetadata(sectionId);
+ if (!metadata || !metadata.tabs || metadata.tabs.length <= 1) {
+ return; // Seção simples, sem tabs
+ }
+
+ if (!TabManager.instances[sectionId]) {
+ console.log(`[TabManager] Criando tabs para: ${sectionId}`);
+
+ TabManager.create(sectionId, metadata.tabs, (tabId, sheetName) => {
+ console.log(`[TabManager] Tab alterada: ${tabId} → ${sheetName}`);
+
+ const config = window.SECTION_CONFIGS?.[sectionId]; // Pega a config base da seção
+ if (config) {
+ // Cria uma instância de CRUD específica para esta tab
+ CRUDManagerUniversal.init({
+ ...config,
+ sectionId: tabId, // Usa o ID da tab como identificador único
+ containerId: `tab-panel-${tabId}`, // Renderiza dentro do painel da tab
+ sheetName: sheetName,
+ });
+ }
+ });
+
+ TabManager.restoreLastTab(sectionId);
+ }
+ });
+
+ window.TabManager = TabManager;
+    console.log('[TabManager] Sistema de tabs carregado');
+})();
+
+</script>
+
+
+
+
+
+<!--============================================================================-->

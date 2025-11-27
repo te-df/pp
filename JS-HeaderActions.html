@@ -1,0 +1,175 @@
+<!--============================================================================-->
+
+<script>
+/**
+ * ============================================================================
+ * HEADER ACTIONS MANAGER - Gerencia todas as ações dos botões do header
+ * ============================================================================
+ * - Botão hamburger (abre menu mobile grid 4x6)
+ * - Botão toggle nav horizontal
+ * - Integração com drawers
+ * - Atalhos de teclado
+ * ============================================================================
+ */
+(function() {
+    'use strict';
+
+    const HeaderActions = {
+        init() {
+            console.log('[HeaderActions] 🚀 Inicializando...');
+            
+            this.setupMenuToggle();
+            this.setupHamburgerMobile();
+            this.setupKeyboardShortcuts();
+            
+            console.log('[HeaderActions] ✅ Inicializado com sucesso!');
+        },
+
+        /**
+         * Configura o botão de toggle do menu horizontal (desktop)
+         */
+        setupMenuToggle() {
+            const menuToggleBtn = document.getElementById('menu-toggle-btn');
+            const horizontalNav = document.getElementById('horizontal-nav');
+            
+            if (!menuToggleBtn || !horizontalNav) {
+                console.warn('[HeaderActions] ⚠️ Menu toggle ou nav não encontrado');
+                return;
+            }
+
+            menuToggleBtn.addEventListener('click', () => {
+                const isExpanded = horizontalNav.classList.toggle('collapsed');
+                menuToggleBtn.setAttribute('aria-expanded', !isExpanded);
+                
+                console.log('[HeaderActions] 📍 Nav horizontal', isExpanded ? 'colapsado' : 'expandido');
+            });
+        },
+
+        /**
+         * Configura botão hamburger para abrir menu mobile grid 4x6
+         */
+        setupHamburgerMobile() {
+            // Criar botão hamburger mobile se não existir
+            let hamburgerBtn = document.getElementById('mobile-menu-hamburger');
+            
+            if (!hamburgerBtn) {
+                // Procurar o header actions
+                const headerActions = document.getElementById('header-actions');
+                if (!headerActions) {
+                    console.warn('[HeaderActions] ⚠️ Header actions não encontrado');
+                    return;
+                }
+
+                // Criar botão hamburger
+                hamburgerBtn = document.createElement('button');
+                hamburgerBtn.id = 'mobile-menu-hamburger';
+                hamburgerBtn.className = 'btn-icon mobile-only';
+                hamburgerBtn.setAttribute('aria-label', 'Abrir menu principal');
+                hamburgerBtn.setAttribute('title', 'Menu Principal');
+                hamburgerBtn.setAttribute('type', 'button');
+                hamburgerBtn.innerHTML = '<i class="fas fa-bars" aria-hidden="true"></i>';
+                
+                // Inserir como primeiro botão
+                headerActions.insertBefore(hamburgerBtn, headerActions.firstChild);
+                
+                console.log('[HeaderActions] ✅ Botão hamburger mobile criado');
+            }
+
+            // Listener para abrir menu mobile
+            hamburgerBtn.addEventListener('click', () => {
+                if (typeof window.openMobileMenu === 'function') {
+                    window.openMobileMenu();
+                    console.log('[HeaderActions] 🍔 Menu mobile aberto');
+                } else {
+                    console.error('[HeaderActions] ❌ Função openMobileMenu não encontrada');
+                }
+            });
+
+            // Adicionar CSS para mobile-only se não existir
+            if (!document.getElementById('mobile-only-styles')) {
+                const style = document.createElement('style');
+                style.id = 'mobile-only-styles';
+                style.textContent = `
+                    .mobile-only {
+                        display: none !important;
+                    }
+                    
+                    @media (max-width: 991px) {
+                        .mobile-only {
+                            display: flex !important;
+                        }
+                        
+                        #menu-toggle-btn {
+                            display: none !important;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        },
+
+        /**
+         * Configura atalhos de teclado
+         */
+        setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl+K: Busca
+                if (e.ctrlKey && e.key === 'k') {
+                    e.preventDefault();
+                    if (typeof window.openDrawer === 'function') {
+                        window.openDrawer('search-drawer');
+                    }
+                }
+
+                // Ctrl+/: Chatbot
+                if (e.ctrlKey && e.key === '/') {
+                    e.preventDefault();
+                    if (typeof window.openDrawer === 'function') {
+                        window.openDrawer('chatbot-drawer');
+                    }
+                }
+
+                // Alt+U: User drawer
+                if (e.altKey && e.key === 'u') {
+                    e.preventDefault();
+                    if (typeof window.openDrawer === 'function') {
+                        window.openDrawer('user-drawer');
+                    }
+                }
+
+                // Alt+N: Notificações
+                if (e.altKey && e.key === 'n') {
+                    e.preventDefault();
+                    if (typeof window.openDrawer === 'function') {
+                        window.openDrawer('notifications-drawer');
+                    }
+                }
+
+                // Alt+P: Projetos
+                if (e.altKey && e.key === 'p') {
+                    e.preventDefault();
+                    if (typeof window.openDrawer === 'function') {
+                        window.openDrawer('projects-drawer');
+                    }
+                }
+            });
+
+            console.log('[HeaderActions] ⌨️ Atalhos configurados: Ctrl+K, Ctrl+/, Alt+U, Alt+N, Alt+P');
+        }
+    };
+
+    // Inicializar quando DOM estiver pronto
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => HeaderActions.init());
+    } else {
+        HeaderActions.init();
+    }
+
+    // Expor globalmente
+    window.HeaderActions = HeaderActions;
+
+})();
+</script>
+
+
+<!--============================================================================-->

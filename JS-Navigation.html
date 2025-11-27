@@ -1,0 +1,125 @@
+<!--============================================================================-->
+
+<script>
+/* ============================================================================
+ NAVIGATION MANAGER
+ Gerencia a navegação principal e seções (SPA).
+ DRAWERS: Gerenciados pelo JS-DrawerManager.html
+ ============================================================================ */
+
+// ❌ DrawerManager REMOVIDO - Agora está no JS-DrawerManager.html
+// O DrawerManager antigo estava em conflito com o novo
+
+(function(window) {
+    'use strict';
+
+ const SectionManager = {
+ init() {
+            this.navContainer = document.getElementById('horizontal-nav');
+ if (!this.navContainer) {
+                console.error('[SectionManager] Container de navegação não encontrado.');
+ return;
+ }
+
+            this.navContainer.addEventListener('click', (e) => {
+                const navBtn = e.target.closest('.nav-btn');
+ if (navBtn) {
+ e.preventDefault();
+ const sectionId = navBtn.dataset.section;
+ if (sectionId) {
+ this.switchSection(sectionId);
+ }
+ }
+ });
+
+            console.log('[SectionManager] ✅ Gerenciador de seções inicializado.');
+ },
+
+ switchSection(sectionId) {
+ const targetSection = document.getElementById(`${sectionId}-section`);
+ if (!targetSection) {
+                console.warn(`[SectionManager] Seção '${sectionId}-section' não encontrada.`);
+ return;
+ }
+
+ // 1. Esconde todas as seções
+            const allSections = document.querySelectorAll('.app-main .section');
+ allSections.forEach(section => {
+                section.classList.add('hidden');
+                section.classList.remove('active');
+ });
+
+ // 2. Mostra a seção alvo
+            targetSection.classList.remove('hidden');
+            targetSection.classList.add('active');
+
+            // 3. Atualiza o estado 'active' nos botões de navegação
+            const allNavBtns = this.navContainer.querySelectorAll('.nav-btn');
+ allNavBtns.forEach(btn => {
+                btn.classList.remove('active');
+                btn.removeAttribute('aria-current');
+ });
+
+            const activeNavBtn = this.navContainer.querySelector(`.nav-btn[data-section="${sectionId}"]`);
+ if (activeNavBtn) {
+                activeNavBtn.classList.add('active');
+                activeNavBtn.setAttribute('aria-current', 'page');
+ }
+
+ console.log(`[SectionManager] Seção trocada para: ${sectionId}`);
+
+ // Dispara evento para outros módulos (ex: TabManager, CRUDManager)
+            const sectionEvent = new CustomEvent('sectionChanged', { detail: { section: sectionId } });
+ document.dispatchEvent(sectionEvent);
+ }
+ };
+
+    document.addEventListener('DOMContentLoaded', () => SectionManager.init());
+ window.SectionManager = SectionManager;
+
+ // Exporta switchSection como função global para compatibilidade com onclick inline (temporário)
+ window.switchSection = (sectionId) => SectionManager.switchSection(sectionId);
+
+    // Escuta evento menuAction disparado pelo main-menu.html
+    document.addEventListener('menuAction', (e) => {
+        const actionId = e.detail?.actionId;
+        if (actionId) {
+            console.log(`[SectionManager] menuAction recebido: ${actionId}`);
+            SectionManager.switchSection(actionId);
+            
+            // Sincroniza o menu horizontal também
+            const navContainer = document.getElementById('horizontal-nav');
+            if (navContainer) {
+                const allNavBtns = navContainer.querySelectorAll('.nav-btn');
+                allNavBtns.forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.removeAttribute('aria-current');
+                });
+                
+                const activeNavBtn = navContainer.querySelector(`.nav-btn[data-section="${actionId}"]`);
+                if (activeNavBtn) {
+                    activeNavBtn.classList.add('active');
+                    activeNavBtn.setAttribute('aria-current', 'page');
+                }
+            }
+            
+            // Sincroniza o menu lateral também
+            const sideMenu = document.getElementById('app-main-menu');
+            if (sideMenu) {
+                const allMenuBtns = sideMenu.querySelectorAll('.menu-item');
+                allMenuBtns.forEach(btn => btn.classList.remove('active'));
+                
+                const activeMenuBtn = sideMenu.querySelector(`button[data-action="${actionId}"]`);
+                if (activeMenuBtn && !activeMenuBtn.disabled) {
+                    activeMenuBtn.classList.add('active');
+                }
+            }
+        }
+    });
+
+})(window);
+</script>
+
+
+
+<!--============================================================================-->

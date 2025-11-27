@@ -1,0 +1,768 @@
+<script>
+/**
+ * JS-CommonFunctions.html
+ * Módulo de funções compartilhadas - Elimina duplicações
+ * Versão: 2.0.0
+ * 
+ * Consolida 48+ funções duplicadas identificadas pela análise
+ */
+
+(function(window) {
+  'use strict';
+
+  // ============================================================================
+  // NAMESPACE GLOBAL
+  // ============================================================================
+  
+  window.CommonFunctions = window.CommonFunctions || {};
+  const CF = window.CommonFunctions;
+
+  // ============================================================================
+  // DRAWER MANAGEMENT
+  // ============================================================================
+  
+  CF.Drawer = {
+    /**
+     * Abre drawer
+     * @param {string} drawerId - ID do drawer
+     */
+    open: function(drawerId) {
+      const drawer = document.getElementById(drawerId);
+      if (!drawer) {
+        console.warn(`Drawer não encontrado: ${drawerId}`);
+        return;
+      }
+      
+      drawer.classList.add('open');
+      this.createBackdrop();
+      document.body.style.overflow = 'hidden';
+      
+      // Trigger evento customizado
+      drawer.dispatchEvent(new CustomEvent('drawer:opened', { 
+        detail: { drawerId } 
+      }));
+    },
+
+    /**
+     * Fecha drawer
+     * @param {string} drawerId - ID do drawer (opcional)
+     */
+    close: function(drawerId) {
+      if (drawerId) {
+        const drawer = document.getElementById(drawerId);
+        if (drawer) {
+          drawer.classList.remove('open');
+        }
+      } else {
+        // Fecha todos os drawers abertos
+        document.querySelectorAll('.drawer.open').forEach(d => {
+          d.classList.remove('open');
+        });
+      }
+      
+      this.removeBackdrop();
+      document.body.style.overflow = '';
+      
+      // Trigger evento customizado
+      if (drawerId) {
+        const drawer = document.getElementById(drawerId);
+        if (drawer) {
+          drawer.dispatchEvent(new CustomEvent('drawer:closed', { 
+            detail: { drawerId } 
+          }));
+        }
+      }
+    },
+
+    /**
+     * Toggle drawer
+     * @param {string} drawerId - ID do drawer
+     */
+    toggle: function(drawerId) {
+      const drawer = document.getElementById(drawerId);
+      if (!drawer) return;
+      
+      if (drawer.classList.contains('open')) {
+        this.close(drawerId);
+      } else {
+        this.open(drawerId);
+      }
+    },
+
+    /**
+     * Cria backdrop
+     */
+    createBackdrop: function() {
+      if (document.getElementById('drawer-backdrop')) return;
+      
+      const backdrop = document.createElement('div');
+      backdrop.id = 'drawer-backdrop';
+      backdrop.className = 'drawer-backdrop';
+      backdrop.onclick = () => this.close();
+      document.body.appendChild(backdrop);
+      
+      // Fade in
+      setTimeout(() => backdrop.classList.add('active'), 10);
+    },
+
+    /**
+     * Remove backdrop
+     */
+    removeBackdrop: function() {
+      const backdrop = document.getElementById('drawer-backdrop');
+      if (backdrop) {
+        backdrop.classList.remove('active');
+        setTimeout(() => backdrop.remove(), 300);
+      }
+    },
+
+    /**
+     * Obtém backdrop
+     */
+    getBackdrop: function() {
+      return document.getElementById('drawer-backdrop');
+    }
+  };
+
+  // ============================================================================
+  // FORMATAÇÃO
+  // ============================================================================
+  
+  CF.Format = {
+    /**
+     * Formata data
+     * @param {Date|string|number} date - Data
+     * @param {string} format - Formato (opcional)
+     * @returns {string}
+     */
+    date: function(date, format = 'dd/MM/yyyy') {
+      if (!date) return '';
+      
+      const d = date instanceof Date ? date : new Date(date);
+      if (isNaN(d.getTime())) return '';
+      
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const seconds = String(d.getSeconds()).padStart(2, '0');
+      
+      return format
+        .replace('dd', day)
+        .replace('MM', month)
+        .replace('yyyy', year)
+        .replace('HH', hours)
+        .replace('mm', minutes)
+        .replace('ss', seconds);
+    },
+
+    /**
+     * Formata número
+     * @param {number} num - Número
+     * @param {number} decimals - Casas decimais
+     * @returns {string}
+     */
+    number: function(num, decimals = 2) {
+      if (num === null || num === undefined) return '';
+      return Number(num).toFixed(decimals);
+    },
+
+    /**
+     * Formata moeda
+     * @param {number} value - Valor
+     * @returns {string}
+     */
+    currency: function(value) {
+      if (value === null || value === undefined) return 'R$ 0,00';
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(value);
+    },
+
+    /**
+     * Formata timestamp
+     * @param {number|Date} timestamp - Timestamp
+     * @returns {string}
+     */
+    timestamp: function(timestamp) {
+      return this.date(timestamp, 'dd/MM/yyyy HH:mm:ss');
+    }
+  };
+
+  // ============================================================================
+  // NOTIFICAÇÕES
+  // ============================================================================
+  
+  CF.Notification = {
+    container: null,
+
+    /**
+     * Inicializa container de notificações
+     */
+    init: function() {
+      if (this.container) return;
+      
+      this.container = document.createElement('div');
+      this.container.id = 'notification-container';
+      this.container.className = 'notification-container';
+      document.body.appendChild(this.container);
+    },
+
+    /**
+     * Mostra notificação
+     * @param {string} message - Mensagem
+     * @param {string} type - Tipo (success, error, warning, info)
+     * @param {number} duration - Duração em ms
+     */
+    show: function(message, type = 'info', duration = 3000) {
+      this.init();
+      
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${type}`;
+      
+      const icon = this.getIcon(type);
+      notification.innerHTML = `
+        <i class="fas ${icon}"></i>
+        <span>${message}</span>
+        <button class="notification-close" onclick="this.parentElement.remove()">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+      
+      this.container.appendChild(notification);
+      
+      // Fade in
+      setTimeout(() => notification.classList.add('show'), 10);
+      
+      // Auto remove
+      if (duration > 0) {
+        setTimeout(() => this.remove(notification), duration);
+      }
+      
+      return notification;
+    },
+
+    /**
+     * Remove notificação
+     * @param {HTMLElement} notification - Elemento
+     */
+    remove: function(notification) {
+      notification.classList.remove('show');
+      setTimeout(() => notification.remove(), 300);
+    },
+
+    /**
+     * Atalhos
+     */
+    success: function(message, duration) {
+      return this.show(message, 'success', duration);
+    },
+
+    error: function(message, duration) {
+      return this.show(message, 'error', duration);
+    },
+
+    warning: function(message, duration) {
+      return this.show(message, 'warning', duration);
+    },
+
+    info: function(message, duration) {
+      return this.show(message, 'info', duration);
+    },
+
+    /**
+     * Obtém ícone por tipo
+     */
+    getIcon: function(type) {
+      const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+      };
+      return icons[type] || icons.info;
+    },
+
+    /**
+     * Limpa todas as notificações
+     */
+    clearAll: function() {
+      if (this.container) {
+        this.container.innerHTML = '';
+      }
+    }
+  };
+
+  // ============================================================================
+  // LOADING
+  // ============================================================================
+  
+  CF.Loading = {
+    overlay: null,
+
+    /**
+     * Mostra loading
+     * @param {string} message - Mensagem (opcional)
+     */
+    show: function(message = 'Carregando...') {
+      if (this.overlay) return;
+      
+      this.overlay = document.createElement('div');
+      this.overlay.className = 'loading-overlay';
+      this.overlay.innerHTML = `
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p>${message}</p>
+        </div>
+      `;
+      
+      document.body.appendChild(this.overlay);
+      setTimeout(() => this.overlay.classList.add('active'), 10);
+    },
+
+    /**
+     * Esconde loading
+     */
+    hide: function() {
+      if (!this.overlay) return;
+      
+      this.overlay.classList.remove('active');
+      setTimeout(() => {
+        if (this.overlay) {
+          this.overlay.remove();
+          this.overlay = null;
+        }
+      }, 300);
+    },
+
+    /**
+     * Verifica se está visível
+     */
+    isVisible: function() {
+      return !!this.overlay;
+    }
+  };
+
+  // ============================================================================
+  // VALIDAÇÃO
+  // ============================================================================
+  
+  CF.Validate = {
+    /**
+     * Valida email
+     * @param {string} email - Email
+     * @returns {boolean}
+     */
+    email: function(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+    },
+
+    /**
+     * Valida CPF
+     * @param {string} cpf - CPF
+     * @returns {boolean}
+     */
+    cpf: function(cpf) {
+      cpf = cpf.replace(/[^\d]/g, '');
+      if (cpf.length !== 11) return false;
+      if (/^(\d)\1{10}$/.test(cpf)) return false;
+      
+      // Validação dos dígitos
+      let sum = 0;
+      for (let i = 0; i < 9; i++) {
+        sum += parseInt(cpf.charAt(i)) * (10 - i);
+      }
+      let digit = 11 - (sum % 11);
+      if (digit > 9) digit = 0;
+      if (parseInt(cpf.charAt(9)) !== digit) return false;
+      
+      sum = 0;
+      for (let i = 0; i < 10; i++) {
+        sum += parseInt(cpf.charAt(i)) * (11 - i);
+      }
+      digit = 11 - (sum % 11);
+      if (digit > 9) digit = 0;
+      if (parseInt(cpf.charAt(10)) !== digit) return false;
+      
+      return true;
+    },
+
+    /**
+     * Valida telefone
+     * @param {string} phone - Telefone
+     * @returns {boolean}
+     */
+    phone: function(phone) {
+      const re = /^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$/;
+      return re.test(phone);
+    },
+
+    /**
+     * Valida campo obrigatório
+     * @param {any} value - Valor
+     * @returns {boolean}
+     */
+    required: function(value) {
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'string') return value.trim().length > 0;
+      return true;
+    },
+
+    /**
+     * Valida comprimento mínimo
+     * @param {string} value - Valor
+     * @param {number} min - Mínimo
+     * @returns {boolean}
+     */
+    minLength: function(value, min) {
+      return value && value.length >= min;
+    },
+
+    /**
+     * Valida comprimento máximo
+     * @param {string} value - Valor
+     * @param {number} max - Máximo
+     * @returns {boolean}
+     */
+    maxLength: function(value, max) {
+      return !value || value.length <= max;
+    }
+  };
+
+  // ============================================================================
+  // UTILITÁRIOS
+  // ============================================================================
+  
+  CF.Utils = {
+    /**
+     * Debounce
+     * @param {Function} func - Função
+     * @param {number} wait - Tempo de espera
+     * @returns {Function}
+     */
+    debounce: function(func, wait = 300) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    },
+
+    /**
+     * Throttle
+     * @param {Function} func - Função
+     * @param {number} limit - Limite
+     * @returns {Function}
+     */
+    throttle: function(func, limit = 300) {
+      let inThrottle;
+      return function(...args) {
+        if (!inThrottle) {
+          func.apply(this, args);
+          inThrottle = true;
+          setTimeout(() => inThrottle = false, limit);
+        }
+      };
+    },
+
+    /**
+     * Deep clone
+     * @param {any} obj - Objeto
+     * @returns {any}
+     */
+    deepClone: function(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    },
+
+    /**
+     * Gera ID único
+     * @returns {string}
+     */
+    generateId: function() {
+      return `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    },
+
+    /**
+     * Sanitiza HTML
+     * @param {string} html - HTML
+     * @returns {string}
+     */
+    sanitizeHTML: function(html) {
+      const div = document.createElement('div');
+      div.textContent = html;
+      return div.innerHTML;
+    },
+
+    /**
+     * Scroll suave para elemento
+     * @param {string|HTMLElement} target - Alvo
+     */
+    scrollTo: function(target) {
+      const element = typeof target === 'string' 
+        ? document.querySelector(target) 
+        : target;
+      
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+
+    /**
+     * Copia para clipboard
+     * @param {string} text - Texto
+     * @returns {Promise<boolean>}
+     */
+    copyToClipboard: async function(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        CF.Notification.success('Copiado para área de transferência!');
+        return true;
+      } catch (err) {
+        CF.Notification.error('Erro ao copiar');
+        return false;
+      }
+    }
+  };
+
+  // ============================================================================
+  // STORAGE
+  // ============================================================================
+  
+  CF.Storage = {
+    /**
+     * Salva no localStorage
+     * @param {string} key - Chave
+     * @param {any} value - Valor
+     */
+    set: function(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (e) {
+        console.error('Erro ao salvar no storage:', e);
+        return false;
+      }
+    },
+
+    /**
+     * Obtém do localStorage
+     * @param {string} key - Chave
+     * @param {any} defaultValue - Valor padrão
+     * @returns {any}
+     */
+    get: function(key, defaultValue = null) {
+      try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : defaultValue;
+      } catch (e) {
+        console.error('Erro ao ler do storage:', e);
+        return defaultValue;
+      }
+    },
+
+    /**
+     * Remove do localStorage
+     * @param {string} key - Chave
+     */
+    remove: function(key) {
+      localStorage.removeItem(key);
+    },
+
+    /**
+     * Limpa localStorage
+     */
+    clear: function() {
+      localStorage.clear();
+    }
+  };
+
+  // ============================================================================
+  // INICIALIZAÇÃO
+  // ============================================================================
+  
+  // Auto-inicializa notificações
+  document.addEventListener('DOMContentLoaded', function() {
+    CF.Notification.init();
+    
+    // ESC fecha drawers
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        CF.Drawer.close();
+      }
+    });
+    
+    console.log('✅ CommonFunctions inicializado');
+  });
+
+  // Expõe globalmente
+  window.CF = CF;
+
+})(window);
+</script>
+
+<style>
+/* ============================================================================
+   ESTILOS PARA COMPONENTES COMUNS
+   ============================================================================ */
+
+/* Drawer Backdrop */
+.drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.drawer-backdrop.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Notificações */
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 400px;
+}
+
+.notification {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+}
+
+.notification.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.notification i:first-child {
+  font-size: 20px;
+}
+
+.notification-success {
+  border-left: 4px solid #51cf66;
+}
+
+.notification-success i:first-child {
+  color: #51cf66;
+}
+
+.notification-error {
+  border-left: 4px solid #ff6b6b;
+}
+
+.notification-error i:first-child {
+  color: #ff6b6b;
+}
+
+.notification-warning {
+  border-left: 4px solid #ff922b;
+}
+
+.notification-warning i:first-child {
+  color: #ff922b;
+}
+
+.notification-info {
+  border-left: 4px solid #339af0;
+}
+
+.notification-info i:first-child {
+  color: #339af0;
+}
+
+.notification-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.notification-close:hover {
+  opacity: 1;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.loading-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.loading-spinner {
+  text-align: center;
+  color: white;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-spinner p {
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .notification-container {
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+}
+</style>

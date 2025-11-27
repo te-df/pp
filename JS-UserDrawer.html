@@ -1,0 +1,92 @@
+<!--============================================================================-->
+
+<script>
+
+/* ============================================================================
+ USER DRAWER - Controla exibição de Login/Profile no drawer do usuário
+ ============================================================================ */
+(function() {
+    'use strict';
+
+ const UserDrawer = {
+ init() {
+            console.log('[UserDrawer] Inicializando...');
+ this.updateDrawerView();
+
+ // Atualizar quando usuário logar/sair
+            document.addEventListener('auth-changed', () => {
+ this.updateDrawerView();
+ });
+ },
+
+ /* * Atualiza a view do drawer baseado no estado de autenticação */
+ updateDrawerView() {
+            const loginView = document.getElementById('login-view');
+            const profileView = document.getElementById('profile-view');
+            const logoutBtn = document.getElementById('logout-btn');
+
+ if (!loginView || !profileView) return;
+
+ if (AuthManager && AuthManager.isLoggedIn()) {
+ // Usuário logado - mostrar perfil
+                loginView.style.display = 'none';
+                profileView.style.display = 'block';
+                if (logoutBtn) logoutBtn.style.display = 'block';
+
+ this.updateProfileInfo();
+ } else {
+ // Usuário não logado - mostrar login
+                loginView.style.display = 'block';
+                profileView.style.display = 'none';
+                if (logoutBtn) logoutBtn.style.display = 'none';
+ }
+ },
+
+ /* * Atualiza informações do perfil */
+ updateProfileInfo() {
+ const user = AuthManager.getCurrentUser();
+ if (!user) return;
+
+ // Avatar inicial
+            const avatarInitial = document.getElementById('user-avatar-initial');
+ if (avatarInitial) {
+ avatarInitial.textContent = user.nome.charAt(0).toUpperCase();
+ }
+
+ // Nome
+            const userName = document.getElementById('user-name-display');
+ if (userName) {
+ userName.textContent = user.nome;
+ }
+
+ // Role/Perfil
+            const userRole = document.getElementById('user-role-display');
+ if (userRole) {
+ const roleLabels = {
+                    'MONITOR': '👨‍✈️ Monitor',
+                    'SECRETARIO': '👨‍💼 Secretário(a)',
+                    'ADMIN': '👨‍💻 Administrador'
+ };
+ userRole.textContent = roleLabels[user.role] || user.role;
+ }
+ }
+ };
+
+ // Expor globalmente
+ window.UserDrawer = UserDrawer;
+
+ // Inicializar quando DOM e AuthManager estiverem prontos
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+ // Aguardar AuthManager estar disponível
+ setTimeout(() => UserDrawer.init(), 100);
+ });
+ } else {
+ setTimeout(() => UserDrawer.init(), 100);
+ }
+
+    console.log('[UserDrawer] Script carregado');
+
+})();
+
+</script>

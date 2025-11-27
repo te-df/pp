@@ -1,0 +1,410 @@
+<!--
+ Form-Eventos.html
+ Formulários especializados para gestão de eventos escolares
+ 
+ 3 TIPOS DE EVENTOS:
+ 1. Dia Móvel/Feriado - Pontos facultativos e feriados
+ 2. Reposição de Aula - Agendar reposições
+ 3. Atividade Extracurricular - Passeios, feiras, eventos especiais
+ 
+ Inspirado em Events.txt
+ Versão: 1.0
+-->
+
+<div class="form-container" id="eventos-eventos-section">
+  <!-- Cabeçalho da Seção -->
+  <div class="page-header">
+    <h2 class="page-title">
+      <i class="fas fa-calendar-alt"></i> Gestão de Eventos Escolares
+    </h2>
+    <p class="page-subtitle">
+      Registre feriados, pontos facultativos, reposições de aulas e atividades extracurriculares.
+    </p>
+  </div>
+
+  <!-- Alerta Informativo: Prazos UNIAE/PP -->
+  <div class="alert alert-info mb-4" role="alert" >
+    <i class="fas fa-info-circle"></i>
+    <div>
+      <strong>Manual UNIAE/PP - Prazos de Solicitação:</strong>
+      <p  class="mt-2" style="font-size: 0.9rem">
+        <strong>REPOSIÇÃO:</strong> Mínimo de 5 dias úteis antes da data.<br>
+        <strong>ATIVIDADES EXTRACURRICULARES:</strong> Mínimo de 15 dias de antecedência.<br>
+        Comunique cancelamentos imediatamente para evitar custos ao erário.
+      </p>
+    </div>
+  </div>
+
+  <!-- Painel de Ações -->
+  <div class="card action-panel">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-plus-circle"></i> Registrar Novo Evento
+      </h3>
+    </div>
+    <div class="card-body">
+      <p>Selecione o tipo de evento que deseja registrar no calendário escolar.</p>
+      <div class="action-buttons horizontal">
+        <button class="btn btn-primary" onclick="Eventos.showForm('holiday-form-container')">
+          <i class="fas fa-calendar-times"></i> Dia Móvel/Feriado
+        </button>
+        <button class="btn btn-secondary" onclick="Eventos.showForm('makeup-form-container')">
+          <i class="fas fa-calendar-check"></i> Agendar Reposição
+        </button>
+        <button class="btn btn-tertiary" onclick="Eventos.showForm('extracurricular-form-container')">
+          <i class="fas fa-star"></i> Atividade Extracurricular
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================== -->
+  <!-- FORMULÁRIO 1: DIA MÓVEL / FERIADO -->
+  <!-- ========================================================================== -->
+  <div class="event-form-container form-section" id="eventos-holiday-form-container">
+    <div class="form-section-header">
+      <h3 class="form-section-title">
+        <i class="fas fa-calendar-times"></i> Registrar Dia Móvel ou Feriado
+      </h3>
+      <button class="btn-icon" onclick="Eventos.hideForm('holiday-form-container')" aria-label="Fechar formulário">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form class="event-form" id="eventos-holiday-form" onsubmit="Eventos.handleHolidaySubmit(event)">
+      <div class="w-full form-grid">
+        <div class="form-group">
+          <label class="form-label" for="holiday-school">Escola(s) Afetada(s) *</label>
+          <select class="form-control" id="eventos-holiday-school" name="schoolName" required>
+            <option value="">Selecione uma escola ou "Todas"</option>
+            <option value="TODAS">Todas as Escolas</option>
+            <!-- Opções dinâmicas serão populadas via JS -->
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="holiday-date">Data do Dia Móvel/Feriado *</label>
+          <input class="form-control" id="eventos-holiday-date" name="holidayDate" type="date" required />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="holiday-description">Descrição do Evento *</label>
+        <textarea 
+          class="form-control" 
+          id="eventos-holiday-description" 
+          name="description" 
+          rows="3" 
+          placeholder="Ex: Ponto Facultativo, Feriado de Aniversário da Cidade" 
+          required
+        ></textarea>
+      </div>
+
+      <div class="action-buttons horizontal">
+        <button class="btn btn-primary" type="submit">
+          <i class="fas fa-save"></i> Registrar Evento
+        </button>
+        <button class="btn btn-secondary" type="button" onclick="Eventos.hideForm('holiday-form-container')">
+          <i class="fas fa-times"></i> Cancelar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ========================================================================== -->
+  <!-- FORMULÁRIO 2: REPOSIÇÃO DE AULA -->
+  <!-- ========================================================================== -->
+  <div class="event-form-container form-section" id="eventos-makeup-form-container">
+    <div class="form-section-header">
+      <h3 class="form-section-title">
+        <i class="fas fa-calendar-check"></i> Agendar Reposição de Aula
+      </h3>
+      <button class="btn-icon" onclick="Eventos.hideForm('makeup-form-container')" aria-label="Fechar formulário">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form class="event-form" id="eventos-makeup-form" onsubmit="Eventos.handleMakeupSubmit(event)">
+      <div class="w-full form-grid">
+        <div class="form-group">
+          <label class="form-label" for="makeup-school">Escola *</label>
+          <select class="form-control" id="eventos-makeup-school" name="schoolName" required>
+            <option value="">Selecione uma escola</option>
+            <!-- Opções dinâmicas -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="makeup-original-date">Data da Aula Perdida *</label>
+          <input class="form-control" id="eventos-makeup-original-date" name="originalDate" type="date" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="makeup-new-date">Nova Data da Aula *</label>
+          <input class="form-control" id="eventos-makeup-new-date" name="newDate" type="date" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="makeup-time">Horário da Reposição *</label>
+          <input class="form-control" id="eventos-makeup-time" name="time" type="time" required />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="makeup-reason">Motivo da Reposição *</label>
+        <textarea 
+          class="form-control" 
+          id="eventos-makeup-reason" 
+          name="reason" 
+          rows="3" 
+          placeholder="Ex: Reposição referente ao feriado de..." 
+          required
+        ></textarea>
+      </div>
+
+      <div class="action-buttons horizontal">
+        <button class="btn btn-primary" type="submit">
+          <i class="fas fa-save"></i> Agendar Reposição
+        </button>
+        <button class="btn btn-secondary" type="button" onclick="Eventos.hideForm('makeup-form-container')">
+          <i class="fas fa-times"></i> Cancelar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ========================================================================== -->
+  <!-- FORMULÁRIO 3: ATIVIDADE EXTRACURRICULAR -->
+  <!-- ========================================================================== -->
+  <div class="event-form-container form-section" id="eventos-extracurricular-form-container">
+    <div class="form-section-header">
+      <h3 class="form-section-title">
+        <i class="fas fa-star"></i> Criar Atividade Extracurricular
+      </h3>
+      <button class="btn-icon" onclick="Eventos.hideForm('extracurricular-form-container')" aria-label="Fechar formulário">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form class="event-form" id="eventos-extracurricular-form" onsubmit="Eventos.handleExtracurricularSubmit(event)">
+      <div class="form-group">
+        <label class="form-label" for="extracurricular-title">Título da Atividade *</label>
+        <input 
+          class="form-control" 
+          id="eventos-extracurricular-title" 
+          name="activityTitle" 
+          type="text" 
+          placeholder="Ex: Feira de Ciências, Campeonato de Futebol" 
+          required 
+        />
+      </div>
+
+      <div class="w-full form-grid">
+        <div class="form-group">
+          <label class="form-label" for="extracurricular-school">Escola *</label>
+          <select class="form-control" id="eventos-extracurricular-school" name="schoolName" required>
+            <option value="">Selecione uma escola</option>
+            <!-- Opções dinâmicas -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="extracurricular-type">Tipo de Atividade *</label>
+          <select class="form-control" id="eventos-extracurricular-type" name="activityType" required>
+            <option value="">Selecione o tipo</option>
+            <option value="ESPORTIVA">Esportiva</option>
+            <option value="CULTURAL">Cultural</option>
+            <option value="ACADEMICA">Acadêmica</option>
+            <option value="SOCIAL">Social</option>
+            <option value="OUTROS">Outros</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="extracurricular-date">Data da Atividade *</label>
+          <input class="form-control" id="eventos-extracurricular-date" name="activityDate" type="date" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="extracurricular-time">Horário *</label>
+          <input class="form-control" id="eventos-extracurricular-time" name="activityTime" type="time" required />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="extracurricular-description">Descrição da Atividade</label>
+        <textarea 
+          class="form-control" 
+          id="eventos-extracurricular-description" 
+          name="description" 
+          rows="3" 
+          placeholder="Descreva a atividade, objetivos, público-alvo, etc."
+        ></textarea>
+      </div>
+
+      <div class="action-buttons horizontal">
+        <button class="btn btn-primary" type="submit">
+          <i class="fas fa-save"></i> Registrar Atividade
+        </button>
+        <button class="btn btn-secondary" type="button" onclick="Eventos.hideForm('extracurricular-form-container')">
+          <i class="fas fa-times"></i> Cancelar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ========================================================================== -->
+  <!-- LISTA DE EVENTOS REGISTRADOS -->
+  <!-- ========================================================================== -->
+  <div class="card data-table-container"  style="margin-top: var(--space-6)">
+    <div class="card-header data-table-header">
+      <h3 class="card-title data-table-title">
+        <i class="fas fa-list-ul"></i> Eventos Registrados
+      </h3>
+      <div class="data-table-controls">
+        <button class="btn btn-sm btn-secondary" onclick="Eventos.loadEvents()">
+          <i class="fas fa-sync-alt"></i> Atualizar Lista
+        </button>
+      </div>
+    </div>
+    <div class="card-body"  style="padding: 0">
+      <div class="events-list" id="eventos-events-list">
+        <div class="loading-placeholder">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Carregando eventos...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================== -->
+<!-- ESTILOS CUSTOMIZADOS -->
+<!-- ========================================================================== -->
+<style>
+/* Animação dos formulários */
+.event-form-container {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+  margin-bottom: 0;
+  opacity: 0;
+}
+
+.event-form-container.active {
+  max-height: 1200px;
+  padding: var(--space-6);
+  border: 1px solid var(--outline-variant);
+  margin-bottom: var(--space-6);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  opacity: 1;
+}
+
+.form-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.form-section-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.action-buttons.horizontal {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 576px) {
+  .action-buttons.horizontal {
+    flex-direction: column;
+  }
+  
+  .action-buttons.horizontal .btn {
+    width: 100%;
+  }
+}
+
+/* Action panel */
+.action-panel .card-body p {
+  margin-bottom: var(--space-4);
+  color: var(--on-surface-variant);
+}
+
+/* Loading placeholder */
+.loading-placeholder {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--on-surface-variant);
+}
+
+.loading-placeholder i {
+  font-size: 2rem;
+  margin-bottom: var(--space-3);
+  color: var(--primary);
+}
+
+.loading-placeholder p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--on-surface-variant);
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: var(--space-4);
+  opacity: 0.3;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 1rem;
+}
+</style>
+
+<!-- ========================================================================== -->
+<!-- SCRIPT DE INICIALIZAÇÃO -->
+<!-- ========================================================================== -->
+<script>
+// Inicialização quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('[Form-Eventos] DOM pronto, aguardando módulo Eventos...');
+  
+  // Aguarda o módulo Eventos estar disponível
+  const checkEventos = setInterval(() => {
+    if (typeof window.Eventos !== 'undefined') {
+      clearInterval(checkEventos);
+      console.log('[Form-Eventos] Módulo Eventos carregado, inicializando...');
+      
+      // Inicializa o módulo
+      if (typeof Eventos.init === 'function') {
+        Eventos.init();
+      }
+    }
+  }, 100);
+  
+  // Timeout de segurança
+  setTimeout(() => {
+    clearInterval(checkEventos);
+    if (typeof window.Eventos === 'undefined') {
+      console.warn('[Form-Eventos] Módulo Eventos não carregado após 5s');
+    }
+  }, 5000);
+});
+</script>

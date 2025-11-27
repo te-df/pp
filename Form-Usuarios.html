@@ -1,0 +1,228 @@
+<!-- Form-Usuarios.html - Fragmento de formulário incluído no index.html -->
+<div class="form-container">
+
+  <!-- Alerta: Gestão de Acessos -->
+  <div class="alert alert-info mb-4" role="alert">
+    <i class="fas fa-shield-alt"></i>
+    <div>
+      <strong>Gestão de Usuários e Controle de Acesso:</strong>
+      <p class="mt-2" style="font-size: 0.9rem">
+        O cadastro de usuários define as permissões de acesso ao sistema. Apenas administradores podem criar novos usuários. 
+        Mantenha os dados atualizados e desative imediatamente usuários que não devem mais ter acesso. 
+        Senhas devem ter no mínimo 8 caracteres, incluindo letras maiúsculas e números.
+      </p>
+    </div>
+  </div>
+
+  <form id="form-usuarios" class="card-body">
+    
+    <fieldset>
+      <legend class="section-title-standardized"><i class="fas fa-user-circle"></i> Dados do Usuário</legend>
+      <div class="w-full form-grid">
+        
+        <div class="form-group">
+          <label for="username" class="form-label">Nome de Usuário * <span style="color: var(--md-sys-color-error)">(4-20 caracteres)</span></label>
+          <input type="text" class="form-control" id="username" name="Username" 
+                 placeholder="Ex: joao.silva" 
+                 required minlength="4" maxlength="20" 
+                 pattern="[a-zA-Z0-9._-]+" 
+                 title="Apenas letras, números, pontos, hífens e underscores">
+          <small class="form-help-text">Alfanumérico, sem espaços. Único no sistema.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="email" class="form-label">E-mail *</label>
+          <input type="email" class="form-control" id="usuarios-email" name="Email" 
+                 placeholder="usuario@sigte.df.gov.br" 
+                 required>
+          <small class="form-help-text">E-mail institucional válido. Único no sistema.</small>
+        </div>
+
+        <div class="form-group" id="password-group">
+          <label for="password" class="form-label">Senha * <span style="color: var(--md-sys-color-error)">(mín. 8 caracteres)</span></label>
+          <div style="position: relative;">
+            <input type="password" class="form-control" id="password" name="Password" 
+                   placeholder="••••••••" 
+                   minlength="8" 
+                   pattern="(?=.*[A-Z])(?=.*\d).{8,}" 
+                   title="Mínimo 8 caracteres, 1 maiúscula e 1 número">
+            <button type="button" class="btn btn-icon" 
+                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer;" 
+                    onclick="togglePasswordVisibility()" 
+                    title="Mostrar/Ocultar senha">
+              <i class="fas fa-eye" id="toggle-password-icon"></i>
+            </button>
+          </div>
+          <small class="form-help-text">Mínimo 8 caracteres, incluindo 1 letra maiúscula e 1 número</small>
+        </div>
+
+        <div class="form-group">
+          <label for="role" class="form-label">Perfil de Acesso *</label>
+          <select class="form-control" id="role" name="Role" required onchange="exibirPermissoes()">
+            <option value="">Selecione...</option>
+            <option value="Admin">👑 Administrador (acesso total)</option>
+            <option value="Operador">⚙️ Operador (gestão operacional)</option>
+            <option value="Visualizador">👁️ Visualizador (somente leitura)</option>
+            <option value="Monitor">🚌 Monitor (frequência e rotas)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="status" class="form-label">Status *</label>
+          <select class="form-control" id="usuarios-status" name="Status" required>
+            <option value="Ativo" selected>✅ Ativo</option>
+            <option value="Inativo">❌ Inativo</option>
+            <option value="Suspenso">⏸️ Suspenso</option>
+          </select>
+        </div>
+
+      </div>
+    </fieldset>
+
+    <!-- Informações de Permissões (dinâmico) -->
+    <div class="alert alert-secondary mb-4" role="alert" id="permissoes-info" style="display: none;">
+      <i class="fas fa-info-circle"></i>
+      <div id="permissoes-texto">
+        <!-- Conteúdo dinâmico baseado no perfil -->
+      </div>
+    </div>
+
+    <div class="card-footer">
+      <button type="button" class="btn btn-secondary" onclick="limparFormulario()">
+        <i class="fas fa-eraser"></i> Limpar
+      </button>
+      <button type="submit" class="btn btn-primary" id="btn-salvar-usuario">
+        <i class="fas fa-user-plus"></i> Cadastrar Usuário
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+  console.log('[Form-Usuarios] Inicializando formulário');
+  
+  // Configura submit universal do formulário
+  if (window.UniversalFormSubmit) {
+    window.UniversalFormSubmit.setup('form-usuarios', 'Usuarios', {
+      successMessage: 'Usuário cadastrado com sucesso!',
+      clearFormAfterSuccess: true,
+      onSuccess: async (result) => {
+        console.log('[Form-Usuarios] Usuário salvo:', result);
+      },
+      beforeSubmit: async (form) => {
+        // Validação: username alfanumérico e único
+        const username = document.getElementById('username').value.trim();
+        const usernameRegex = /^[a-zA-Z0-9._-]{4,20}$/;
+        if (!usernameRegex.test(username)) {
+          if (window.ToastManager) {
+            window.ToastManager.show(
+              'Nome de usuário inválido. Use apenas letras, números, pontos, hífens e underscores (4-20 caracteres).',
+              'warning'
+            );
+          }
+          return false;
+        }
+        
+        // Validação: e-mail válido
+        const email = document.getElementById('email').value.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          if (window.ToastManager) {
+            window.ToastManager.show(
+              'E-mail inválido. Insira um endereço de e-mail válido.',
+              'warning'
+            );
+          }
+          return false;
+        }
+        
+        // Validação: senha forte (apenas em modo criação)
+        const passwordField = document.getElementById('password');
+        if (!form.dataset.editingId && passwordField) {
+          const password = passwordField.value;
+          const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+          if (!passwordRegex.test(password)) {
+            if (window.ToastManager) {
+              window.ToastManager.show(
+                'Senha fraca. A senha deve ter no mínimo 8 caracteres, incluindo 1 letra maiúscula e 1 número.',
+                'warning'
+              );
+            }
+            return false;
+          }
+          
+          // Hash a senha antes de enviar (simulado aqui - na prática deve ser hash no backend)
+          // No backend, usar CryptoJS.SHA256(password).toString() ou similar
+          form.querySelector('[name="Password_Hash"]').value = btoa(password); // Base64 simples (substituir por hash real)
+        }
+        
+        return true;
+      }
+    });
+  }
+  
+  console.log('[Form-Usuarios] Formulário inicializado com sucesso');
+});
+
+// Toggle visibilidade da senha
+function togglePasswordVisibility() {
+  const passwordField = document.getElementById('password');
+  const icon = document.getElementById('toggle-password-icon');
+  
+  if (passwordField.type === 'password') {
+    passwordField.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    passwordField.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+}
+
+// Exibe informações de permissões baseado no perfil
+function exibirPermissoes() {
+  const role = document.getElementById('role').value;
+  const permissoesDiv = document.getElementById('permissoes-info');
+  const permissoesTexto = document.getElementById('permissoes-texto');
+  
+  const permissoes = {
+    'Admin': '<strong>Administrador - Acesso Total:</strong><ul><li>Gestão completa do sistema</li><li>Cadastro de usuários</li><li>Configurações avançadas</li><li>Relatórios e auditoria</li></ul>',
+    'Operador': '<strong>Operador - Gestão Operacional:</strong><ul><li>Cadastro de alunos, rotas e incidentes</li><li>Registro de frequência</li><li>Visualização de relatórios</li><li>Sem acesso a usuários e configurações</li></ul>',
+    'Visualizador': '<strong>Visualizador - Somente Leitura:</strong><ul><li>Visualização de dados</li><li>Consulta de relatórios</li><li>Sem permissão de edição ou criação</li></ul>',
+    'Monitor': '<strong>Monitor - Frequência e Rotas:</strong><ul><li>Registro de frequência de alunos</li><li>Visualização de rotas</li><li>Registro de incidentes leves</li><li>Sem acesso a configurações</li></ul>'
+  };
+  
+  if (role && permissoes[role]) {
+    permissoesTexto.innerHTML = permissoes[role];
+    permissoesDiv.style.display = 'block';
+  } else {
+    permissoesDiv.style.display = 'none';
+  }
+}
+
+// Limpa o formulário
+function limparFormulario() {
+  const form = document.getElementById('form-usuarios');
+  if (form) {
+    form.reset();
+    
+    // Oculta permissões
+    document.getElementById('permissoes-info').style.display = 'none';
+    
+    // Remove modo edição
+    delete form.dataset.editingId;
+    
+    // Reseta botão
+    const btn = document.getElementById('btn-salvar-usuario');
+    if (btn) {
+      btn.innerHTML = '<i class="fas fa-user-plus"></i> Cadastrar Usuário';
+    }
+    
+    // Mostra campo senha novamente (caso tenha sido ocultado em modo edição)
+    document.getElementById('password-group').style.display = 'block';
+  }
+}
+</script>

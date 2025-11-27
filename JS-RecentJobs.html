@@ -1,0 +1,276 @@
+<script>
+/**
+ * JS-RecentJobs - Exibição de jobs recentes no drawer de notificações
+ */
+
+(function() {
+  'use strict';
+
+  const JOB_STATUS_ICONS = {
+    PENDING: 'fa-clock',
+    CLAIMED: 'fa-hand-paper',
+    RUNNING: 'fa-spinner fa-spin',
+    COMPLETED: 'fa-check-circle',
+    FAILED: 'fa-times-circle'
+  };
+
+  const JOB_STATUS_CLASSES = {
+    PENDING: 'warning',
+    CLAIMED: 'info',
+    RUNNING: 'info',
+    COMPLETED: 'success',
+    FAILED: 'danger'
+  };
+
+  const JOB_NAME_LABELS = {
+    EXPORT_CSV: 'Exportar CSV',
+    EXPORT_PDF: 'Exportar PDF',
+    EXPORT_EXCEL: 'Exportar Excel',
+    BATCH_CLEANUP: 'Limpeza de Dados',
+    GENERATE_REPORT: 'Gerar Relatório',
+    CALCULATE_STATS: 'Calcular Estatísticas'
+  };
+
+  /**
+   * Carrega e exibe jobs recentes
+   */
+  function loadRecentJobs() {
+    const container = document.getElementById('recent-jobs-list');
+    if (!container) return;
+
+    container.innerHTML = '<p class="text-muted text-center">Carregando...</p>';
+
+    google.script.run
+      .withSuccessHandler(displayRecentJobs)
+      .withFailureHandler((error) => {
+        container.innerHTML = `<p class="text-danger text-center">Erro ao carregar jobs: ${error}</p>`;
+      })
+      .getRecentJobs(5);
+  }
+
+  /**
+   * Exibe lista de jobs recentes
+   */
+  function displayRecentJobs(jobs) {
+    const container = document.getElementById('recent-jobs-list');
+    if (!container) return;
+
+    if (!jobs || jobs.length === 0) {
+      container.innerHTML = '<p class="text-muted text-center">Nenhum job recente</p>';
+      return;
+    }
+
+    let html = '';
+    jobs.forEach(job => {
+      const statusClass = JOB_STATUS_CLASSES[job.status] || 'secondary';
+      const statusIcon = JOB_STATUS_ICONS[job.status] || 'fa-question';
+      const jobLabel = JOB_NAME_LABELS[job.jobName] || job.jobName;
+      const timestamp = formatTimestamp(job.timestamp_enqueued);
+
+      html += `
+        <div class="notification-item ${statusClass}" data-job-id="${job.jobId}">
+          <div class="notification-icon">
+            <i class="fas ${statusIcon}"></i>
+          </div>
+          <div class="notification-content">
+            <p class="notification-text">
+              <strong>${jobLabel}</strong>
+              <span class="badge badge-${statusClass}">${job.status}</span>
+            </p>
+            <span class="notification-time">${timestamp}</span>
+            ${job.status === 'FAILED' ? `
+              <p class="text-danger small mt-1">
+                <i class="fas fa-exclamation-triangle"></i> ${job.errorMessage || 'Erro desconhecido'}
+              </p>
+            ` : ''}
+            <button class="btn btn-sm btn-link" onclick="viewJobDetails('${job.jobId}')">
+              Ver detalhes
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  /**
+   * Exibe detalhes de um job
+   */
+  window.viewJobDetails = function(jobId) {
+    google.script.run
+      .withSuccessHandler((status) => {
+        if (status) {
+          showJobDetailsModal(status);
+        }
+      })
+      .withFailureHandler((error) => {
+        if (window.NotificationManager) {
+          window.NotificationManager.error('Erro ao carregar detalhes do job');
+        }
+      })
+      .checkJobStatus(jobId);
+  };
+
+  /**
+   * Mostra modal com detalhes do job
+   */
+  function showJobDetailsModal(job) {
+    const statusClass = JOB_STATUS_CLASSES[job.status] || 'secondary';
+    const jobLabel = JOB_NAME_LABELS[job.jobName] || job.jobName;
+
+    const modalHtml = `
+      <div class="modal fade" id="jobDetailsModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Detalhes do Job</h5>
+              <button type="button" class="close" data-dismiss="modal">
+                <span>&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <dl class="row">
+                <dt class="col-sm-4">Job ID:</dt>
+                <dd class="col-sm-8"><code>${job.jobId}</code></dd>
+
+                <dt class="col-sm-4">Nome:</dt>
+                <dd class="col-sm-8">${jobLabel}</dd>
+
+                <dt class="col-sm-4">Status:</dt>
+                <dd class="col-sm-8">
+                  <span class="badge badge-${statusClass}">${job.status}</span>
+                </dd>
+
+                <dt class="col-sm-4">Criado em:</dt>
+                <dd class="col-sm-8">${formatTimestamp(job.timestamp_enqueued)}</dd>
+
+                ${job.timestamp_claimed ? `
+                  <dt class="col-sm-4">Reivindicado em:</dt>
+                  <dd class="col-sm-8">${formatTimestamp(job.timestamp_claimed)}</dd>
+                ` : ''}
+
+                ${job.timestamp_completed ? `
+                  <dt class="col-sm-4">Concluído em:</dt>
+                  <dd class="col-sm-8">${formatTimestamp(job.timestamp_completed)}</dd>
+                ` : ''}
+
+                ${job.errorCode ? `
+                  <dt class="col-sm-4">Código de Erro:</dt>
+                  <dd class="col-sm-8"><code>${job.errorCode}</code></dd>
+                ` : ''}
+
+                ${job.errorMessage ? `
+                  <dt class="col-sm-4">Mensagem de Erro:</dt>
+                  <dd class="col-sm-8 text-danger">${job.errorMessage}</dd>
+                ` : ''}
+
+                ${job.result ? `
+                  <dt class="col-sm-4">Resultado:</dt>
+                  <dd class="col-sm-8">
+                    <pre class="bg-light p-2"><code>${JSON.stringify(job.result, null, 2)}</code></pre>
+                  </dd>
+                ` : ''}
+              </dl>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Remove modal anterior se existir
+    const existingModal = document.getElementById('jobDetailsModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    // Adiciona novo modal
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Mostra modal
+    $('#jobDetailsModal').modal('show');
+
+    // Remove modal ao fechar
+    $('#jobDetailsModal').on('hidden.bs.modal', function() {
+      this.remove();
+    });
+  }
+
+  /**
+   * Formata timestamp para exibição
+   */
+  function formatTimestamp(timestamp) {
+    if (!timestamp) return '-';
+
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+
+    // Menos de 1 minuto
+    if (diff < 60000) {
+      return 'agora mesmo';
+    }
+
+    // Menos de 1 hora
+    if (diff < 3600000) {
+      const minutes = Math.floor(diff / 60000);
+      return `há ${minutes} minuto${minutes > 1 ? 's' : ''}`;
+    }
+
+    // Menos de 1 dia
+    if (diff < 86400000) {
+      const hours = Math.floor(diff / 3600000);
+      return `há ${hours} hora${hours > 1 ? 's' : ''}`;
+    }
+
+    // Mais de 1 dia
+    const days = Math.floor(diff / 86400000);
+    if (days < 7) {
+      return `há ${days} dia${days > 1 ? 's' : ''}`;
+    }
+
+    // Formato completo
+    return date.toLocaleString('pt-BR');
+  }
+
+  /**
+   * Atualiza jobs periodicamente
+   */
+  function startJobsRefresh() {
+    // Atualiza a cada 10 segundos
+    setInterval(loadRecentJobs, 10000);
+  }
+
+  // Carrega jobs quando o drawer é aberto
+  document.addEventListener('DOMContentLoaded', function() {
+    const notificationsDrawer = document.getElementById('notifications-notifications-drawer');
+    if (notificationsDrawer) {
+      // Observa quando o drawer é aberto
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.attributeName === 'aria-hidden') {
+            const isHidden = notificationsDrawer.getAttribute('aria-hidden') === 'true';
+            if (!isHidden) {
+              loadRecentJobs();
+            }
+          }
+        });
+      });
+
+      observer.observe(notificationsDrawer, { attributes: true });
+
+      // Carrega jobs inicialmente
+      loadRecentJobs();
+
+      // Inicia refresh periódico
+      startJobsRefresh();
+    }
+  });
+
+  console.log('✓ RecentJobs carregado');
+
+})();
+</script>
