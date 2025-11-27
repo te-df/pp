@@ -1,0 +1,98 @@
+<!--============================================================================-->
+
+<!-- ============================================================================
+ DRAWER-USER.HTML
+ Painel lateral (drawer) para perfil do usuário e autenticação.
+ ============================================================================ -->
+<aside class="app-drawer" id="user-user-drawer" aria-labelledby="user-drawer-title" aria-hidden="true" role="dialog">
+  <div class="drawer-header">
+    <h3 id="user-user-drawer-title" class="drawer-title">
+      <i class="fas fa-user-circle" aria-hidden="true"></i>
+ Perfil do Usuário
+ </h3>
+ <button
+      class="btn-icon drawer-close-btn"
+      aria-label="Fechar painel do usuário"
+      type="button">
+      <i class="fas fa-times" aria-hidden="true"></i>
+ </button>
+ </div>
+  <div class="drawer-content" id="user-user-drawer-content">
+ <!-- Login Form (mostrado quando não logado) -->
+    <div id="user-login-view"  style="display: none">
+      <form id="user-login-form"  class="flex gap-4" style="flex-direction: column">
+        <div class="form-group">
+          <label for="login-username" class="form-label">Usuário</label>
+ <input
+            type="text"
+            id="user-login-username"
+            class="form-control"
+            placeholder="Digite seu usuário"
+ required
+            autocomplete="username">
+ </div>
+
+        <div class="form-group">
+          <label for="login-password" class="form-label">Senha</label>
+ <input
+            type="password"
+            id="user-login-password"
+            class="form-control"
+            placeholder="Digite sua senha"
+ required
+            autocomplete="current-password">
+ </div>
+
+        <div class="alert alert-info"  style="font-size: 0.85rem">
+ <strong>👨‍✈️ Monitor:</strong> monitor01 / monitor123<br>
+ <strong>👨‍💼 Secretário:</strong> secretario01 / secret123<br>
+ <strong>👨‍💻 Admin:</strong> admin / admin123
+ </div>
+
+        <button type="submit" class="btn btn-primary"  style="width: 100%" aria-label="Fazer login">
+          <i class="fas fa-sign-in-alt" aria-hidden="true"></i> Entrar
+ </button>
+ </form>
+ </div>
+
+ <!-- User Profile (mostrado quando logado) -->
+    <div id="user-profile-view"  style="display: none">
+      <div class="user-profile-view">
+        <div class="user-info-header">
+          <div class="user-avatar">
+            <span id="user-user-avatar-initial">?</span>
+ </div>
+          <div class="user-details">
+            <h4 class="user-name" id="user-user-name-display">Visitante</h4>
+            <p class="user-email" id="user-user-role-display">-</p>
+ </div>
+ </div>
+
+        <ul class="user-actions-list">
+ <li>
+            <a href="#" class="user-action-item" onclick="NavigationManager.navigateToSection('configuracoes-section'); return false;">
+              <i class="fas fa-id-card" aria-hidden="true"></i>
+ <span>Meu Perfil</span>
+ </a>
+ </li>
+ <li>
+            <a href="#" class="user-action-item" onclick="NavigationManager.navigateToSection('configuracoes-section'); return false;">
+              <i class="fas fa-cog" aria-hidden="true"></i>
+ <span>Configurações da Conta</span>
+ </a>
+ </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+
+  <div class="drawer-footer">
+    <button type="button" class="btn btn-danger" id="user-logout-btn"  style="display: none" aria-label="Sair da conta">
+      <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sair
+ </button>
+ </div>
+</aside>
+
+
+
+<!--============================================================================-->

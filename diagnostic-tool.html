@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔍 Diagnostic Tool - TE-DF-PP v4.1</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .test-section {
+      margin-bottom: 30px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+
+    .test-section h2 {
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+      color: #667eea;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .test-item {
+      background: white;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border-left: 4px solid #ccc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .test-item.pass {
+      border-left-color: #4caf50;
+    }
+
+    .test-item.fail {
+      border-left-color: #f44336;
+    }
+
+    .test-item.warn {
+      border-left-color: #ff9800;
+    }
+
+    .test-label {
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .test-result {
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .pass .test-result {
+      background: #4caf50;
+      color: white;
+    }
+
+    .fail .test-result {
+      background: #f44336;
+      color: white;
+    }
+
+    .warn .test-result {
+      background: #ff9800;
+      color: white;
+    }
+
+    .test-details {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .summary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .summary h3 {
+      font-size: 1.5rem;
+      margin-bottom: 15px;
+    }
+
+    .summary-stats {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .stat {
+      background: rgba(255,255,255,0.2);
+      padding: 15px 25px;
+      border-radius: 10px;
+      min-width: 120px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 10px 5px;
+      transition: all 0.3s;
+    }
+
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .actions {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .code-block {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      margin: 15px 0;
+    }
+
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .content {
+        padding: 20px;
+      }
+      
+      .summary-stats {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔍 Frontend Diagnostic Tool</h1>
+      <p>TE-DF-PP v4.1 - Sistema de Diagnóstico em Tempo Real</p>
+    </div>
+
+    <div class="content">
+      <div class="actions">
+        <button onclick="runDiagnostics()">▶️ Executar Diagnóstico Completo</button>
+        <button onclick="copyResults()">📋 Copiar Resultados</button>
+        <button onclick="exportJSON()">💾 Exportar JSON</button>
+      </div>
+
+      <div id="results"></div>
+
+      <div class="summary" id="summary" style="display: none;">
+        <h3>📊 Resumo do Diagnóstico</h3>
+        <div class="summary-stats">
+          <div class="stat">
+            <div class="stat-value" id="total-tests">0</div>
+            <div class="stat-label">Total de Testes</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="passed-tests">0</div>
+            <div class="stat-label">✅ Aprovados</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="failed-tests">0</div>
+            <div class="stat-label">❌ Falhados</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="warn-tests">0</div>
+            <div class="stat-label">⚠️ Avisos</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="success-rate">0%</div>
+            <div class="stat-label">Taxa de Sucesso</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let diagnosticResults = [];
+    
+    function runDiagnostics() {
+      diagnosticResults = [];
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+
+      // TESTE 1: Verificar variáveis globais essenciais
+      addSection('1️⃣ Variáveis Globais Essenciais');
+      
+      checkGlobal('window.Utils', typeof window.Utils !== 'undefined');
+      checkGlobal('window.AuthManager', typeof window.AuthManager !== 'undefined');
+      checkGlobal('window.DataLoader', typeof window.DataLoader !== 'undefined');
+      checkGlobal('window.ToastManager', typeof window.ToastManager !== 'undefined');
+      checkGlobal('window.LoadingManager', typeof window.LoadingManager !== 'undefined');
+      checkGlobal('window.CRUDManagerUniversal', typeof window.CRUDManagerUniversal !== 'undefined');
+
+      // TESTE 2: Verificar IDs duplicados
+      addSection('2️⃣ IDs Duplicados no DOM');
+      
+      const ids = {};
+      document.querySelectorAll('[id]').forEach(el => {
+        ids[el.id] = (ids[el.id] || 0) + 1;
+      });
+      
+      const duplicateIds = Object.entries(ids).filter(([_, count]) => count > 1);
+      
+      if (duplicateIds.length === 0) {
+        addTest('IDs únicos no DOM', true, `Total de elementos com ID: ${Object.keys(ids).length}`);
+      } else {
+        addTest('IDs duplicados detectados', false,
+          `${duplicateIds.length} IDs duplicados:
+${duplicateIds.map(([id, count]) => `  - #${id} (${count}x)`).join('\n')}`
+        );
+      }
+
+      // TESTE 3: Testar funções do Utils
+      addSection('3️⃣ Funções Utilitárias (Utils)');
+      
+      if (typeof Utils !== 'undefined') {
+        testUtilsFunction('formatDate', '2025-10-23', '23/10/2025');
+        testUtilsFunction('formatCurrency', 1234.56, 'R$ 1.234,56');
+        testUtilsFunction('validateCPF', '123.456.789-09', false);
+        testUtilsFunction('validateEmail', 'teste@exemplo.com', true);
+        testUtilsFunction('escapeHtml', '<script>alert(\'xss\')</script>', '&lt;script&gt;');
+      } else {
+        addTest('Utils não disponível', false, 'window.Utils is undefined');
+      }
+
+      // TESTE 4: Verificar formulários
+      addSection('4️⃣ Formulários HTML');
+      
+      const forms = document.querySelectorAll('form[id]');
+      const formIds = Array.from(forms).map(f => f.id);
+      const uniqueFormIds = [...new Set(formIds)];
+      
+      addTest(`Total de formulários`, true, `${forms.length} encontrados`);
+      
+      if (formIds.length !== uniqueFormIds.length) {
+        const duplicateForms = formIds.filter((id, index) => formIds.indexOf(id) !== index);
+        addTest('Formulários duplicados', false, 
+          `IDs duplicados: ${[...new Set(duplicateForms)].join(', ')}`
+        );
+      } else {
+        addTest('IDs de formulários únicos', true, 'Nenhuma duplicação');
+      }
+
+      // TESTE 5: Verificar scripts carregados
+      addSection('5️⃣ Scripts JavaScript');
+      
+      const scripts = document.querySelectorAll('script');
+      addTest('Total de scripts', true, `${scripts.length} scripts encontrados`);
+      
+      const inlineScripts = Array.from(scripts).filter(s => !s.src).length;
+      addTest('Scripts inline', inlineScripts > 0, `${inlineScripts} scripts inline`);
+
+      // TESTE 6: Console errors
+      addSection('6️⃣ Erros do Console');
+      
+      // Capturar erros do console
+      const originalError = console.error;
+      let errorCount = 0;
+      console.error = function(...args) {
+        errorCount++;
+        originalError.apply(console, args);
+      };
+      
+      setTimeout(() => {
+        addTest('Erros de console', errorCount === 0, 
+          errorCount === 0 ? 'Nenhum erro detectado' : `${errorCount} erros no console`
+        );
+        console.error = originalError;
+      }, 100);
+
+      // TESTE 7: Service Worker
+      addSection('7️⃣ Service Worker');
+      
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          if (registrations.length === 0) {
+            addTest('Service Worker', true, 'Nenhum SW registrado (correto para GAS)', 'warn');
+          } else {
+            addTest('Service Worker ATIVO', false, 
+              `${registrations.length} SW registrado(s) - não funciona no Google Apps Script`
+            );
+          }
+        });
+      } else {
+        addTest('Service Worker', true, 'API não disponível');
+      }
+
+      // Atualizar resumo
+      setTimeout(updateSummary, 500);
+    }
+
+    function addSection(title) {
+      const resultsDiv = document.getElementById('results');
+      const section = document.createElement('div');
+      section.className = 'test-section';
+      section.innerHTML = `<h2>${title}</h2>`;
+      section.id = 'section-' + title.replace(/[^a-z0-9]/gi, '-');
+      resultsDiv.appendChild(section);
+    }
+
+    function addTest(label, passed, details, type) {
+      const currentSection = document.querySelector('.test-section:last-child');
+      if (!currentSection) return;
+
+      const status = type === 'warn' ? 'warn' : (passed ? 'pass' : 'fail');
+      const resultText = type === 'warn' ? '⚠️ AVISO' : (passed ? '✅ PASS' : '❌ FAIL');
+
+      const testItem = document.createElement('div');
+      testItem.className = `test-item ${status}`;
+      testItem.innerHTML = `
+        <div class="test-label">${label}</div>
+        <div class="test-result">${resultText}</div>
+      `;
+
+      if (details) {
+        const detailsDiv = document.createElement('div');
+        detailsDiv.className = 'test-details';
+        detailsDiv.textContent = details;
+        testItem.appendChild(detailsDiv);
+      }
+
+      currentSection.appendChild(testItem);
+
+      diagnosticResults.push({
+        label,
+        passed,
+        status,
+        details
+      });
+    }
+
+    function checkGlobal(name, exists) {
+      addTest(name, exists, exists ? 'Disponível' : 'NÃO ENCONTRADO');
+    }
+
+    function testUtilsFunction(funcName, input, expected) {
+      try {
+        const result = Utils[funcName](input);
+        const passed = String(result).includes(String(expected));
+        addTest(
+          `Utils.${funcName}()`,
+          passed,
+          `Input: ${JSON.stringify(input)}\nOutput: ${result}\nExpected: ${expected}`
+        );
+      } catch (e) {
+        addTest(`Utils.${funcName}()`, false, `ERRO: ${e.message}`);
+      }
+    }
+
+    function updateSummary() {
+      const total = diagnosticResults.length;
+      const passed = diagnosticResults.filter(r => r.status === 'pass').length;
+      const failed = diagnosticResults.filter(r => r.status === 'fail').length;
+      const warnings = diagnosticResults.filter(r => r.status === 'warn').length;
+      const rate = total > 0 ? Math.round((passed / total) * 100) : 0;
+
+      document.getElementById('total-tests').textContent = total;
+      document.getElementById('passed-tests').textContent = passed;
+      document.getElementById('failed-tests').textContent = failed;
+      document.getElementById('warn-tests').textContent = warnings;
+      document.getElementById('success-rate').textContent = rate + '%';
+      document.getElementById('summary').style.display = 'block';
+    }
+
+    function copyResults() {
+      const text = diagnosticResults.map(r => 
+        `${r.status === 'pass' ? '✅' : r.status === 'warn' ? '⚠️' : '❌'} ${r.label}: ${r.passed ? 'PASS' : 'FAIL'}\n   ${r.details || ''}`
+      ).join('\n\n');
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert('✅ Resultados copiados para a área de transferência!');
+      });
+    }
+
+    function exportJSON() {
+      const json = JSON.stringify({
+        timestamp: new Date().toISOString(),
+        version: 'TE-DF-PP v4.1',
+        results: diagnosticResults,
+        summary: {
+          total: diagnosticResults.length,
+          passed: diagnosticResults.filter(r => r.status === 'pass').length,
+          failed: diagnosticResults.filter(r => r.status === 'fail').length,
+          warnings: diagnosticResults.filter(r => r.status === 'warn').length
+        }
+      }, null, 2);
+
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `diagnostic-${Date.now()}.json`;
+      a.click();
+    }
+
+    // Auto-executar ao carregar
+    window.addEventListener('load', () => {
+      setTimeout(runDiagnostics, 1000);
+    });
+  </script>
+</body>
+</html>

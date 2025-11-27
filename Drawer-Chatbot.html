@@ -1,0 +1,59 @@
+<!--============================================================================-->
+
+<!-- ============================================================================
+ DRAWER-CHATBOT.HTML
+ Painel lateral (drawer) para o Assistente de IA (Chatbot).
+ ============================================================================ -->
+<aside class="app-drawer" id="chatbot-chatbot-drawer" aria-labelledby="chatbot-drawer-title" aria-hidden="true" role="dialog">
+  <div class="drawer-header">
+    <h3 id="chatbot-chatbot-drawer-title" class="drawer-title">
+      <i class="fas fa-robot" aria-hidden="true"></i>
+ Assistente IA
+ </h3>
+ <button
+      class="btn-icon drawer-close-btn"
+      aria-label="Fechar painel do assistente"
+      type="button">
+      <i class="fas fa-times" aria-hidden="true"></i>
+ </button>
+ </div>
+  <div class="drawer-content" id="chatbot-chatbot-messages">
+ <!-- Mensagem de boas-vindas -->
+    <div class="chatbot-message bot">
+      <div class="chatbot-message-avatar" aria-hidden="true">
+        <i class="fas fa-robot"></i>
+ </div>
+      <div class="chatbot-message-content">
+ <p>Olá! Sou o assistente virtual do TE-DF. Como posso ajudar você hoje?</p>
+ </div>
+ </div>
+ </div>
+  <div class="drawer-footer chatbot-input-container">
+    <div class="chatbot-input-wrapper">
+      <label for="chatbot-input" class="chatbot-input-label">
+        <i class="fas fa-comment-dots" aria-hidden="true"></i>
+ Escreva sua mensagem
+ </label>
+ <textarea
+        id="chatbot-chatbot-input"
+        class="chatbot-input"
+        placeholder="Digite sua pergunta aqui..."
+        aria-label="Campo de mensagem"
+        rows="3"></textarea>
+ </div>
+    <div class="chatbot-actions">
+      <button type="button" class="chatbot-voice" onclick="startVoiceInput()" aria-label="Comando por voz" title="Usar voz">
+        <i class="fas fa-microphone" aria-hidden="true"></i>
+        <span class="btn-text">Voz</span>
+ </button>
+      <button type="button" class="chatbot-send" onclick="sendChatMessage()" aria-label="Enviar mensagem" title="Enviar">
+        <i class="fas fa-paper-plane" aria-hidden="true"></i>
+        <span class="btn-text">Enviar</span>
+ </button>
+ </div>
+ </div>
+</aside>
+
+
+
+<!--============================================================================-->

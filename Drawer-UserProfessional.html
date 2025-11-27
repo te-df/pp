@@ -1,0 +1,863 @@
+<!--============================================================================-->
+
+<!-- USER DRAWER PROFESSIONAL - Drawer de Autenticação Completo -->
+
+<div id="userprofessional-user-drawer" class="app-drawer" role="dialog" aria-labelledby="user-drawer-title" aria-hidden="true">
+  <div class="drawer-header">
+    <h2 id="userprofessional-user-drawer-title" class="drawer-title">
+      <i class="fas fa-user-circle"></i>
+      <span id="user-drawer-title-text">Autenticação</span>
+    </h2>
+    <button
+      aria-label="Fechar painel de usuário"
+      class="btn-icon btn-close-drawer"
+      data-drawer-close="user-drawer"
+      type="button">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <div class="drawer-body">
+    
+    <!-- ============================================ -->
+    <!-- TELA DE LOGIN -->
+    <!-- ============================================ -->
+    <div id="login-screen" class="auth-screen">
+      <div class="auth-header">
+        <div class="auth-icon">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+        <h3>Bem-vindo</h3>
+        <p>Faça login para acessar o sistema</p>
+      </div>
+
+      <form id="userprofessional-login-form" class="auth-form">
+        <div class="form-group">
+          <label for="login-username" class="form-label">
+            <i class="fas fa-user"></i> Usuário ou E-mail
+          </label>
+          <input
+            type="text"
+            id="userprofessional-login-username"
+            name="username"
+            class="form-control"
+            placeholder="seu.email@transporte.df.gov.br"
+            required
+            autocomplete="username"
+            aria-required="true">
+        </div>
+
+        <div class="form-group">
+          <label for="login-password" class="form-label">
+            <i class="fas fa-lock"></i> Senha
+          </label>
+          <div class="input-with-icon">
+            <input
+              type="password"
+              id="userprofessional-login-password"
+              name="password"
+              class="form-control"
+              placeholder="••••••••"
+              required
+              autocomplete="current-password"
+              aria-required="true">
+            <button
+              type="button"
+              class="btn-icon btn-toggle-password"
+              onclick="togglePasswordVisibility('login-password')"
+              aria-label="Mostrar/ocultar senha">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary btn-block">
+            <i class="fas fa-sign-in-alt"></i>
+            Entrar
+          </button>
+        </div>
+
+        <div class="auth-links">
+          <a href="#" onclick="showPasswordRecovery(); return false;">
+            <i class="fas fa-key"></i> Esqueci minha senha
+          </a>
+        </div>
+      </form>
+
+      <div class="auth-demo-users">
+        <details>
+          <summary>
+            <i class="fas fa-info-circle"></i> Usuários de Demonstração
+          </summary>
+          <div class="demo-users-list">
+            <div class="demo-user" onclick="fillLoginDemo('admin', 'Admin@2026')">
+              <strong>admin</strong> / Admin@2026
+              <span class="badge">Admin</span>
+            </div>
+            <div class="demo-user" onclick="fillLoginDemo('monitor01', 'monitor123')">
+              <strong>monitor01</strong> / monitor123
+              <span class="badge">Monitor</span>
+            </div>
+            <div class="demo-user" onclick="fillLoginDemo('secretario01', 'secret123')">
+              <strong>secretario01</strong> / secret123
+              <span class="badge">Secretário</span>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TELA DE PERFIL (LOGADO) -->
+    <!-- ============================================ -->
+    <div id="profile-screen" class="auth-screen" style="display: none;">
+      <div class="profile-header">
+        <div class="profile-avatar">
+          <i class="fas fa-user-circle"></i>
+        </div>
+        <h3 id="profile-name">Usuário</h3>
+        <p id="profile-role" class="profile-role">Cargo</p>
+      </div>
+
+      <div class="profile-info">
+        <div class="info-item">
+          <i class="fas fa-envelope"></i>
+          <div>
+            <small>E-mail</small>
+            <strong id="profile-email">-</strong>
+          </div>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-clock"></i>
+          <div>
+            <small>Último login</small>
+            <strong id="profile-last-login">Agora</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-permissions">
+        <h4>
+          <i class="fas fa-shield-alt"></i> Permissões
+        </h4>
+        <div id="profile-permissions-list" class="permissions-list">
+          <!-- Preenchido dinamicamente -->
+        </div>
+      </div>
+
+      <div class="profile-actions">
+        <button
+          type="button"
+          class="btn-secondary btn-block"
+          onclick="showPasswordChangeForm()">
+          <i class="fas fa-key"></i>
+          Alterar Senha
+        </button>
+        
+        <button
+          type="button"
+          class="btn-danger btn-block"
+          onclick="confirmLogout()">
+          <i class="fas fa-sign-out-alt"></i>
+          Sair do Sistema
+        </button>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TELA DE TROCA DE SENHA -->
+    <!-- ============================================ -->
+    <div id="password-change-screen" class="auth-screen" style="display: none;">
+      <div class="auth-header">
+        <button
+          type="button"
+          class="btn-back"
+          onclick="showProfileScreen()">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <h3>Alterar Senha</h3>
+        <p>Mantenha sua conta segura</p>
+      </div>
+
+      <form id="password-change-form" class="auth-form">
+        <div class="form-group">
+          <label for="current-password" class="form-label">
+            <i class="fas fa-lock"></i> Senha Atual
+          </label>
+          <div class="input-with-icon">
+            <input
+              type="password"
+              id="current-password"
+              name="currentPassword"
+              class="form-control"
+              placeholder="Senha atual"
+              required
+              autocomplete="current-password">
+            <button
+              type="button"
+              class="btn-icon btn-toggle-password"
+              onclick="togglePasswordVisibility('current-password')">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="new-password" class="form-label">
+            <i class="fas fa-key"></i> Nova Senha
+          </label>
+          <div class="input-with-icon">
+            <input
+              type="password"
+              id="new-password"
+              name="newPassword"
+              class="form-control"
+              placeholder="Nova senha segura"
+              required
+              autocomplete="new-password"
+              minlength="8">
+            <button
+              type="button"
+              class="btn-icon btn-toggle-password"
+              onclick="togglePasswordVisibility('new-password')">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          <!-- Indicador de força será inserido aqui automaticamente -->
+        </div>
+
+        <div class="form-group">
+          <label for="confirm-password" class="form-label">
+            <i class="fas fa-check-circle"></i> Confirmar Nova Senha
+          </label>
+          <div class="input-with-icon">
+            <input
+              type="password"
+              id="confirm-password"
+              name="confirmPassword"
+              class="form-control"
+              placeholder="Digite novamente"
+              required
+              autocomplete="new-password"
+              minlength="8">
+            <button
+              type="button"
+              class="btn-icon btn-toggle-password"
+              onclick="togglePasswordVisibility('confirm-password')">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="password-requirements">
+          <h5>Requisitos de Senha:</h5>
+          <ul>
+            <li id="req-length">
+              <i class="fas fa-circle"></i> Mínimo 8 caracteres
+            </li>
+            <li id="req-lower">
+              <i class="fas fa-circle"></i> Letras minúsculas
+            </li>
+            <li id="req-upper">
+              <i class="fas fa-circle"></i> Letras maiúsculas
+            </li>
+            <li id="req-number">
+              <i class="fas fa-circle"></i> Números
+            </li>
+            <li id="req-special">
+              <i class="fas fa-circle"></i> Símbolos (!@#$%...)
+            </li>
+          </ul>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary btn-block">
+            <i class="fas fa-check"></i>
+            Alterar Senha
+          </button>
+          <button
+            type="button"
+            class="btn-secondary btn-block"
+            onclick="showProfileScreen()">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TELA DE RECUPERAÇÃO DE SENHA -->
+    <!-- ============================================ -->
+    <div id="password-recovery-screen" class="auth-screen" style="display: none;">
+      <div class="auth-header">
+        <button
+          type="button"
+          class="btn-back"
+          onclick="showLoginScreen()">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <h3>Recuperar Senha</h3>
+        <p>Entre em contato com o administrador</p>
+      </div>
+
+      <div class="recovery-info">
+        <div class="info-box">
+          <i class="fas fa-user-shield"></i>
+          <p>
+            Para recuperar sua senha, entre em contato com o administrador do sistema através do e-mail:
+          </p>
+          <a href="mailto:admin@transporte.df.gov.br" class="btn-primary">
+            <i class="fas fa-envelope"></i>
+            admin@transporte.df.gov.br
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/**
+ * Funções auxiliares para o Drawer de Usuário
+ */
+(function() {
+    'use strict';
+
+    // Alterna visibilidade de senha
+    window.togglePasswordVisibility = function(inputId) {
+        const input = document.getElementById(inputId);
+        const button = input.nextElementSibling;
+        const icon = button.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'fas fa-eye';
+        }
+    };
+
+    // Preenche login com dados demo
+    window.fillLoginDemo = function(username, password) {
+        document.getElementById('login-username').value = username;
+        document.getElementById('login-password').value = password;
+        ToastManager.show('Dados de demonstração preenchidos', 'info', 2000);
+    };
+
+    // Mostra tela de login
+    window.showLoginScreen = function() {
+        document.querySelectorAll('.auth-screen').forEach(s => s.style.display = 'none');
+        document.getElementById('login-screen').style.display = 'block';
+        document.getElementById('user-drawer-title-text').textContent = 'Autenticação';
+    };
+
+    // Mostra tela de perfil
+    window.showProfileScreen = function() {
+        const user = window.AuthManager?.getCurrentUser();
+        if (!user) {
+            showLoginScreen();
+            return;
+        }
+
+        document.querySelectorAll('.auth-screen').forEach(s => s.style.display = 'none');
+        document.getElementById('profile-screen').style.display = 'block';
+        document.getElementById('user-drawer-title-text').textContent = 'Meu Perfil';
+
+        // Preencher dados
+        document.getElementById('profile-name').textContent = user.nome || user.username;
+        document.getElementById('profile-role').textContent = user.role || 'Usuário';
+        document.getElementById('profile-email').textContent = user.email || user.username;
+
+        // Permissões
+        const permList = document.getElementById('profile-permissions-list');
+        permList.innerHTML = '';
+        
+        if (user.permissions && user.permissions.length > 0) {
+            user.permissions.forEach(perm => {
+                const badge = document.createElement('span');
+                badge.className = 'permission-badge';
+                badge.innerHTML = `<i class="fas fa-check-circle"></i> ${perm}`;
+                permList.appendChild(badge);
+            });
+        } else {
+            permList.innerHTML = '<p class="text-muted">Sem permissões específicas</p>';
+        }
+    };
+
+    // Mostra tela de troca de senha
+    window.showPasswordChangeForm = function() {
+        document.querySelectorAll('.auth-screen').forEach(s => s.style.display = 'none');
+        document.getElementById('password-change-screen').style.display = 'block';
+        document.getElementById('user-drawer-title-text').textContent = 'Alterar Senha';
+        
+        // Limpar form
+        document.getElementById('password-change-form').reset();
+        
+        // Reset requisitos
+        document.querySelectorAll('.password-requirements li').forEach(li => {
+            li.classList.remove('met');
+        });
+    };
+
+    // Mostra recuperação de senha
+    window.showPasswordRecovery = function() {
+        document.querySelectorAll('.auth-screen').forEach(s => s.style.display = 'none');
+        document.getElementById('password-recovery-screen').style.display = 'block';
+        document.getElementById('user-drawer-title-text').textContent = 'Recuperar Senha';
+    };
+
+    // Confirmar logout
+    window.confirmLogout = function() {
+        const user = window.AuthManager?.getCurrentUser();
+        const name = user?.nome || 'sua conta';
+        
+        if (confirm(`Deseja realmente sair de ${name}?`)) {
+            window.AuthManager?.logout();
+        }
+    };
+
+    // Validação em tempo real da nova senha
+    document.addEventListener('DOMContentLoaded', function() {
+        const newPasswordInput = document.getElementById('new-password');
+        const confirmPasswordInput = document.getElementById('confirm-password');
+        
+        if (newPasswordInput) {
+            newPasswordInput.addEventListener('input', function() {
+                validatePasswordRequirements(this.value);
+            });
+        }
+        
+        if (confirmPasswordInput) {
+            confirmPasswordInput.addEventListener('input', function() {
+                const newPass = newPasswordInput.value;
+                if (this.value && this.value !== newPass) {
+                    this.setCustomValidity('As senhas não coincidem');
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+        }
+    });
+
+    // Valida requisitos de senha
+    function validatePasswordRequirements(password) {
+        const requirements = {
+            'req-length': password.length >= 8,
+            'req-lower': /[a-z]/.test(password),
+            'req-upper': /[A-Z]/.test(password),
+            'req-number': /[0-9]/.test(password),
+            'req-special': /[^a-zA-Z0-9]/.test(password)
+        };
+        
+        Object.keys(requirements).forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                if (requirements[id]) {
+                    element.classList.add('met');
+                    element.querySelector('i').className = 'fas fa-check-circle';
+                } else {
+                    element.classList.remove('met');
+                    element.querySelector('i').className = 'fas fa-circle';
+                }
+            }
+        });
+    }
+
+    // Listener para mudança de autenticação
+    document.addEventListener('auth-changed', function(e) {
+        if (e.detail.loggedIn) {
+            showProfileScreen();
+        } else {
+            showLoginScreen();
+        }
+    });
+
+    // Listener para formulário de troca de senha
+    document.addEventListener('submit', async function(e) {
+        if (e.target.id === 'password-change-form') {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('current-password').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            
+            // Validar
+            if (newPassword !== confirmPassword) {
+                ToastManager.show('As senhas não coincidem', 'error');
+                return;
+            }
+            
+            if (newPassword.length < 8) {
+                ToastManager.show('Senha deve ter no mínimo 8 caracteres', 'error');
+                return;
+            }
+            
+            const user = window.AuthManager?.getCurrentUser();
+            if (!user) {
+                ToastManager.show('Usuário não autenticado', 'error');
+                return;
+            }
+            
+            try {
+                LoadingManager.show('Alterando senha...');
+                
+                // Chamar backend
+                const result = await new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(reject)
+                        .updateUserPassword(user.username, currentPassword, newPassword);
+                });
+                
+                LoadingManager.hide();
+                
+                if (result.success) {
+                    ToastManager.show(result.message, 'success');
+                    showProfileScreen();
+                    document.getElementById('password-change-form').reset();
+                } else {
+                    ToastManager.show(result.message || 'Erro ao alterar senha', 'error');
+                }
+                
+            } catch (error) {
+                LoadingManager.hide();
+                console.error('Erro ao alterar senha:', error);
+                ToastManager.show('Erro ao processar alteração de senha', 'error');
+            }
+        }
+    });
+
+    // Estado inicial
+    setTimeout(() => {
+        if (window.AuthManager?.isLoggedIn()) {
+            showProfileScreen();
+        } else {
+            showLoginScreen();
+        }
+    }, 500);
+
+})();
+</script>
+
+<style>
+/* Estilos do Drawer de Usuário */
+.auth-screen {
+    padding: 16px 0;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.btn-back {
+    position: absolute;
+    left: 0;
+    top: 0;
+    background: none;
+    border: none;
+    color: var(--md-sys-color-on-surface);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 8px;
+}
+
+.auth-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--md-sys-color-primary), var(--md-sys-color-secondary));
+    border-radius: 50%;
+    font-size: 2.5rem;
+    color: white;
+}
+
+.auth-header h3 {
+    margin: 0 0 8px 0;
+    font-size: 1.5rem;
+}
+
+.auth-header p {
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.auth-form {
+    margin-top: 24px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.form-label i {
+    margin-right: 6px;
+    color: var(--md-sys-color-primary);
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon input {
+    flex: 1;
+    padding-right: 45px;
+}
+
+.btn-toggle-password {
+    position: absolute;
+    right: 4px;
+    background: none;
+    border: none;
+    color: var(--md-sys-color-on-surface-variant);
+    cursor: pointer;
+}
+
+.auth-links {
+    text-align: center;
+    margin-top: 16px;
+}
+
+.auth-links a {
+    color: var(--md-sys-color-primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.auth-links a i {
+    margin-right: 4px;
+}
+
+.auth-demo-users {
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--md-sys-color-surface-variant, #f5f5f5);
+    border-radius: 8px;
+}
+
+.auth-demo-users summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+}
+
+.demo-users-list {
+    margin-top: 12px;
+}
+
+.demo-user {
+    padding: 10px;
+    margin: 8px 0;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.demo-user:hover {
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.demo-user .badge {
+    padding: 4px 8px;
+    background: var(--md-sys-color-primary);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+/* Perfil */
+.profile-header {
+    text-align: center;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--md-sys-color-outline);
+}
+
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 16px;
+    font-size: 4rem;
+    color: var(--md-sys-color-primary);
+}
+
+.profile-header h3 {
+    margin: 0 0 4px 0;
+    font-size: 1.5rem;
+}
+
+.profile-role {
+    display: inline-block;
+    padding: 6px 16px;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    border-radius: 16px;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.profile-info {
+    padding: 20px 0;
+    border-bottom: 1px solid var(--md-sys-color-outline);
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+}
+
+.info-item i {
+    width: 40px;
+    font-size: 1.3rem;
+    color: var(--md-sys-color-primary);
+}
+
+.info-item div {
+    flex: 1;
+}
+
+.info-item small {
+    display: block;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.85rem;
+}
+
+.info-item strong {
+    display: block;
+    margin-top: 2px;
+}
+
+.profile-permissions {
+    padding: 20px 0;
+}
+
+.profile-permissions h4 {
+    margin: 0 0 16px 0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.permissions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.permission-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+    border-radius: 16px;
+    font-size: 0.85rem;
+}
+
+.permission-badge i {
+    font-size: 0.9rem;
+}
+
+.profile-actions {
+    margin-top: 24px;
+}
+
+.profile-actions button {
+    margin-bottom: 12px;
+}
+
+/* Requisitos de senha */
+.password-requirements {
+    padding: 16px;
+    background: var(--md-sys-color-surface-variant, #f5f5f5);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.password-requirements h5 {
+    margin: 0 0 12px 0;
+    font-size: 0.9rem;
+}
+
+.password-requirements ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.password-requirements li {
+    padding: 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.9rem;
+}
+
+.password-requirements li i {
+    font-size: 0.7rem;
+}
+
+.password-requirements li.met {
+    color: var(--md-sys-color-tertiary);
+    font-weight: 500;
+}
+
+.password-requirements li.met i {
+    color: var(--md-sys-color-tertiary);
+}
+
+/* Recuperação */
+.recovery-info {
+    padding: 24px 0;
+}
+
+.info-box {
+    padding: 24px;
+    background: var(--md-sys-color-surface-variant, #f5f5f5);
+    border-radius: 12px;
+    text-align: center;
+}
+
+.info-box i {
+    font-size: 3rem;
+    color: var(--md-sys-color-primary);
+    margin-bottom: 16px;
+}
+
+.info-box p {
+    margin: 0 0 20px 0;
+    line-height: 1.6;
+}
+
+.info-box .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+</style>
+
+<!--============================================================================-->

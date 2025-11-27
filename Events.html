@@ -1,0 +1,227 @@
+<!--============================================================================-->
+
+<!--
+ SIG-TE - Seção de Gestão de Eventos
+ Formulários especializados para Dias Móveis, Reposições e Atividades Extracurriculares
+
+ Integração:
+ - Formulários especializados para casos específicos
+ - Integrado com JS-Events.html via google.script.run
+ - Complementa o Form-Eventos.html (CRUD Universal) para casos gerais
+-->
+<div class="eventos-specialized-forms">
+  <div class="page-header">
+    <h2 class="page-title"><i class="fas fa-calendar-alt"></i> Gestão de Eventos</h2>
+    <p class="page-subtitle">Registre e gerencie feriados, pontos facultativos, reposições e atividades extracurriculares.</p>
+ </div>
+ <!-- Painel de Ações -->
+  <div class="card action-panel">
+    <div class="card-header">
+      <h3 class="card-title"><i class="fas fa-plus-circle"></i> Registrar Novo Evento</h3>
+ </div>
+    <div class="card-body">
+ <p>Selecione o tipo de evento que deseja registrar no calendário escolar.</p>
+      <div class="action-buttons horizontal">
+        <button class="btn btn-primary" onclick="Eventos.showForm('holiday-form-container')">
+          <i class="fas fa-calendar-times"></i> Registrar Dia Móvel/Feriado
+ </button>
+        <button class="btn btn-secondary" onclick="Eventos.showForm('makeup-form-container')">
+          <i class="fas fa-calendar-check"></i> Agendar Reposição
+ </button>
+        <button class="btn btn-tertiary" onclick="Eventos.showForm('extracurricular-form-container')">
+          <i class="fas fa-star"></i> Criar Atividade Extracurricular
+ </button>
+ </div>
+ </div>
+ </div>
+
+ <!-- Formulário para Dias Móveis / Feriados (inicialmente oculto) -->
+  <div class="event-form-container form-section hidden" id="holiday-form-container-1">
+    <div class="form-section-header">
+      <h3 class="form-section-title"><i class="fas fa-calendar-times"></i> Registrar Dia Móvel ou Feriado</h3>
+      <button class="btn-icon" onclick="Eventos.hideForm('holiday-form-container')" aria-label="Fechar formulário">
+        <i class="fas fa-times"></i>
+ </button>
+ </div>
+    <form class="event-form" id="holiday-form-1" onsubmit="Eventos.handleHolidaySubmit(event)">
+      <div class="w-full form-grid">
+        <div class="form-group">
+          <label class="form-label" for="holiday-school">Escola(s) Afetada(s) *</label>
+          <select class="form-control" id="holiday-school-1" name="schoolName" required>
+            <option value="">Selecione uma escola ou "Todas"</option>
+            <option value="TODAS">Todas as Escolas</option>
+ <!-- Opções de escolas serão populadas dinamicamente -->
+ </select>
+ </div>
+        <div class="form-group">
+          <label class="form-label" for="holiday-date">Data do Dia Móvel/Feriado *</label>
+          <input class="form-control" id="holiday-date-1" name="holidayDate" required type="date"/>
+ </div>
+ </div>
+      <div class="form-group">
+        <label class="form-label" for="holiday-description">Descrição do Evento *</label>
+        <textarea class="form-control" id="holiday-description-1" name="description" placeholder="Ex: Ponto Facultativo, Feriado de Aniversário da Cidade" required rows="3"></textarea>
+ </div>
+      <div class="action-buttons horizontal">
+        <button class="btn btn-primary" type="submit">
+          <i class="fas fa-save"></i> Registrar Evento
+ </button>
+        <button class="btn btn-secondary" type="button" onclick="Eventos.hideForm('holiday-form-container')">
+          <i class="fas fa-times"></i> Cancelar
+ </button>
+ </div>
+ </form>
+ </div>
+
+ <!-- Formulário para Reposição de Aula (inicialmente oculto) -->
+  <div class="event-form-container form-section hidden" id="makeup-form-container-1">
+    <div class="form-section-header">
+      <h3 class="form-section-title"><i class="fas fa-calendar-check"></i> Agendar Reposição de Aula</h3>
+      <button class="btn-icon" onclick="Eventos.hideForm('makeup-form-container')" aria-label="Fechar formulário">
+        <i class="fas fa-times"></i>
+ </button>
+ </div>
+    <form class="event-form" id="makeup-form-1" onsubmit="Eventos.handleMakeupSubmit(event)">
+      <div class="w-full form-grid">
+        <div class="form-group">
+          <label class="form-label" for="makeup-school">Escola *</label>
+          <select class="form-control" id="makeup-school-1" name="schoolName" required>
+            <option value="">Selecione uma escola</option>
+ <!-- Opções de escolas -->
+ </select>
+ </div>
+        <div class="form-group">
+          <label class="form-label" for="makeup-original-date">Data da Aula Perdida *</label>
+          <input class="form-control" id="makeup-original-date-1" name="originalDate" required type="date"/>
+ </div>
+        <div class="form-group">
+          <label class="form-label" for="makeup-new-date">Nova Data da Aula *</label>
+          <input class="form-control" id="makeup-new-date-1" name="newDate" required type="date"/>
+ </div>
+        <div class="form-group">
+          <label class="form-label" for="makeup-time">Horário da Reposição *</label>
+          <input class="form-control" id="makeup-time-1" name="time" required type="time"/>
+ </div>
+ </div>
+      <div class="form-group">
+        <label class="form-label" for="makeup-reason">Motivo da Reposição *</label>
+        <textarea class="form-control" id="makeup-reason-1" name="reason" placeholder="Ex: Reposição referente ao feriado de..." required rows="3"></textarea>
+ </div>
+      <div class="action-buttons horizontal">
+        <button class="btn btn-primary" type="submit">
+          <i class="fas fa-save"></i> Agendar Reposição
+ </button>
+        <button class="btn btn-secondary" type="button" onclick="Eventos.hideForm('makeup-form-container')">
+          <i class="fas fa-times"></i> Cancelar
+ </button>
+ </div>
+ </form>
+ </div>
+
+ <!-- Formulário para Atividade Extracurricular (inicialmente oculto) -->
+  <div class="event-form-container form-section hidden" id="extracurricular-form-container-1">
+    <div class="form-section-header">
+      <h3 class="form-section-title"><i class="fas fa-star"></i> Criar Atividade Extracurricular</h3>
+      <button class="btn-icon" onclick="Eventos.hideForm('extracurricular-form-container')" aria-label="Fechar formulário">
+        <i class="fas fa-times"></i>
+ </button>
+ </div>
+    <form class="event-form" id="extracurricular-form-1" onsubmit="Eventos.handleExtracurricularSubmit(event)">
+      <div class="form-group">
+        <label class="form-label" for="extracurricular-title">Título da Atividade *</label>
+        <input class="form-control" id="extracurricular-title-1" name="activityTitle" placeholder="Ex: Feira de Ciências, Campeonato de Futebol" required type="text"/>
+ </div>
+      <div class="w-full form-grid">
+        <div class="form-group">
+          <label class="form-label" for="extracurricular-school">Escola *</label>
+          <select class="form-control" id="extracurricular-school-1" name="schoolName" required>
+            <option value="">Selecione uma escola</option>
+ <!-- Opções de escolas -->
+ </select>
+ </div>
+        <div class="form-group">
+          <label class="form-label" for="extracurricular-type">Tipo de Atividade *</label>
+          <select class="form-control" id="extracurricular-type-1" name="activityType" required>
+            <option value="">Selecione o tipo</option>
+            <option value="ESPORTIVA">Esportiva</option>
+            <option value="CULTURAL">Cultural</option>
+            <option value="ACADEMICA">Acadêmica</option>
+            <option value="SOCIAL">Social</option>
+            <option value="OUTROS">Outros</option>
+ </select>
+ </div>
+        <div class="form-group">
+          <label class="form-label" for="extracurricular-date">Data da Atividade *</label>
+          <input class="form-control" id="extracurricular-date-1" name="activityDate" required type="date"/>
+ </div>
+        <div class="form-group">
+          <label class="form-label" for="extracurricular-time">Horário *</label>
+          <input class="form-control" id="extracurricular-time-1" name="activityTime" required type="time"/>
+ </div>
+ </div>
+      <div class="form-group">
+        <label class="form-label" for="extracurricular-description">Descrição da Atividade</label>
+        <textarea class="form-control" id="extracurricular-description-1" name="description" placeholder="Descreva a atividade, objetivos, público-alvo, etc." rows="3"></textarea>
+ </div>
+      <div class="action-buttons horizontal">
+        <button class="btn btn-primary" type="submit">
+          <i class="fas fa-save"></i> Registrar Atividade
+ </button>
+        <button class="btn btn-secondary" type="button" onclick="Eventos.hideForm('extracurricular-form-container')">
+          <i class="fas fa-times"></i> Cancelar
+ </button>
+ </div>
+ </form>
+ </div>
+
+ <!-- Lista de Eventos Recentes -->
+  <div class="card data-table-container"  style="margin-top: var(--space-6)">
+    <div class="card-header data-table-header">
+      <h3 class="card-title data-table-title"><i class="fas fa-list-ul"></i> Eventos Registrados</h3>
+      <div class="data-table-controls">
+        <button class="btn btn-sm btn-secondary" onclick="Eventos.loadEvents()">
+          <i class="fas fa-sync-alt"></i> Atualizar Lista
+ </button>
+ </div>
+ </div>
+    <div class="card-body"  style="padding: 0">
+      <div class="events-list" id="events-list-1">
+        <div class="loading-placeholder">
+          <i class="fas fa-spinner fa-spin"></i>
+ <p>Carregando eventos...</p>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ <style>
+ .event-form-container {
+ transition: all 0.4s ease-in-out;
+ max-height: 0;
+ overflow: hidden;
+ padding: 0;
+ border: none;
+ margin-bottom: 0;
+ }
+ .event-form-container.active {
+ max-height: 1000px; /* Altura suficiente para o conteúdo */
+ padding: var(--space-6);
+ border: 1px solid var(--outline-variant);
+ margin-bottom: var(--space-6);
+ }
+ .form-section-header {
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ margin-bottom: var(--space-4);
+ }
+ .action-buttons.horizontal {
+ flex-direction: row;
+ justify-content: flex-end;
+ }
+ </style>
+</div>
+
+
+
+<!--============================================================================-->

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Teste de Drawers</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    
+    h1 {
+      margin-bottom: 2rem;
+    }
+    
+    .test-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .btn {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 8px;
+      background: #4F46E5;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      background: #4338CA;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    /* Backdrop */
+    .drawer-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    .drawer-backdrop.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    
+    /* Drawer */
+    .app-drawer {
+      position: fixed;
+      top: 2rem;
+      right: 2rem;
+      width: 400px;
+      max-height: calc(100vh - 4rem);
+      background: #2a2a2a;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      transform: scale(0.9) translateY(-20px);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .app-drawer.active {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .drawer-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #444;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .drawer-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .drawer-close-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    
+    .drawer-close-btn:hover {
+      background: #444;
+      transform: scale(1.1);
+    }
+    
+    .drawer-content {
+      padding: 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    
+    .drawer-footer {
+      padding: 1.5rem;
+      border-top: 1px solid #444;
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+    }
+    
+    .status {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: #2a2a2a;
+      border-radius: 8px;
+      border-left: 4px solid #10b981;
+    }
+    
+    .status h2 {
+      margin-bottom: 1rem;
+      color: #10b981;
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #444;
+    }
+    
+    .status-item:last-child {
+      border-bottom: none;
+    }
+    
+    .status-ok {
+      color: #10b981;
+    }
+    
+    .status-error {
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Teste de Drawers - Sistema TE-DF</h1>
+  
+  <p  class="opacity-80" style="margin-bottom: 2rem">
+    Clique nos botões abaixo para testar cada drawer. Verifique o console do navegador (F12) para logs detalhados.
+  </p>
+  
+  <div class="test-buttons">
+    <button class="btn" data-drawer-target="search-drawer">
+      <i class="fas fa-search"></i> Busca
+    </button>
+    
+    <button class="btn" data-drawer-target="chatbot-drawer">
+      <i class="fas fa-robot"></i> Chatbot
+    </button>
+    
+    <button class="btn" data-drawer-target="notifications-drawer">
+      <i class="fas fa-bell"></i> Notificações
+    </button>
+    
+    <button class="btn" data-drawer-target="user-drawer">
+      <i class="fas fa-user"></i> Usuário
+    </button>
+    
+    <button class="btn" data-drawer-target="projects-drawer">
+      <i class="fas fa-person-running"></i> Tarefas
+    </button>
+  </div>
+  
+  <div class="status">
+    <h2><i class="fas fa-check-circle"></i> Status dos Drawers</h2>
+    <div id="status-list">
+      <p  class="opacity-60">Aguardando inicialização...</p>
+    </div>
+  </div>
+  
+  <!-- Backdrops -->
+  <div class="drawer-backdrop" id="search-drawer-backdrop-1"></div>
+  <div class="drawer-backdrop" id="chatbot-drawer-backdrop-1"></div>
+  <div class="drawer-backdrop" id="notifications-drawer-backdrop-1"></div>
+  <div class="drawer-backdrop" id="user-drawer-backdrop-1"></div>
+  <div class="drawer-backdrop" id="projects-drawer-backdrop-1"></div>
+  
+  <!-- Drawers -->
+  <aside class="app-drawer" id="search-drawer-2">
+    <div class="drawer-header">
+      <h3 class="drawer-title">
+        <i class="fas fa-search"></i> Busca
+      </h3>
+      <button class="drawer-close-btn" type="button">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="drawer-content">
+      <p>✅ Drawer de Busca funcionando!</p>
+      <input type="text" placeholder="Digite algo..."  style="width: 100%; padding: 0.75rem; margin-top: 1rem; border-radius: 6px; border: 1px solid #444; background: #1a1a1a; color: #fff">
+    </div>
+    <div class="drawer-footer">
+      <button class="btn">Buscar</button>
+    </div>
+  </aside>
+  
+  <aside class="app-drawer" id="chatbot-drawer-2">
+    <div class="drawer-header">
+      <h3 class="drawer-title">
+        <i class="fas fa-robot"></i> Chatbot
+      </h3>
+      <button class="drawer-close-btn" type="button">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="drawer-content">
+      <p>✅ Drawer de Chatbot funcionando!</p>
+      <p  class="opacity-80" style="margin-top: 1rem">Olá! Como posso ajudar?</p>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn">Enviar</button>
+    </div>
+  </aside>
+  
+  <aside class="app-drawer" id="notifications-drawer-2">
+    <div class="drawer-header">
+      <h3 class="drawer-title">
+        <i class="fas fa-bell"></i> Notificações
+      </h3>
+      <button class="drawer-close-btn" type="button">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="drawer-content">
+      <p>✅ Drawer de Notificações funcionando!</p>
+      <p  class="opacity-80" style="margin-top: 1rem">Você tem 3 notificações não lidas.</p>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn">Marcar como lidas</button>
+    </div>
+  </aside>
+  
+  <aside class="app-drawer" id="user-drawer-3">
+    <div class="drawer-header">
+      <h3 class="drawer-title">
+        <i class="fas fa-user"></i> Usuário
+      </h3>
+      <button class="drawer-close-btn" type="button">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="drawer-content">
+      <p>✅ Drawer de Usuário funcionando!</p>
+      <p  class="opacity-80" style="margin-top: 1rem">Bem-vindo ao sistema!</p>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn">Sair</button>
+    </div>
+  </aside>
+  
+  <aside class="app-drawer" id="projects-drawer-2">
+    <div class="drawer-header">
+      <h3 class="drawer-title">
+        <i class="fas fa-person-running"></i> Tarefas
+      </h3>
+      <button class="drawer-close-btn" type="button">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="drawer-content">
+      <p>✅ Drawer de Tarefas funcionando!</p>
+      <p  class="opacity-80" style="margin-top: 1rem">Nenhuma tarefa em andamento.</p>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn">Limpar</button>
+    </div>
+  </aside>
+  
+  <script>
+    /* ============================================================================
+       DRAWER MANAGER V3 - TESTE
+       ============================================================================ */
+    (function() {
+        'use strict';
+
+        console.log('[DrawerManager] 🚀 Inicializando teste...');
+
+        function getBackdrop(drawerId) {
+            return document.getElementById(drawerId + '-backdrop');
+        }
+
+        function openDrawer(drawerId, triggerElement) {
+            const drawer = document.getElementById(drawerId);
+            if (!drawer) {
+                console.error('[DrawerManager] ❌ Drawer não encontrado:', drawerId);
+                return;
+            }
+
+            console.log('[DrawerManager] ✅ Abrindo:', drawerId);
+
+            // Fechar outros drawers
+            const allActive = document.querySelectorAll('.app-drawer.active');
+            allActive.forEach(function(d) {
+                if (d.id !== drawerId) {
+                    d.classList.remove('active');
+                    const oldBackdrop = getBackdrop(d.id);
+                    if (oldBackdrop) oldBackdrop.classList.remove('active');
+                }
+            });
+
+            // Ativar backdrop
+            const backdrop = getBackdrop(drawerId);
+            if (backdrop) {
+                backdrop.classList.add('active');
+                console.log('[DrawerManager] ✅ Backdrop ativado');
+            }
+
+            // Ativar drawer
+            drawer.classList.add('active');
+        }
+
+        function closeDrawer(drawerId) {
+            const drawer = document.getElementById(drawerId);
+            if (!drawer) return;
+
+            console.log('[DrawerManager] 🔒 Fechando:', drawerId);
+
+            const backdrop = getBackdrop(drawerId);
+            if (backdrop) {
+                backdrop.classList.remove('active');
+            }
+
+            drawer.classList.remove('active');
+        }
+
+        function initDrawerListeners() {
+            console.log('[DrawerManager] 🎯 Configurando event listeners...');
+
+            document.addEventListener('click', function(e) {
+                const trigger = e.target.closest('[data-drawer-target]');
+                if (trigger) {
+                    e.preventDefault();
+                    const drawerId = trigger.dataset.drawerTarget;
+                    console.log('[DrawerManager] 🖱️ Clique detectado:', drawerId);
+                    if (drawerId) {
+                        openDrawer(drawerId, trigger);
+                    }
+                    return;
+                }
+
+                if (e.target.classList.contains('drawer-backdrop')) {
+                    const drawerId = e.target.id.replace('-backdrop', '');
+                    console.log('[DrawerManager] 🖱️ Clique no backdrop');
+                    if (drawerId) {
+                        closeDrawer(drawerId);
+                    }
+                    return;
+                }
+
+                const closeBtn = e.target.closest('.drawer-close-btn');
+                if (closeBtn) {
+                    e.preventDefault();
+                    const drawer = closeBtn.closest('.app-drawer');
+                    if (drawer) {
+                        console.log('[DrawerManager] 🖱️ Clique no botão fechar');
+                        closeDrawer(drawer.id);
+                    }
+                }
+            }, true);
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const activeDrawer = document.querySelector('.app-drawer.active');
+                    if (activeDrawer) {
+                        console.log('[DrawerManager] ⌨️ ESC pressionado');
+                        closeDrawer(activeDrawer.id);
+                    }
+                }
+            });
+
+            console.log('[DrawerManager] ✅ Event listeners configurados!');
+        }
+
+        function verifyDrawers() {
+            const expectedDrawers = [
+                'search-drawer',
+                'chatbot-drawer',
+                'notifications-drawer',
+                'user-drawer',
+                'projects-drawer'
+            ];
+
+            const statusList = document.getElementById('status-list');
+            statusList.innerHTML = '';
+
+            console.log('[DrawerManager] 🔍 Verificando drawers...');
+            expectedDrawers.forEach(function(drawerId) {
+                const drawer = document.getElementById(drawerId);
+                const backdrop = document.getElementById(drawerId + '-backdrop');
+                
+                const statusItem = document.createElement('div');
+                statusItem.className = 'status-item';
+                
+                const drawerName = drawerId.replace('-drawer', '');
+                const status = drawer && backdrop ? 
+                    '<span class="status-ok">✅ OK</span>' : 
+                    '<span class="status-error">❌ Erro</span>';
+                
+                statusItem.innerHTML = `<span>${drawerName}</span>${status}`;
+                statusList.appendChild(statusItem);
+                
+                if (drawer && backdrop) {
+                    console.log('[DrawerManager] ✅', drawerId, 'OK');
+                } else {
+                    console.error('[DrawerManager] ❌', drawerId, 'com problemas');
+                }
+            });
+
+            const triggers = document.querySelectorAll('[data-drawer-target]');
+            console.log('[DrawerManager] 🔍 Botões encontrados:', triggers.length);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                initDrawerListeners();
+                verifyDrawers();
+            });
+        } else {
+            initDrawerListeners();
+            verifyDrawers();
+        }
+
+        window.openDrawer = openDrawer;
+        window.closeDrawer = closeDrawer;
+
+        console.log('[DrawerManager] 🎉 Teste carregado!');
+    })();
+  </script>
+</body>
+</html>

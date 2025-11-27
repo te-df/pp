@@ -1,0 +1,394 @@
+<!-- 
+  EXEMPLO DE INTEGRAÇÃO: Como usar Jobs Assíncronos no Frontend
+  
+  Este arquivo demonstra como integrar jobs assíncronos em botões e ações do usuário.
+  Copie e adapte os exemplos abaixo para suas necessidades.
+-->
+
+<script>
+/**
+ * EXEMPLO 1: Botão de Exportar CSV
+ * 
+ * HTML:
+ * <button onclick="handleExportCSV('Usuarios')">Exportar Usuários</button>
+ */
+function handleExportCSV(sheetName) {
+  // Mostra notificação de início
+  const progressNotification = NotificationManager.progress('Preparando exportação...');
+  
+  // Inicia o job
+  google.script.run
+    .withSuccessHandler(function(response) {
+      if (response.success) {
+        const jobId = response.data.jobId;
+        
+        // Atualiza notificação
+        progressNotification.close();
+        NotificationManager.info('Exportação em andamento...');
+        
+        // Inicia polling
+        JobManager.pollJobStatus(
+          jobId,
+          // onProgress
+          function(status) {
+            console.log('Job status:', status.status);
+          },
+          // onComplete
+          function(status) {
+            const result = JSON.parse(status.result || '{}');
+            
+            NotificationManager.success(
+              `Exportação concluída! ${result.rows || 0} linhas exportadas.`
+            );
+            
+            // Se houver fileId, abre o arquivo
+            if (result.fileId) {
+              window.open(
+                `https://drive.google.com/file/d/${result.fileId}/view`,
+                '_blank'
+              );
+            }
+          },
+          // onError
+          function(error) {
+            NotificationManager.error('Erro na exportação: ' + error.message);
+          }
+        );
+      } else {
+        progressNotification.close();
+        NotificationManager.error('Erro ao iniciar exportação: ' + response.error);
+      }
+    })
+    .withFailureHandler(function(error) {
+      progressNotification.close();
+      NotificationManager.error('Erro ao iniciar exportação: ' + error.message);
+    })
+    .apiStartJob('EXPORT_CSV', { sheetName: sheetName });
+}
+
+/**
+ * EXEMPLO 2: Botão de Gerar Relatório
+ * 
+ * HTML:
+ * <button onclick="handleGenerateReport()">Gerar Relatório</button>
+ */
+function handleGenerateReport() {
+  JobHelpers.generateReport(
+    {
+      includeStats: true,
+      dateRange: 'last_30_days'
+    },
+    {
+      onStart: function() {
+        console.log('Iniciando geração de relatório...');
+      },
+      onProgress: function(status) {
+        console.log('Status:', status.status);
+      },
+      onComplete: function(status) {
+        console.log('Relatório concluído!', status);
+      },
+      onError: function(error) {
+        console.error('Erro:', error);
+      }
+    }
+  );
+}
+
+/**
+ * EXEMPLO 3: Botão de Calcular Estatísticas
+ * 
+ * HTML:
+ * <button onclick="handleCalculateStats('Usuarios')">Calcular Estatísticas</button>
+ */
+function handleCalculateStats(sheetName) {
+  JobHelpers.calculateStats(sheetName, {
+    onComplete: function(status) {
+      const result = JSON.parse(status.result || '{}');
+      
+      // Exibe estatísticas em um modal ou card
+      console.log('Estatísticas:', result);
+      
+      // Exemplo: atualizar UI com as estatísticas
+      document.getElementById('total-rows').textContent = result.total_rows || 0;
+      document.getElementById('total-columns').textContent = result.total_columns || 0;
+    }
+  });
+}
+
+/**
+ * EXEMPLO 4: Limpeza em Lote com Confirmação
+ * 
+ * HTML:
+ * <button onclick="handleBatchCleanup()">Limpar Dados Antigos</button>
+ */
+function handleBatchCleanup() {
+  // Confirmação do usuário
+  if (!confirm('Deseja realmente limpar dados com mais de 30 dias?')) {
+    return;
+  }
+  
+  JobHelpers.batchCleanup(
+    30, // retention_days
+    ['Usuarios', 'Alunos', 'Rotas'], // sheets
+    {
+      onStart: function() {
+        NotificationManager.info('Iniciando limpeza...');
+      },
+      onComplete: function(status) {
+        const result = JSON.parse(status.result || '{}');
+        const totalCleaned = Object.values(result.cleaned || {})
+          .reduce((sum, count) => sum + count, 0);
+        
+        NotificationManager.success(
+          `Limpeza concluída! ${totalCleaned} registros removidos.`
+        );
+      },
+      onError: function(error) {
+        NotificationManager.error('Erro na limpeza: ' + error.message);
+      }
+    }
+  );
+}
+
+/**
+ * EXEMPLO 5: Exportar com Indicador de Progresso Visual
+ * 
+ * HTML:
+ * <button onclick="handleExportWithProgress('Usuarios')">Exportar com Progresso</button>
+ * <div id="export-progress" style="display: none;">
+ *   <div class="progress-bar">
+ *     <div id="progress-fill" style="width: 0%;"></div>
+ *   </div>
+ *   <p id="progress-text">Preparando...</p>
+ * </div>
+ */
+function handleExportWithProgress(sheetName) {
+  const progressContainer = document.getElementById('export-progress');
+  const progressFill = document.getElementById('progress-fill');
+  const progressText = document.getElementById('progress-text');
+  
+  // Mostra container de progresso
+  progressContainer.style.display = 'block';
+  progressFill.style.width = '10%';
+  progressText.textContent = 'Iniciando exportação...';
+  
+  JobManager.executeJob('EXPORT_CSV', { sheetName: sheetName }, {
+    onStart: function() {
+      progressFill.style.width = '30%';
+      progressText.textContent = 'Processando dados...';
+    },
+    onProgress: function(status) {
+      if (status.status === 'RUNNING') {
+        progressFill.style.width = '60%';
+        progressText.textContent = 'Gerando arquivo...';
+      }
+    },
+    onComplete: function(status) {
+      progressFill.style.width = '100%';
+      progressText.textContent = 'Concluído!';
+      
+      setTimeout(() => {
+        progressContainer.style.display = 'none';
+        progressFill.style.width = '0%';
+      }, 2000);
+      
+      const result = JSON.parse(status.result || '{}');
+      if (result.fileId) {
+        window.open(
+          `https://drive.google.com/file/d/${result.fileId}/view`,
+          '_blank'
+        );
+      }
+    },
+    onError: function(error) {
+      progressFill.style.width = '0%';
+      progressText.textContent = 'Erro: ' + error.message;
+      progressContainer.style.display = 'none';
+    }
+  });
+}
+
+/**
+ * EXEMPLO 6: Múltiplos Jobs em Paralelo
+ * 
+ * HTML:
+ * <button onclick="handleMultipleExports()">Exportar Tudo</button>
+ */
+function handleMultipleExports() {
+  const sheets = ['Usuarios', 'Alunos', 'Rotas', 'Veiculos'];
+  const jobs = [];
+  
+  NotificationManager.info(`Iniciando exportação de ${sheets.length} planilhas...`);
+  
+  sheets.forEach(sheetName => {
+    google.script.run
+      .withSuccessHandler(function(response) {
+        if (response.success) {
+          const jobId = response.data.jobId;
+          jobs.push({ jobId, sheetName });
+          
+          // Monitora cada job
+          JobManager.pollJobStatus(
+            jobId,
+            null, // onProgress
+            function(status) {
+              NotificationManager.success(`${sheetName} exportado com sucesso!`);
+              
+              // Verifica se todos completaram
+              if (jobs.filter(j => j.completed).length === sheets.length) {
+                NotificationManager.success('Todas as exportações concluídas!');
+              }
+            },
+            function(error) {
+              NotificationManager.error(`Erro ao exportar ${sheetName}: ${error.message}`);
+            }
+          );
+        }
+      })
+      .apiStartJob('EXPORT_CSV', { sheetName: sheetName });
+  });
+}
+
+/**
+ * EXEMPLO 7: Cancelar Job em Andamento
+ * 
+ * HTML:
+ * <button onclick="startLongJob()">Iniciar Job Longo</button>
+ * <button onclick="cancelCurrentJob()">Cancelar</button>
+ */
+let currentJobId = null;
+
+function startLongJob() {
+  google.script.run
+    .withSuccessHandler(function(response) {
+      if (response.success) {
+        currentJobId = response.data.jobId;
+        NotificationManager.info('Job iniciado. ID: ' + currentJobId);
+        
+        JobManager.pollJobStatus(
+          currentJobId,
+          null,
+          function(status) {
+            currentJobId = null;
+            NotificationManager.success('Job concluído!');
+          },
+          function(error) {
+            currentJobId = null;
+            NotificationManager.error('Job falhou: ' + error.message);
+          }
+        );
+      }
+    })
+    .apiStartJob('GENERATE_REPORT', { includeStats: true });
+}
+
+function cancelCurrentJob() {
+  if (currentJobId) {
+    const cancelled = JobManager.cancelJob(currentJobId);
+    if (cancelled) {
+      NotificationManager.warning('Job cancelado: ' + currentJobId);
+      currentJobId = null;
+    }
+  } else {
+    NotificationManager.info('Nenhum job em andamento');
+  }
+}
+
+/**
+ * EXEMPLO 8: Integração com Tabela de Dados
+ * 
+ * Adiciona botão de exportar em cada linha da tabela
+ */
+function addExportButtonsToTable() {
+  const table = document.getElementById('data-table');
+  const rows = table.querySelectorAll('tbody tr');
+  
+  rows.forEach(row => {
+    const sheetName = row.dataset.sheetName;
+    
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'btn btn-sm btn-primary';
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> Exportar';
+    exportBtn.onclick = function() {
+      JobHelpers.exportCSV(sheetName);
+    };
+    
+    const actionsCell = row.querySelector('.actions-cell');
+    actionsCell.appendChild(exportBtn);
+  });
+}
+
+/**
+ * EXEMPLO 9: Auto-refresh após Job Completar
+ * 
+ * Recarrega dados da tabela após job completar
+ */
+function exportAndRefresh(sheetName) {
+  JobHelpers.exportCSV(sheetName, {
+    onComplete: function(status) {
+      // Recarrega dados da tabela
+      if (typeof reloadTableData === 'function') {
+        reloadTableData();
+      }
+    }
+  });
+}
+
+/**
+ * EXEMPLO 10: Fila de Jobs com Prioridade
+ * 
+ * Executa jobs em sequência
+ */
+async function executeJobQueue(jobs) {
+  for (const job of jobs) {
+    await new Promise((resolve, reject) => {
+      JobManager.executeJob(job.type, job.payload, {
+        onComplete: resolve,
+        onError: reject
+      });
+    });
+  }
+  
+  NotificationManager.success('Todos os jobs foram concluídos!');
+}
+
+// Exemplo de uso:
+// executeJobQueue([
+//   { type: 'EXPORT_CSV', payload: { sheetName: 'Usuarios' } },
+//   { type: 'CALCULATE_STATS', payload: { sheetName: 'Usuarios' } },
+//   { type: 'GENERATE_REPORT', payload: { includeStats: true } }
+// ]);
+</script>
+
+<!-- 
+  ESTILOS PARA INDICADOR DE PROGRESSO
+-->
+<style>
+.progress-bar {
+  width: 100%;
+  height: 30px;
+  background-color: #e0e0e0;
+  border-radius: 15px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+#progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+#progress-text {
+  text-align: center;
+  margin: 10px 0;
+  font-size: 14px;
+  color: #666;
+}
+</style>

@@ -1,0 +1,71 @@
+<!--============================================================================-->
+
+<!-- ============================================================================
+ DRAWER-NOTIFICATIONS.HTML
+ Painel lateral (drawer) para exibir notificações e alertas.
+ ============================================================================ -->
+<aside class="app-drawer" id="notifications-notifications-drawer" aria-labelledby="notifications-drawer-title" aria-hidden="true" role="dialog">
+  <div class="drawer-header">
+    <h3 id="notifications-notifications-drawer-title" class="drawer-title">
+      <i class="fas fa-bell" aria-hidden="true"></i>
+ Notificações
+ </h3>
+ <button
+      class="btn-icon drawer-close-btn"
+      aria-label="Fechar painel de notificações"
+      type="button">
+      <i class="fas fa-times" aria-hidden="true"></i>
+ </button>
+ </div>
+  <div class="drawer-content" id="notifications-notifications-list">
+    <!-- Seção de Jobs Recentes -->
+    <div class="notification-section">
+      <h4 class="notification-section-title">
+        <i class="fas fa-tasks"></i> Jobs Recentes
+      </h4>
+      <div id="recent-jobs-list">
+        <p class="text-muted text-center">Carregando jobs...</p>
+      </div>
+    </div>
+
+    <!-- Seção de Notificações -->
+    <div class="notification-section">
+      <h4 class="notification-section-title">
+        <i class="fas fa-bell"></i> Notificações
+      </h4>
+      <div id="system-notifications-list">
+        <!-- Exemplo de notificações -->
+        <div class="notification-item info">
+          <div class="notification-icon"><i class="fas fa-info-circle"></i></div>
+          <div class="notification-content">
+            <p class="notification-text">A Rota 05 foi atualizada com um novo ponto de parada.</p>
+            <span class="notification-time">há 5 minutos</span>
+          </div>
+        </div>
+        <div class="notification-item success">
+          <div class="notification-icon"><i class="fas fa-check-circle"></i></div>
+          <div class="notification-content">
+            <p class="notification-text">Relatório de frequência de Setembro gerado com sucesso.</p>
+            <span class="notification-time">há 2 horas</span>
+          </div>
+        </div>
+        <div class="notification-item warning">
+          <div class="notification-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="notification-content">
+            <p class="notification-text">A CNH do motorista João Pereira vence em 15 dias.</p>
+            <span class="notification-time">ontem</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button type="button" class="btn btn-secondary" aria-label="Marcar todas as notificações como lidas">
+      <i class="fas fa-check-double" aria-hidden="true"></i> Marcar todas como lidas
+ </button>
+ </div>
+</aside>
+
+
+
+<!--============================================================================-->

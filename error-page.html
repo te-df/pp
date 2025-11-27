@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Erro - Sistema TE-DF</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body { 
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        min-height: 100vh; 
+        margin: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+      }
+      .error-container {
+        text-align: center;
+        padding: 2rem;
+        background: rgba(255,255,255,0.1);
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
+        max-width: 500px;
+      }
+      h1 { font-size: 3rem; margin: 0 0 1rem 0; }
+      p { font-size: 1.1rem; line-height: 1.6; }
+      .error-details {
+        background: rgba(0,0,0,0.2);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        font-family: monospace;
+        font-size: 0.9rem;
+        text-align: left;
+        word-break: break-word;
+      }
+      button {
+        margin-top: 1.5rem;
+        padding: 12px 24px;
+        font-size: 1rem;
+        background: #fff;
+        color: #667eea;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    </style>
+  </head>
+  <body>
+    <div class="error-container">
+      <h1>⚠️ Erro</h1>
+      <p>Não foi possível carregar o aplicativo.</p>
+      <div class="error-details">
+        <?= errorMessage ?>
+      </div>
+      <button onclick="location.reload()">🔄 Tentar Novamente</button>
+    </div>
+  </body>
+</html>

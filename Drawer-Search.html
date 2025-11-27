@@ -1,0 +1,93 @@
+<!--============================================================================-->
+
+<!-- ============================================================================
+ DRAWER-SEARCH.HTML
+ Painel lateral (drawer) para a funcionalidade de busca.
+ ============================================================================ -->
+<aside class="app-drawer" id="search-search-drawer" aria-labelledby="search-drawer-title" aria-hidden="true" role="dialog">
+  <div class="drawer-header">
+    <h3 id="search-search-drawer-title" class="drawer-title">
+      <i class="fas fa-search" aria-hidden="true"></i>
+      Busca Global
+    </h3>
+    <button
+      class="btn-icon drawer-close-btn"
+      aria-label="Fechar painel de busca"
+      type="button">
+      <i class="fas fa-times" aria-hidden="true"></i>
+    </button>
+  </div>
+  
+  <div class="drawer-content">
+    <form role="search" class="search-form" onsubmit="performSearch(); return false;">
+      <div class="form-group">
+        <label for="global-search-input" class="form-label">O que você está procurando?</label>
+        <input 
+          type="search" 
+          id="search-global-search-input" 
+          class="form-control" 
+          placeholder="Ex: Placa do veículo, nome do aluno..." 
+          aria-label="Campo de busca global"
+          autocomplete="off">
+      </div>
+      <p class="form-help-text">
+        <i class="fas fa-info-circle"></i>
+        Busque em todas as bases de dados: Alunos, Veículos, Rotas, Pessoal, etc.
+      </p>
+    </form>
+    
+    <!-- Resultados da busca aparecerão aqui -->
+    <div id="search-search-results" class="search-results-container"></div>
+  </div>
+  
+  <div class="drawer-footer">
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('global-search-input').value = ''; document.getElementById('search-results').innerHTML = '';" aria-label="Limpar busca">
+      <i class="fas fa-eraser" aria-hidden="true"></i> Limpar
+    </button>
+    <button type="button" class="btn btn-primary" onclick="performSearch()" aria-label="Executar busca">
+      <i class="fas fa-search" aria-hidden="true"></i> Buscar
+    </button>
+  </div>
+</aside>
+
+<script>
+// Função de busca (integração com JS-Components.html)
+function performSearch() {
+  const query = document.getElementById('global-search-input')?.value;
+  const resultsContainer = document.getElementById('search-results');
+  
+  if (!query || query.trim() === '') {
+    if (window.ToastManager) {
+      window.ToastManager.show('Digite algo para buscar', 'warning');
+    } else {
+      alert('Digite algo para buscar');
+    }
+    return;
+  }
+  
+  if (resultsContainer) {
+    resultsContainer.innerHTML = '<p class="text-center"><i class="fas fa-spinner fa-spin"></i> Buscando...</p>';
+  }
+  
+  // Dispara evento para JS-Components.html processar
+  const searchEvent = new CustomEvent('globalSearch', { detail: { query: query } });
+  document.dispatchEvent(searchEvent);
+  
+  console.log('[Drawer-Search] Busca iniciada:', query);
+}
+
+// Buscar ao pressionar Enter
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('global-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        performSearch();
+      }
+    });
+  }
+});
+</script>
+
+<!--============================================================================-->

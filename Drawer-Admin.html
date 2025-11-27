@@ -1,0 +1,104 @@
+<!-- DRAWER ADMIN -->
+<div id="drawer-admin" class="drawer drawer-right">
+    <div class="drawer-header">
+        <h3 class="drawer-title"><i class="fas fa-cogs"></i> Administração do Sistema</h3>
+        <button class="btn-icon" onclick="DrawerManager.close('drawer-admin')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="drawer-body">
+
+        <!-- System Status Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="card-title"><i class="fas fa-server"></i> Status do Sistema</h4>
+                <button class="btn-icon btn-sm" onclick="AdminManager.refreshStatus()" title="Atualizar"><i
+                        class="fas fa-sync-alt"></i></button>
+            </div>
+            <div class="card-body">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Registros</span>
+                        <span class="stat-value" id="admin-total-records">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Tamanho</span>
+                        <span class="stat-value" id="admin-total-size">- MB</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Arquivos</span>
+                        <span class="stat-value" id="admin-total-files">-</span>
+                    </div>
+                </div>
+                <div id="admin-status-message" class="alert alert-info mt-3" style="display: none;">
+                    Carregando status...
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="card-title"><i class="fas fa-tools"></i> Ações Manuais</h4>
+            </div>
+            <div class="card-body">
+                <div class="action-list">
+                    <button class="btn btn-outline-primary btn-block mb-2" onclick="AdminManager.runManualArchive()">
+                        <i class="fas fa-archive"></i> Arquivar Dados (Sem Limpar)
+                    </button>
+                    <button class="btn btn-outline-danger btn-block mb-2" onclick="AdminManager.runManualCleanup()">
+                        <i class="fas fa-trash-alt"></i> Executar Limpeza Diária
+                    </button>
+                    <button class="btn btn-outline-secondary btn-block" onclick="AdminManager.generateWeeklyReport()">
+                        <i class="fas fa-file-alt"></i> Gerar Relatório Semanal
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Triggers Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="card-title"><i class="fas fa-clock"></i> Automação (Triggers)</h4>
+            </div>
+            <div class="card-body">
+                <div id="admin-triggers-list" class="list-group mb-3">
+                    <!-- Triggers will be loaded here -->
+                    <div class="text-center text-muted p-3">Carregando triggers...</div>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button class="btn btn-sm btn-success" onclick="AdminManager.setupTriggers()">
+                        <i class="fas fa-play"></i> Ativar Tudo
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="AdminManager.removeTriggers()">
+                        <i class="fas fa-stop"></i> Desativar Tudo
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Card -->
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title"><i class="fas fa-history"></i> Histórico de Limpeza</h4>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" id="admin-history-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Ação</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="3" class="text-center">Carregando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

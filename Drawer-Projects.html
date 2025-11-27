@@ -1,0 +1,50 @@
+<!--============================================================================-->
+
+<!-- ============================================================================
+ DRAWER-PROJECTS.HTML
+ Painel lateral (drawer) para tarefas em andamento.
+ ============================================================================ -->
+<aside class="app-drawer" id="projects-projects-drawer" aria-labelledby="projects-drawer-title" aria-hidden="true" role="dialog">
+  <div class="drawer-header">
+    <h3 id="projects-projects-drawer-title" class="drawer-title">
+      <i class="fas fa-person-running" aria-hidden="true"></i>
+ Tarefas em Andamento
+ </h3>
+ <button
+      class="btn-icon drawer-close-btn"
+      aria-label="Fechar painel de tarefas"
+      type="button">
+      <i class="fas fa-times" aria-hidden="true"></i>
+ </button>
+ </div>
+  <div class="drawer-content" id="projects-projects-list">
+ <!-- Exemplo de tarefas -->
+    <div class="project-item">
+      <div class="project-info">
+        <h5 class="project-title">Gerando Relatório de Frequência (Setembro)</h5>
+        <span class="project-status">75% concluído</span>
+ </div>
+      <div class="project-progress">
+        <div class="progress-bar"  style="width: 75%"></div>
+ </div>
+ </div>
+    <div class="project-item">
+      <div class="project-info">
+        <h5 class="project-title">Sincronizando dados com o servidor</h5>
+        <span class="project-status">Processando...</span>
+ </div>
+      <div class="project-progress">
+        <div class="progress-bar indeterminate"></div>
+ </div>
+ </div>
+ </div>
+  <div class="drawer-footer">
+    <button type="button" class="btn btn-secondary" aria-label="Limpar tarefas concluídas">
+      <i class="fas fa-broom" aria-hidden="true"></i> Limpar Concluídos
+ </button>
+ </div>
+</aside>
+
+
+
+<!--============================================================================-->
